@@ -2,10 +2,11 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test staged ingress registration."""
+"""Test staged ingress claim and reconciliation."""
 import io
 import json
 import tempfile
+import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -13,6 +14,7 @@ from unittest.mock import patch
 import requests_mock
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
+from django.conf import settings
 from django.db import OperationalError
 from django.test import SimpleTestCase
 from django.utils import timezone
@@ -24,10 +26,17 @@ from masu.config import Config
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.downloader.ocp.exceptions import SUCCESS_CONFIRM_STATUS
+from masu.external.downloader.ocp.payload_landing import claim_ingress_staging_row
+from masu.external.downloader.ocp.payload_landing import expire_ingress_staging
+from masu.external.downloader.ocp.payload_landing import mark_processed
 from masu.external.downloader.ocp.payload_landing import PROCESS_STAGED_INGRESS_TASK
+from masu.external.downloader.ocp.payload_landing import reconcile_ingress_staging
+from masu.external.downloader.ocp.payload_landing import record_line_item_handoff
 from masu.external.downloader.ocp.payload_landing import register_ingress_staging_marker
 from masu.external.downloader.ocp.payload_landing import REGISTER_INGRESS_STAGING_TASK
+from masu.external.downloader.ocp.payload_landing import release_for_retry
 from masu.external.downloader.ocp.payload_landing import stage_ingress_s3_inbox
+from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RECONCILE_BATCH
 from masu.external.downloader.ocp.payload_landing.keys import _pending_marker_key
 from masu.external.downloader.ocp.payload_landing.keys import _pending_marker_prefix
 from masu.external.downloader.ocp.payload_landing.keys import _receipt_key
@@ -69,6 +78,231 @@ class IngressStagingTests(MasuTestCase):
         defaults.update(kwargs)
         return IngressStagingPayload.objects.create(**defaults)
 
+    def test_claim_is_single_winner(self):
+        """Test that a second claim loses while the first lease is active."""
+        row = self._pending_row("claim-one")
+        first = claim_ingress_staging_row(row.request_id)
+        second = claim_ingress_staging_row(row.request_id)
+
+        self.assertEqual(first.state, IngressStagingState.PROCESSING)
+        self.assertEqual(first.attempts, 1)
+        self.assertIsNotNone(first.claim_token)
+        self.assertIsNone(second)
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PROCESSING)
+        self.assertEqual(row.attempts, 1)
+        self.assertEqual(row.claim_token, first.claim_token)
+
+    def test_claim_leaves_exhausted_row_unchanged(self):
+        """Test that a row at the retry limit is not claimed and is not marked failed here."""
+        row = self._pending_row("claim-max", attempts=settings.MAX_UPDATE_RETRIES)
+        self.assertIsNone(claim_ingress_staging_row(row.request_id))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertEqual(row.attempts, settings.MAX_UPDATE_RETRIES)
+        self.assertIsNone(row.last_error)
+
+    def test_lost_claim_cannot_finish_the_row(self):
+        """Test that a worker whose lease was taken cannot write processed or pending."""
+        row = self._pending_row("fence-lost")
+        first = claim_ingress_staging_row(row.request_id)
+        stolen = claim_ingress_staging_row(row.request_id, now=timezone.now() + timedelta(hours=3))
+
+        self.assertIsNotNone(stolen)
+        self.assertNotEqual(stolen.claim_token, first.claim_token)
+        self.assertFalse(mark_processed(row.request_id, first.claim_token))
+        self.assertFalse(release_for_retry(row.request_id, first.claim_token, RuntimeError("late")))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PROCESSING)
+        self.assertEqual(row.claim_token, stolen.claim_token)
+        self.assertEqual(row.attempts, stolen.attempts)
+        self.assertIsNotNone(row.payload)
+
+    def test_release_marks_exhausted_claim_failed(self):
+        """Test that the retry limit is applied by the worker that still holds the token."""
+        row = self._pending_row("release-max", attempts=settings.MAX_UPDATE_RETRIES - 1)
+        claimed = claim_ingress_staging_row(row.request_id)
+        self.assertTrue(release_for_retry(row.request_id, claimed.claim_token, RuntimeError("hive down")))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.FAILED)
+        self.assertIn("RuntimeError", row.last_error)
+        self.assertIsNone(row.claim_token)
+        self.assertIsNotNone(row.payload)
+
+    def test_release_returns_row_to_pending_with_backoff(self):
+        """Test that a retriable failure sets pending state and exponential not_before."""
+        row = self._pending_row("release-retry")
+        claimed = claim_ingress_staging_row(row.request_id)
+        before = timezone.now()
+        self.assertTrue(release_for_retry(row.request_id, claimed.claim_token, ValueError("transient")))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertIsNone(row.claim_token)
+        self.assertIsNone(row.reconciled_at)
+        self.assertEqual(row.attempts, 1)
+        self.assertIn("ValueError", row.last_error)
+        self.assertGreaterEqual(row.not_before, before + timedelta(minutes=1) - timedelta(seconds=2))
+        self.assertLessEqual(row.not_before, before + timedelta(minutes=1) + timedelta(seconds=2))
+
+    @patch("masu.external.downloader.ocp.payload_landing.claim._log_lost_claim")
+    @patch("masu.external.downloader.ocp.payload_landing.claim._claim_filter")
+    def test_release_for_retry_lost_during_retry_update(self, mock_claim_filter, mock_log_lost):
+        """Test that a lost token during the pending update does not write retry state."""
+        row = MagicMock()
+        row.attempts = 2
+        claim_token = uuid.uuid4()
+        mock_qs = MagicMock()
+        mock_qs.first.return_value = row
+        mock_qs.update.return_value = 0
+        mock_claim_filter.return_value = mock_qs
+
+        self.assertFalse(release_for_retry("retry-lost", claim_token, RuntimeError("race")))
+        mock_log_lost.assert_called_once_with("retry-lost", "retry")
+        mock_qs.update.assert_called_once()
+        update_kwargs = mock_qs.update.call_args.kwargs
+        self.assertEqual(update_kwargs["state"], IngressStagingState.PENDING)
+        self.assertEqual(update_kwargs["last_error"], "RuntimeError: race")
+        self.assertIsNone(update_kwargs["claim_token"])
+        self.assertIsNone(update_kwargs["reconciled_at"])
+        expected_not_before = timezone.now() + timedelta(minutes=2)
+        self.assertAlmostEqual(
+            update_kwargs["not_before"].timestamp(),
+            expected_not_before.timestamp(),
+            delta=2,
+        )
+
+    def test_reconcile_fails_exhausted_expired_lease(self):
+        """Test that reconciler fails processing rows stuck after max retries and lease expiry."""
+        row = self._pending_row(
+            "stuck-max",
+            state=IngressStagingState.PROCESSING,
+            claimed_at=timezone.now() - timedelta(hours=3),
+            attempts=settings.MAX_UPDATE_RETRIES,
+            claim_token=uuid.uuid4(),
+        )
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
+            reconcile_ingress_staging()
+
+        mock_enqueue.assert_not_called()
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.FAILED)
+        self.assertIn("LeaseExpired", row.last_error)
+        self.assertIsNone(row.claim_token)
+
+    def test_reconcile_skips_processing_rows_waiting_on_ocp_handoff(self):
+        """Test that an expired worker lease does not reclaim a row handed off to OCP."""
+        handoff = self._pending_row(
+            "ocp-handoff",
+            state=IngressStagingState.PROCESSING,
+            claimed_at=timezone.now() - timedelta(hours=3),
+            enqueued_at=timezone.now() - timedelta(hours=1),
+            attempts=1,
+            claim_token=uuid.uuid4(),
+        )
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
+            reconcile_ingress_staging()
+
+        mock_enqueue.assert_not_called()
+        handoff.refresh_from_db()
+        self.assertEqual(handoff.state, IngressStagingState.PROCESSING)
+        self.assertEqual(handoff.attempts, 1)
+
+    def test_claim_respects_ocp_handoff_window(self):
+        """Test that a second claim loses while line items wait on the OCP queue."""
+        row = self._pending_row("handoff-claim")
+        first = claim_ingress_staging_row(row.request_id)
+        record_line_item_handoff(row.request_id, first.claim_token, now=timezone.now() - timedelta(hours=1))
+        row.claimed_at = timezone.now() - timedelta(hours=3)
+        row.save(update_fields=["claimed_at"])
+        self.assertIsNone(claim_ingress_staging_row(row.request_id))
+
+    def test_reconcile_enqueues_after_release_for_retry(self):
+        """Test that delayed pending rows are published once backoff and grace pass."""
+        row = self._pending_row(
+            "retry-pending",
+            state=IngressStagingState.PROCESSING,
+            attempts=1,
+            claim_token=uuid.uuid4(),
+            claimed_at=timezone.now() - timedelta(minutes=10),
+            reconciled_at=timezone.now() - timedelta(minutes=5),
+        )
+        release_for_retry(row.request_id, row.claim_token, RuntimeError("transient"))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertIsNone(row.reconciled_at)
+        row.not_before = timezone.now() - timedelta(minutes=1)
+        row.save(update_fields=["not_before"])
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
+            reconcile_ingress_staging()
+        mock_enqueue.assert_called_once_with(
+            PROCESS_STAGED_INGRESS_TASK,
+            args=[row.request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
+
+    def test_reconcile_enqueues_stale_rows_only(self):
+        """Test that the beat skips fresh pending rows and rows waiting on backoff."""
+        stale = self._pending_row("stale-row")
+        self._pending_row("fresh-row", stored_at=timezone.now(), not_before=timezone.now())
+        self._pending_row("waiting-row", not_before=timezone.now() + timedelta(hours=1))
+        expired = self._pending_row(
+            "expired-lease",
+            state=IngressStagingState.PROCESSING,
+            claimed_at=timezone.now() - timedelta(hours=3),
+            attempts=1,
+        )
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
+            reconcile_ingress_staging()
+
+        enqueued = [enqueued_call.kwargs["args"][0] for enqueued_call in mock_enqueue.call_args_list]
+        self.assertCountEqual(enqueued, [stale.request_id, expired.request_id])
+
+    def test_reconcile_enqueues_each_stale_row_once(self):
+        """Test that a second beat does not publish a row it already handed off."""
+        stale = self._pending_row("enqueue-once")
+        expired = self._pending_row(
+            "enqueue-once-expired",
+            state=IngressStagingState.PROCESSING,
+            claimed_at=timezone.now() - timedelta(hours=3),
+            attempts=1,
+        )
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
+            reconcile_ingress_staging()
+            reconcile_ingress_staging()
+
+        enqueued = [enqueued_call.kwargs["args"][0] for enqueued_call in mock_enqueue.call_args_list]
+        self.assertCountEqual(enqueued, [stale.request_id, expired.request_id])
+
+    def test_reconcile_swallows_broker_errors(self):
+        """Test that a broker error on one row does not fail the reconciler."""
+        self._pending_row("broker-down")
+        with patch(
+            "masu.external.downloader.ocp.payload_landing.register.celery_app.send_task",
+            side_effect=KombuOperationalError("broker down"),
+        ):
+            reconcile_ingress_staging()
+        row = IngressStagingPayload.objects.get(request_id="broker-down")
+        self.assertIsNone(row.reconciled_at)
+
+    def test_reconcile_does_not_block_claim_after_expired_processing(self):
+        """Test that reconciler publish-once does not set the OCP handoff lease."""
+        row = self._pending_row(
+            "reconcile-then-claim",
+            state=IngressStagingState.PROCESSING,
+            claimed_at=timezone.now() - timedelta(hours=3),
+            attempts=1,
+            claim_token=uuid.uuid4(),
+        )
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task"):
+            reconcile_ingress_staging()
+
+        row.refresh_from_db()
+        self.assertIsNotNone(row.reconciled_at)
+        self.assertIsNone(row.enqueued_at)
+        claimed = claim_ingress_staging_row(row.request_id)
+        self.assertIsNotNone(claimed)
+        self.assertEqual(claimed.state, IngressStagingState.PROCESSING)
+
     def test_stage_http_429_rewinds(self):
         """Test that a rate-limited quarantine download is retried by the consumer."""
         url = "http://insights-upload.example/quarantine/file"
@@ -98,6 +332,78 @@ class IngressStagingTests(MasuTestCase):
                         "gone-404", {"url": url, "org_id": self.org_id}, {"org_id": self.org_id}
                     )
         self.assertEqual(status, FAILURE_CONFIRM_STATUS)
+
+    def test_expire_deletes_old_processed_rows_only(self):
+        """Test that retention removes processed rows and leaves failed rows."""
+        old = self._pending_row(
+            "expire-old",
+            state=IngressStagingState.PROCESSED,
+            stored_at=timezone.now() - timedelta(days=8),
+        )
+        self._pending_row(
+            "expire-recent",
+            state=IngressStagingState.PROCESSED,
+            stored_at=timezone.now() - timedelta(days=1),
+        )
+        failed = self._pending_row(
+            "expire-failed",
+            state=IngressStagingState.FAILED,
+            stored_at=timezone.now() - timedelta(days=8),
+        )
+        with patch(
+            "masu.external.downloader.ocp.payload_landing.expire.delete_s3_objects",
+            return_value=[{"Key": old.s3_key}],
+        ) as mock_delete:
+            expire_ingress_staging()
+
+        self.assertCountEqual(mock_delete.call_args.args[1], [old.s3_key, _receipt_key(old.request_id)])
+
+        self.assertFalse(IngressStagingPayload.objects.filter(request_id=old.request_id).exists())
+        self.assertTrue(IngressStagingPayload.objects.filter(request_id="expire-recent").exists())
+        failed.refresh_from_db()
+        self.assertEqual(failed.state, IngressStagingState.FAILED)
+
+    def test_expire_leaves_rows_when_s3_delete_fails(self):
+        """Test that a failed object delete keeps processed rows for a later run."""
+        old = self._pending_row(
+            "expire-s3-fail",
+            state=IngressStagingState.PROCESSED,
+            stored_at=timezone.now() - timedelta(days=8),
+        )
+        with patch(
+            "masu.external.downloader.ocp.payload_landing.expire.delete_s3_objects",
+            return_value=[],
+        ) as mock_delete:
+            deleted = expire_ingress_staging()
+
+        self.assertEqual(deleted, 0)
+        mock_delete.assert_called_once()
+        self.assertTrue(IngressStagingPayload.objects.filter(request_id=old.request_id).exists())
+
+    def test_expire_loops_until_backlog_drained(self):
+        """Test that one hourly run deletes more than a single reconcile batch."""
+        old_stored = timezone.now() - timedelta(days=8)
+        row_count = INGRESS_STAGING_RECONCILE_BATCH + 25
+        for index in range(row_count):
+            self._pending_row(
+                f"expire-batch-{index}",
+                state=IngressStagingState.PROCESSED,
+                stored_at=old_stored,
+            )
+        with patch(
+            "masu.external.downloader.ocp.payload_landing.expire.delete_s3_objects",
+            return_value=[{"Key": "deleted"}],
+        ) as mock_delete:
+            deleted = expire_ingress_staging()
+
+        self.assertEqual(deleted, row_count)
+        self.assertEqual(mock_delete.call_count, 2)
+        self.assertFalse(
+            IngressStagingPayload.objects.filter(
+                state=IngressStagingState.PROCESSED,
+                stored_at__lte=old_stored,
+            ).exists()
+        )
 
     def _marker_document(self, request_id, s3_key, identity="secret-identity"):
         return {
@@ -314,6 +620,43 @@ class IngressStagingTests(MasuTestCase):
         self.assertEqual(row.payload["b64_identity"], "original-secret")
         self.assertEqual(row.s3_key, document["s3_key"])
         mock_enqueue.assert_not_called()
+
+    def test_reconcile_registers_pending_markers(self):
+        """Test that the beat inserts a row from a pending marker and records the marker gauges."""
+        request_id = "marker-from-beat"
+        s3_key = f"data/ingress_staging/{self.org_id}/cluster-1/{request_id}.tar.gz"
+        document = self._marker_document(request_id, s3_key)
+        pending_key = f"data/ingress_staging/pending/{request_id}.json"
+        self.list_markers.return_value = ([pending_key], timezone.now() - timedelta(minutes=10))
+        with (
+            patch("masu.external.downloader.ocp.payload_landing.register._read_marker_json", return_value=document),
+            patch(
+                "masu.external.downloader.ocp.payload_landing.register.delete_s3_objects",
+                return_value=[{"Key": pending_key}],
+            ) as mock_delete,
+            patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue,
+            patch(
+                "masu.external.downloader.ocp.payload_landing.register.INGRESS_STAGING_PENDING_MARKERS"
+            ) as mock_count,
+            patch(
+                "masu.external.downloader.ocp.payload_landing.register.INGRESS_STAGING_PENDING_MARKER_OLDEST_AGE"
+            ) as mock_age,
+        ):
+            reconcile_ingress_staging()
+
+        row = IngressStagingPayload.objects.get(request_id=request_id)
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertEqual(row.s3_key, s3_key)
+        self.assertEqual(row.cluster_id, "cluster-1")
+        self.assertEqual(row.payload["b64_identity"], "secret-identity")
+        mock_delete.assert_called_once_with(request_id, [pending_key], {})
+        mock_enqueue.assert_called_once_with(
+            PROCESS_STAGED_INGRESS_TASK,
+            args=[request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
+        mock_count.set.assert_called_once_with(1)
+        self.assertGreater(mock_age.set.call_args.args[0], 0)
 
 
 class S3KeyExistsTests(SimpleTestCase):
