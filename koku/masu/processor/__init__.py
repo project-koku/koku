@@ -38,6 +38,7 @@ OCP_MARKUP_SKIP_UNCHANGED_FLAG = "cost-management.backend.ocp_markup_skip_unchan
 OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG = "cost-management.backend.ocp_on_cloud_pg_idempotent_delete"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
 OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
+OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG = "cost-management.backend.ocp-special-matched-tags-from-summary"
 OCP_TAG_MAPPING_DIAGNOSTICS_FLAG = "cost-management.backend.ocp_tag_mapping_diagnostics"
 OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG = "cost-management.backend.ocp_tag_mapping_statement_timeout"
 PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
