@@ -6,7 +6,7 @@ The flag defaults off. Stage and production stay on the previous listener until 
 
 Design notes for this change live at [`decouple-kafka-ingress.md`](../../decouple-kafka-ingress.md). The punch list in [`decouple-kafka-ingress-followups.md`](../../decouple-kafka-ingress-followups.md) is implemented in this branch.
 
-Related: [OpenShift CSV processing](csv-processing-ocp.md), [Celery tasks](celery-tasks.md).
+Related: [end-to-end workflow walkthrough](payload_landing_workflow.md), [OpenShift CSV processing](csv-processing-ocp.md), [Celery tasks](celery-tasks.md).
 
 ## Concept
 
@@ -40,8 +40,8 @@ The flag keeps both shapes in the same binary. Off is the current thread. On is 
 
 - **Kafka lag follows download time, not database or Trino time.** A Hive metastore outage or a manifest deadlock delays cost data. It does not stall the consumer for every other tenant.
 - **A worker crash does not lose the upload.** The tarball, the receipt, and the pending marker are written before the offset is committed. The reconciler creates the staging row and retries from that record. The dead-letter path parks payloads and has no replay worker; this path does.
-- **Redelivery is safe.** The same `request_id` does not upload a second object. A claim token plus a heartbeat means a second worker does not run extract or line items while the first still holds the row. Day-slice names are a hash of the CSV bytes, so a replay writes the same object key and no longer locks `report_tracker`.
-- **Large clusters stay on the queues that already exist for them.** Extract is shared on `ingress`. Line items use `ocp`, `ocp_xl`, or `ocp_penalty`. The scheduler pod publishes the beat tasks and does not run Trino for them.
+- **Redelivery is safe.** The same `request_id` does not upload a second inbox object (receipt HEAD/idempotency). A claim token plus a heartbeat means a second worker does not run extract or line items while the first still holds the row. After the staging row is `processed`, Kafka redelivery does not re-run extract (E1 in the QE plan).
+- **Large clusters stay on the queues that already exist for them.** Register, reconcile, expire, extract, and line items route to the customer OCP pool (`ocp`, `ocp_xl`, or `ocp_penalty`) via [`get_customer_queue`](../../koku/common/queues.py). The scheduler pod publishes the beat tasks and does not run Trino for them.
 - **A hung quarantine download can end.** The body is streamed to disk with connect and read timeouts. HTTP 408 and 429 rewind; a gone object confirms as failure.
 - **A confirmed upload that never becomes cost data is visible.** Gauges report pending rows, failed rows, and the age of the oldest unfinished row. Permanent failure is logged with `request_id`, org, cluster, and object key.
 - **Rollout is per schema.** The previous listener remains in the binary. One tenant can take the new path while the rest stay on the old one.
@@ -53,7 +53,7 @@ The flag keeps both shapes in the same binary. Off is the current thread. On is 
 - **More places to fail after Kafka has moved on.** Extract, parquet, and summarization errors no longer rewind the topic. They retry on the row, then sit in `failed` with the object kept. Ingress is not told again. Someone has to watch `ingress_staging_failed` and replay or drop those rows. This branch adds the gauges and does not add a page.
 - **Identity sits in the pending marker, then the public table, until the row is processed.** `payload` includes `b64_identity` so ROS can run on the worker. It is cleared on success. Failed rows keep it until an operator acts. Processed rows and objects expire after seven days.
 - **Each payload is copied more than once.** Quarantine to disk, disk to `ingress_staging/`, worker back to disk, daily CSVs to the bucket, then those CSVs onto the line-item pod. That is the cost of letting the listener return before extract.
-- **Extract is still a shared queue.** One large tarball can sit in front of other staged payloads on `ingress`. Customer fairness applies after extract, when line items move to the OCP queues.
+- **Staging work shares the customer OCP queue.** One large tarball occupies a worker slot on that tenant’s `ocp` / `ocp_xl` / `ocp_penalty` pool alongside ordinary OCP report tasks until extract and line items finish.
 - **The state machine is easy to get wrong.** Lease, claim token, heartbeat, soft time limit, reconciler `reconciled_at`, and handoff `enqueued_at` all have to agree. A worker that loses the token must not overwrite `processed`. The tests cover that; the operational story is heavier than the old single-threaded path.
 - **On-prem does not take this path yet.** Production on-prem keeps the listener that talks to Postgres on the consumer thread. The flag is a SaaS rollout until it is added to the on-prem defaults.
 
@@ -65,8 +65,8 @@ The flag keeps both shapes in the same binary. Off is the current thread. On is 
 | Download | [`download_payload`](../../koku/masu/external/downloader/ocp/download.py) streams the quarantine body to disk (1 MiB chunks, 10s connect timeout, 60s read timeout). HTTP 408 and 429 rewind the consumer. Other 4xx responses, including a missing quarantine object, confirm as failure. |
 | Staging record | Public table `reporting_common_ingress_staging_payload` ([`IngressStagingPayload`](../../koku/reporting_common/models.py), migration [`0047_ingressstagingpayload`](../../koku/reporting_common/migrations/0047_ingressstagingpayload.py)). Apply that migration before any schema has the flag on. The listener does not read or write the table. [`register_ingress_staging_marker`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) upserts the row from the pending marker. A database error leaves the marker for the next beat. |
 | Object layout | `{WAREHOUSE_PATH}/ingress_staging/{org_id}/{cluster_id}/{request_id}.tar.gz`, plus `pending/` and `by_request/` markers. `cluster_id` and the manifest uuid come from a manifest peek. The listener does not extract the archive. |
-| Workers | [`process_staged_ingress_payload`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) claims the row and extracts on the `ingress` queue. [`process_staged_ingress_reports`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) runs line items on the customer OCP queue (`ocp`, `ocp_xl`, or `ocp_penalty`). |
-| Day slices | Daily CSV names are `{report_type}.{day}.{manifest_id}.{digest}.csv`. `digest` is the first 12 hex characters of the SHA-256 of that slice. An identical replay writes the same object key. [`divide_csv_daily`](../../koku/masu/processor/ocp/staged_payloads/processing.py) no longer takes the manifest `report_tracker` row lock. |
+| Workers | [`process_staged_ingress_payload`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) claims the row and extracts on the customer OCP queue. [`process_staged_ingress_reports`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) runs line items on that same queue family (`ocp`, `ocp_xl`, or `ocp_penalty`). |
+| Day slices | Unchanged from legacy: [`divide_csv_daily`](../../koku/masu/processor/ocp/staged_payloads/processing.py) still names daily files `{report_type}.{day}.{manifest_id}.{counter}.csv` using manifest `report_tracker` and `select_for_update`. Staging and legacy both call the same `extract_payload` path. **New naming applies only to inbox objects** under `ingress_staging/` (tar, receipt, pending marker). |
 | Dead-letter queue | Unchanged, and still second. It runs only when the staging flag is off and `cost-management.backend.ingress-dead-letter-queue` is on. |
 
 The previous listener path remains as [`legacy_message_processing`](../../koku/masu/external/kafka_msg_handler.py). Extract and line-item code moved from `kafka_msg_handler.py` into [`processing.py`](../../koku/masu/processor/ocp/staged_payloads/processing.py). The listener still calls that module when the flag is off.
@@ -104,7 +104,7 @@ flowchart TD
         upsert -->|new row| pendingRow["state is pending"]
         sameState --> dropMarker["Delete pending marker"]
         pendingRow --> dropMarker
-        dropMarker --> extractQ["Enqueue extract on the ingress queue"]
+        dropMarker --> extractQ["Enqueue extract on customer OCP queue"]
     end
 
     subgraph workers [Workers]
@@ -184,36 +184,27 @@ Retries use `not_before` with backoff `min(2^(attempts-1), 30)` minutes. At the 
 
 | Task | Schedule | Queue | Role |
 |------|----------|-------|------|
-| [`reconcile_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) | Every minute | `ingress` | Registers up to 1000 pending S3 markers, then enqueues rows the eager handoff did not finish. It does not claim them. A successful publish sets `reconciled_at`; that `request_id` is skipped until the two-hour lease passes. `enqueued_at` is set only by line-item handoff. Pending rows younger than one minute are left for the in-flight task. Row batch size 100. |
-| [`expire_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/expire.py) | Hourly at minute 0 | `ingress` | Deletes `processed` rows with `stored_at` older than 7 days and deletes the tarball and `by_request` receipt. `failed` rows and their objects stay until an operator replays or drops them. |
+| [`reconcile_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) | Every minute | `ocp` (beat default) | Registers up to 1000 pending S3 markers, then enqueues rows the eager handoff did not finish. It does not claim them. A successful publish sets `reconciled_at`; that `request_id` is skipped until the two-hour lease passes. `enqueued_at` is set only by line-item handoff. Pending rows younger than one minute are left for the in-flight task. Row batch size 100. |
+| [`expire_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/expire.py) | Hourly at minute 0 | `ocp` (beat default) | Deletes `processed` rows with `stored_at` older than 7 days and deletes the tarball and `by_request` receipt. `failed` rows and their objects stay until an operator replays or drops them. |
 
-The OCP worker consumes `ocp,ingress` ([`deploy/clowdapp.yaml`](../../deploy/clowdapp.yaml), [`worker-ocp.yaml`](../../deploy/kustomize/patches/worker-ocp.yaml)). `SCHEDULER_WORKER_QUEUE` does not include `ingress`, so the scheduler publishes the beat tasks and does not run extract or Trino for them.
+[`worker-ocp`](../../deploy/kustomize/patches/worker-ocp.yaml), `worker-ocp-xl`, and `worker-ocp-penalty` each consume a single queue (`ocp`, `ocp_xl`, `ocp_penalty`). Staging register, reconcile, and expire default to `ocp`; extract and line-item enqueues use [`_staging_celery_queue`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) so large or penalty tenants hit the matching pool. `SCHEDULER_WORKER_QUEUE` does not include those queues, so the scheduler publishes beat tasks only.
 
-**Shared worker capacity.** `worker-ocp` multiplexes both queues on the same Celery concurrency. A long `ocp` task (parquet, Trino on SaaS) occupies a slot that cannot run `ingress` work until it finishes. Line items after extract use `ocp`, `ocp_xl`, or `ocp_penalty` on the matching OCP worker pools; only register, reconcile, expire, and tarball extract share the single `ingress` queue.
+**Shared worker capacity.** Staging extract and line items share Celery concurrency with ordinary OCP report work on the same queue. A long parquet or Trino task occupies a slot until it finishes.
 
-**Autoscaling.** KEDA for `worker-ocp` scales on `koku:celery:ocp_queue` only ([`WORKER_OCP_TRIGGER_QUERY`](../../deploy/kustomize/patches/worker-ocp.yaml)). Deep `ocp` backlog adds replicas that also drain `ingress`. Ingress-only pressure does not trigger scale-out until a recording rule exists and the trigger query includes ingress depth (see below).
+**Autoscaling.** KEDA for each OCP worker deployment scales on its `koku:celery:ocp_queue` (or xl/penalty sibling) recording rule ([`WORKER_OCP_TRIGGER_QUERY`](../../deploy/kustomize/patches/worker-ocp.yaml)). Staging backlog contributes to the same depth as other OCP tasks for that pool.
 
 ### Metrics
 
 | Metric | Source | Meaning |
 |--------|--------|---------|
-| `ingress_backlog` | [`collect_queue_metrics`](../../koku/masu/celery/tasks.py) on worker metrics scrape | Celery depth of the `ingress` queue |
+| `ocp_backlog`, `ocp_xl_backlog`, `ocp_penalty_backlog` | [`collect_queue_metrics`](../../koku/masu/celery/tasks.py) on worker metrics scrape | Celery depth per OCP pool (includes staged ingress work) |
 | `ingress_staging_pending` | [`reconcile_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) (also register for marker gauges) | Rows in `pending` |
 | `ingress_staging_failed` | Reconciler | Rows in `failed` |
 | `ingress_staging_oldest_unprocessed_seconds` | Reconciler | Age of the oldest row in `pending`, `processing`, or `failed` |
 | `ingress_staging_pending_markers` | [`register_ingress_staging_marker`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) | Pending S3 markers listed this run, capped at 1000 |
 | `ingress_staging_pending_marker_oldest_seconds` | Register task | Age of the oldest marker in that listing |
 
-**Grafana.** The Cost Management dashboard ([`grafana-dashboard-insights-hccm.configmap.yaml`](../../dashboards/grafana-dashboard-insights-hccm.configmap.yaml)) has an **Ingress staging** row: `koku:celery:ingress_queue`, staging row counts, and oldest-unprocessed age (filter `namespace` like other panels).
-
-**Prometheus recording rule.** Queue panels and KEDA use `koku:celery:*_queue` recording rules maintained in app-interface (same pattern as `koku:celery:ocp_queue`). Add a sibling rule for ingress, for example:
-
-```yaml
-- record: koku:celery:ingress_queue
-  expr: sum(ingress_backlog{namespace=~"hccm-.*"})
-```
-
-Until that rule is deployed, query `sum(ingress_backlog{namespace="$namespace"})` directly or rely on the raw gauge in ad-hoc queries.
+**Grafana.** The Cost Management dashboard ([`grafana-dashboard-insights-hccm.configmap.yaml`](../../dashboards/grafana-dashboard-insights-hccm.configmap.yaml)) has an **Ingress staging** row: `koku:celery:ocp_queue` (staging shares the default OCP pool), staging row counts, and oldest-unprocessed age (filter `namespace` like other panels). Watch `ocp_xl` / `ocp_penalty` recording rules for large or penalty tenants.
 
 Indexes: `(state, not_before)` for claims, `(state, claimed_at)` for lease reclaim.
 

@@ -12,7 +12,7 @@ Design: [`docs/architecture/payload_landing.md`](../../../docs/architecture/payl
 
 | Step | Prefer |
 |------|--------|
-| Start SaaS + Kafka + beat + listener + ingress worker | `make docker-up-payload-landing` (or `make docker-up-payload-landing-no-build`) |
+| Start SaaS + Kafka + beat + listener + worker | `make docker-up-payload-landing` (or `make docker-up-payload-landing-no-build`; includes `koku-worker` on `ocp`) |
 | Migrations / test customer | `make run-migrations`, `make create-test-customer` |
 | Publish Kafka announce | `make publish-hccm-upload request_id=…` |
 | Verify lag, S4, PG, listener logs | `make payload-landing-status` |
@@ -41,7 +41,7 @@ make run-migrations
 make create-test-customer
 ```
 
-`docker-up-payload-landing` is the SaaS min stack plus Kafka (`init-kafka` topics), `koku-beat`, `koku-listener`, and `ingress-worker`.
+`docker-up-payload-landing` is the SaaS min stack plus Kafka (`init-kafka` topics), `koku-beat`, `koku-listener`, and `koku-worker` (staging register, reconcile, extract, and line items run on the `ocp` queue).
 
 ---
 
@@ -102,12 +102,12 @@ COPYFILE_DISABLE=1 tar czf /tmp/ingress-payloads/payload.tar.gz -C "$MONTH_DIR" 
 
 ## 3. Baseline (everything up)
 
-With beat, ingress worker, listener, Postgres, and Trino up, publish a new id (or reuse checks from §2). Pass when:
+With beat, `koku-worker`, listener, Postgres, and Trino up, publish a new id (or reuse checks from §2). Pass when:
 
 1. Listener logs `ingress payload stored for registration` (no `Seeking back`).
 2. `hccm-group` lag on `platform.upload.announce` is 0.
 3. Tar, receipt, and pending marker appear in S4; pending clears after register.
-4. Row reaches `processed`, `payload_cleared` is true; ingress worker logs `staged ingress payload processed`.
+4. Row reaches `processed`, `payload_cleared` is true; `koku-worker` logs `staged ingress payload processed`.
 5. Trino lists tenant tables.
 
 ```bash
@@ -119,7 +119,7 @@ docker compose exec trino trino --catalog hive --schema org1234567 --execute "SH
 
 ## 4. Postgres stopped
 
-Stop DB only after listener, beat, and ingress worker are running (do not recreate the listener while Postgres is down).
+Stop DB only after listener, beat, and `koku-worker` are running (do not recreate the listener while Postgres is down).
 
 ```bash
 docker compose stop db
@@ -174,7 +174,7 @@ Restore before leaving:
 docker compose start db hive-metastore trino s4-path-proxy
 ```
 
-Stop the full stack (including Kafka and `ingress-worker`):
+Stop the full stack (including Kafka profile services):
 
 ```bash
 make docker-down

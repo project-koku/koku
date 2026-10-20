@@ -421,7 +421,7 @@ class ProcessStagedIngressTests(MasuTestCase):
         mock_process.assert_not_called()
 
     def test_scheduler_worker_queue_omits_ingress(self):
-        """Test that the scheduler pod is not subscribed to the ingress queue."""
+        """Test that the scheduler pod is not subscribed to the legacy ingress Celery queue."""
         repo = Path(__file__).resolve().parents[6]
         for relative in ("deploy/clowdapp.yaml", "deploy/kustomize/patches/scheduler.yaml"):
             queue_line = ""

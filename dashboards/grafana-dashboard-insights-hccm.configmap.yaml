@@ -4684,7 +4684,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Celery depth of the ingress queue (HCCM staging register, reconcile, extract)",
+          "description": "Celery depth of the default OCP queue (includes HCCM staging register, reconcile, extract, and line items for standard tenants)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4774,11 +4774,11 @@ data:
                 "type": "prometheus",
                 "uid": "${Datasource}"
               },
-              "expr": "koku:celery:ingress_queue",
+              "expr": "koku:celery:ocp_queue",
               "refId": "A"
             }
           ],
-          "title": "Ingress queue",
+          "title": "OCP queue",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -4794,7 +4794,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Celery depth of the ingress queue",
+          "description": "Celery depth of the default OCP queue (staging work shares this pool)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4852,11 +4852,11 @@ data:
                 "type": "prometheus",
                 "uid": "${Datasource}"
               },
-              "expr": "koku:celery:ingress_queue",
+              "expr": "koku:celery:ocp_queue",
               "refId": "A"
             }
           ],
-          "title": "Ingress queue",
+          "title": "OCP queue",
           "transformations": [
             {
               "id": "seriesToColumns",

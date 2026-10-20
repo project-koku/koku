@@ -112,9 +112,10 @@ fi
 
 TARBALL="${OUTPUT_DIR}/payload.tar.gz"
 export COPYFILE_DISABLE=1
-tar czf "${TARBALL}" -C "${MONTH_DIR}" .
+# List members explicitly so manifest.json is at the archive root (not ./manifest.json).
+tar czf "${TARBALL}" -C "${MONTH_DIR}" $(ls -A "${MONTH_DIR}")
 
-if ! tar tzf "${TARBALL}" | grep -qE '^(\./)?manifest\.json$'; then
+if ! tar tzf "${TARBALL}" | grep -qE '^manifest\.json$'; then
     log-err "Tarball missing manifest.json at archive root: ${TARBALL}"
     exit 1
 fi

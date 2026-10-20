@@ -273,7 +273,7 @@ curl -s "http://localhost:5042/api/cost-management/v1/download/?provider_uuid=<A
 
 #### Local payload landing (Kafka / HCCM)
 
-For the ingress staging listener path (Kafka announce → S4 → workers), use SaaS mode with the **`payload_landing`** Compose profile. Full outage walkthrough: [`payload-landing-local-test.md`](../dev/scripts/payload_landing/payload-landing-local-test.md). Architecture: [`architecture/payload_landing.md`](architecture/payload_landing.md).
+For the ingress staging listener path (Kafka announce → S4 → workers), use SaaS mode with the **`payload_landing`** Compose profile. `make docker-up-payload-landing` starts Kafka plus beat and listener; **`koku-worker`** from `docker-up-min` consumes the **`ocp`** queue where staging tasks run. Full outage walkthrough: [`payload-landing-local-test.md`](../dev/scripts/payload_landing/payload-landing-local-test.md). Architecture: [`architecture/payload_landing.md`](architecture/payload_landing.md).
 
 Manifest `start` / `end` must fall inside the listener retention window (`RETAIN_NUM_MONTHS`, default **four** calendar months). If the range is too old, the upload can succeed without producing cost data. Pick a recent month (as in the walkthrough) or derive `-s` / `-e` from today—do not reuse fixed example dates months later.
 

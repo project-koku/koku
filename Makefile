@@ -142,7 +142,7 @@ help:
 	@echo "                                         password: admin12"
 	@echo "  docker-up-min                        run database, koku/masu servers and worker"
 	@echo "  docker-up-kafka                      start Kafka, Zookeeper, and init topics"
-	@echo "  docker-up-payload-landing            SaaS min stack + Kafka + beat + listener + ingress worker"
+	@echo "  docker-up-payload-landing            SaaS min stack + Kafka + beat + listener (ocp via koku-worker)"
 	@echo "  docker-up-payload-landing-no-build   same as docker-up-payload-landing without image rebuild"
 	@echo "  payload-landing-status               Kafka lag, listener logs, S4 staging, PG rows"
 	@echo "  publish-hccm-upload                  publish test message to platform.upload.announce"
@@ -422,8 +422,7 @@ docker-up-payload-landing: docker-build docker-up-payload-landing-no-build
 
 docker-up-payload-landing-no-build: docker-up-min-no-build docker-up-payload-landing-kafka
 	$(DOCKER_COMPOSE) up -d koku-beat koku-listener
-	$(PAYLOAD_LANDING_COMPOSE) up -d ingress-worker
-	@echo "Payload landing stack ready (SaaS + Kafka + beat + listener + ingress worker)."
+	@echo "Payload landing stack ready (SaaS + Kafka + beat + listener; staging tasks on koku-worker ocp queue)."
 
 .PHONY: payload-landing-status publish-hccm-upload
 payload-landing-status:

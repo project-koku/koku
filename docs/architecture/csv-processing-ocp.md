@@ -233,7 +233,7 @@ JSON message containing:
 4. Write tar.gz to temporary file
 5. Return file path for extraction
 
-When `cost-management.backend.ingress-staging-listener` is enabled for the schema, the listener stops after storing the raw tarball. [`stage_ingress_s3_inbox()`](../../koku/masu/external/downloader/ocp/payload_landing/listener.py) derives the schema as `org{org_id}`, reads `cluster_id` and the manifest uuid, and writes the tar, a receipt, and a pending marker under `ingress_staging/`. It does not open Postgres. Download is finished at that point. It confirms the Kafka message without calling `extract_payload` or `process_report`. [`register_ingress_staging_marker()`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) upserts [`IngressStagingPayload`](../../koku/reporting_common/models.py). [`process_staged_ingress_payload()`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) on the `ingress` queue reads that object back and extracts it. Line items then run as `process_staged_ingress_reports` on the customer OCP queue (`ocp`, `ocp_xl`, or `ocp_penalty`). [`reconcile_ingress_staging()`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) runs every minute, registers pending markers, and enqueues rows the eager handoff did not finish. Production on-prem stays on the legacy listener until a later release. The flag stays off in stage and production until it is enabled per schema. With the flag off, the listener still extracts and splits on the consumer thread, as the following steps describe.
+When `cost-management.backend.ingress-staging-listener` is enabled for the schema, the listener stops after storing the raw tarball. [`stage_ingress_s3_inbox()`](../../koku/masu/external/downloader/ocp/payload_landing/listener.py) derives the schema as `org{org_id}`, reads `cluster_id` and the manifest uuid, and writes the tar, a receipt, and a pending marker under `ingress_staging/`. It does not open Postgres. Download is finished at that point. It confirms the Kafka message without calling `extract_payload` or `process_report`. [`register_ingress_staging_marker()`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) upserts [`IngressStagingPayload`](../../koku/reporting_common/models.py). [`process_staged_ingress_payload()`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) on the customer OCP queue reads that object back and extracts it. Line items then run as `process_staged_ingress_reports` on that same queue family (`ocp`, `ocp_xl`, or `ocp_penalty`). [`reconcile_ingress_staging()`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) runs every minute, registers pending markers, and enqueues rows the eager handoff did not finish. Production on-prem stays on the legacy listener until a later release. The flag stays off in stage and production until it is enabled per schema. With the flag off, the listener still extracts and splits on the consumer thread, as the following steps describe.
 
 #### **Step 3: Extract Tar.gz and Parse Manifest**
 
@@ -822,7 +822,7 @@ This pattern is repeated for different aggregation levels:
 │           confirm Kafka. No Postgres, extract, or line-item work.        │
 │  Flag off: extract, split CSVs by day, upload daily CSVs here.         │
 └───────────────────────────┬────────────────────────────────────────────┘
-                            │ ingress queue (best-effort register enqueue)
+                            │ OCP queue (best-effort register enqueue)
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │  Register task (register.py)                                           │
@@ -830,10 +830,10 @@ This pattern is repeated for different aggregation levels:
 │  extract. reconcile_ingress_staging (every minute) registers markers   │
 │  the listener enqueue missed (e.g. Postgres or broker outage).         │
 └───────────────────────────┬────────────────────────────────────────────┘
-                            │ ingress queue
+                            │ customer OCP queue (ocp / ocp_xl / ocp_penalty)
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│  Ingress worker (process_staged.py)                                    │
+│  OCP worker (process_staged.py)                                        │
 │  Read the staged tar from our bucket, then extract_payload and         │
 │  process_report for every file. Reconcile re-enqueues staging rows     │
 │  the register handoff did not finish.                                  │
