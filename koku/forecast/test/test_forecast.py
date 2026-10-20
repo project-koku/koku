@@ -76,6 +76,49 @@ class MockQuerySet:
         return len(self.data)
 
 
+class ForecastCurrencyTestMixin:
+    """Shared helpers for forecast exchange-rate tests."""
+
+    def _set_enabled_currencies(self, *currency_codes):
+        """Reset enabled currencies for the tenant schema."""
+        with schema_context(self.schema_name):
+            EnabledCurrency.objects.all().delete()
+            for currency_code in currency_codes:
+                EnabledCurrency.objects.create(currency_code=currency_code)
+            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
+
+    def _build_date_helper(self, day_of_month, year=2026, month=8):
+        """Build a real DateHelper pinned to a day in the given month."""
+        dh = DateHelper()
+        dh._now = datetime(year, month, day_of_month, 0, 0, 0, 0)
+        return dh
+
+    def _flat_training_data(self, yesterday, days=30):
+        """Return flat daily cost data spanning the training window."""
+        return MockQuerySet(
+            [
+                {
+                    "usage_start": (yesterday - timedelta(days=days - 1 - n)).date(),
+                    "total_cost": Decimal("100"),
+                    "infrastructure_cost": Decimal("100"),
+                    "supplementary_cost": Decimal("0"),
+                }
+                for n in range(days)
+            ]
+        )
+
+    def _upsert_monthly_exchange_rate(
+        self, base_currency, target_currency, effective_date, exchange_rate, rate_type="static"
+    ):
+        """Create or update one MonthlyExchangeRate row for stable KEEPDB test runs."""
+        return MonthlyExchangeRate.objects.update_or_create(
+            base_currency=base_currency,
+            target_currency=target_currency,
+            effective_date=effective_date,
+            defaults={"exchange_rate": exchange_rate, "rate_type": rate_type},
+        )
+
+
 class AWSForecastTest(IamTestCase):
     """Tests the AWSForecast class."""
 
@@ -698,7 +741,7 @@ class GCPForecastTest(IamTestCase):
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProjectP)
 
 
-class OCPForecastTest(IamTestCase):
+class OCPForecastTest(ForecastCurrencyTestMixin, IamTestCase):
     """Tests the OCPForecast class."""
 
     def test_predict_flat(self):
@@ -786,9 +829,7 @@ class OCPForecastTest(IamTestCase):
         )
 
         with schema_context(self.schema_name):
-            EnabledCurrency.objects.get_or_create(currency_code="USD")
-            EnabledCurrency.objects.get_or_create(currency_code="EUR")
-            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
+            self._set_enabled_currencies("USD", "EUR")
             params = self.mocked_query_params("?currency=EUR", OCPCostForecastView)
             forecast = OCPForecast(params)
             in_window = forecast.query_range[1].date()
@@ -983,7 +1024,7 @@ class LinearForecastResultTest(IamTestCase):
         self.assertEqual(lfr.intercept, 66666)
 
 
-class ForecastExchangeRateTest(IamTestCase):
+class ForecastExchangeRateTest(ForecastCurrencyTestMixin, IamTestCase):
     """Tests for exchange rate annotation and validation in forecast classes."""
 
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
@@ -1036,10 +1077,7 @@ class ForecastExchangeRateTest(IamTestCase):
         ExchangeRateDictionary.objects.create(currency_exchange_dictionary=fat_rates)
 
         with schema_context(self.schema_name):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="USD")
-            EnabledCurrency.objects.create(currency_code="EUR")
-            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
+            self._set_enabled_currencies("USD", "EUR")
 
             aws_ann = AWSForecast(self.mocked_query_params("?", AWSCostForecastView)).exchange_rate_annotation_dict
             ocp_ann = OCPForecast(self.mocked_query_params("?", OCPCostForecastView)).exchange_rate_annotation_dict
@@ -1050,10 +1088,10 @@ class ForecastExchangeRateTest(IamTestCase):
         self.assertEqual(len(ocp_ann["infra_exchange_rate"].cases), 2)
         self.assertLess(len(aws_ann["exchange_rate"].cases), len(fat_codes))
 
-    @patch("forecast.forecast.validate_exchange_rate_coverage")
+    @patch("forecast.forecast.get_monthly_exchange_rate_map")
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)
-    def test_predict_skips_validation_when_flag_off(self, _, mock_validate):
-        """predict() does not call validate_exchange_rate_coverage when flag is disabled."""
+    def test_predict_skips_validation_when_flag_off(self, _, mock_get_monthly_exchange_rate_map):
+        """predict() does not call get_monthly_exchange_rate_map when flag is disabled."""
         dh = DateHelper()
         expected = [
             {
@@ -1071,10 +1109,10 @@ class ForecastExchangeRateTest(IamTestCase):
         with patch("forecast.forecast.AWSForecast.get_data", return_value=mock_qset):
             instance.predict()
 
-        mock_validate.assert_not_called()
+        mock_get_monthly_exchange_rate_map.assert_not_called()
 
 
-class ForecastStaticRateTest(IamTestCase):
+class ForecastStaticRateTest(ForecastCurrencyTestMixin, IamTestCase):
     """Tests that static exchange rates apply fully regardless of day-of-month."""
 
     STATIC_RATE = Decimal("1.50")
@@ -1082,77 +1120,25 @@ class ForecastStaticRateTest(IamTestCase):
 
     def setUp(self):
         super().setUp()
-        with schema_context(self.schema_name):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="USD")
-            EnabledCurrency.objects.create(currency_code="EUR")
-            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
-
-    def _build_mock_dh(self, day_of_month, year=2026, month=8):
-        """Build a DateHelper mock fixed to a day in the given month."""
-        dh = DateHelper()
-        today = datetime(year, month, day_of_month, 0, 0, 0, 0)
-        yesterday = today - timedelta(days=1)
-        this_month_start = datetime(year, month, 1, 0, 0, 0, 0)
-        if month == 12:
-            next_month = datetime(year + 1, 1, 1, 0, 0, 0, 0)
-        else:
-            next_month = datetime(year, month + 1, 1, 0, 0, 0, 0)
-        this_month_end = next_month - timedelta(seconds=1)
-
-        mock_dh = Mock(spec=DateHelper)
-        mock_dh.return_value.today = today
-        mock_dh.return_value.yesterday = yesterday
-        mock_dh.return_value.this_month_start = this_month_start
-        mock_dh.return_value.this_month_end = this_month_end
-        mock_dh.return_value.n_days_ago = dh.n_days_ago
-        mock_dh.return_value.midnight = dh.midnight
-        mock_dh.return_value.list_days = dh.list_days
-        return mock_dh
-
-    def _flat_training_data(self, yesterday, days=30):
-        """Return flat daily cost data spanning the training window."""
-        expected = []
-        for n in range(days):
-            expected.append(
-                {
-                    "usage_start": (yesterday - timedelta(days=days - 1 - n)).date(),
-                    "total_cost": Decimal("100"),
-                    "infrastructure_cost": Decimal("100"),
-                    "supplementary_cost": Decimal("0"),
-                }
-            )
-        return MockQuerySet(expected)
+        self._set_enabled_currencies("USD", "EUR")
 
     def _seed_mer_rates(self, month_start):
         """Seed previous-month dynamic and current-month static MER rows."""
         prev_month = (month_start.replace(day=1) - timedelta(days=1)).replace(day=1)
         with schema_context(self.schema_name):
             MonthlyExchangeRate.objects.all().delete()
-            MonthlyExchangeRate.objects.create(
-                effective_date=prev_month,
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=self.PREV_RATE,
-                rate_type="dynamic",
-            )
-            MonthlyExchangeRate.objects.create(
-                effective_date=month_start,
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=self.STATIC_RATE,
-                rate_type="static",
-            )
+            self._upsert_monthly_exchange_rate("USD", "EUR", prev_month, self.PREV_RATE, rate_type="dynamic")
+            self._upsert_monthly_exchange_rate("USD", "EUR", month_start, self.STATIC_RATE)
 
-    def _predict_total(self, currency, mock_dh):
+    def _predict_total(self, currency, dh):
         """Run AWSForecast.predict() and return the first total cost prediction."""
         with schema_context(self.schema_name):
             params = self.mocked_query_params(f"?currency={currency}", AWSCostForecastView)
-        yesterday = mock_dh.return_value.yesterday
+        yesterday = dh.yesterday
         mock_qset = self._flat_training_data(yesterday)
 
         with (
-            patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh),
+            patch("forecast.forecast.DateHelper", return_value=dh),
             patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True),
             patch("forecast.forecast.AWSForecast.get_data", return_value=mock_qset),
             patch("forecast.forecast.AWSForecast._get_base_currencies_for_conversion", return_value={"USD"}),
@@ -1210,20 +1196,8 @@ class ForecastStaticRateTest(IamTestCase):
                 markup_cost=Decimal("0"),
                 currency_code="GBP",
             )
-            MonthlyExchangeRate.objects.create(
-                effective_date=month_start,
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=Decimal("2"),
-                rate_type="static",
-            )
-            MonthlyExchangeRate.objects.create(
-                effective_date=month_start,
-                base_currency="GBP",
-                target_currency="EUR",
-                exchange_rate=Decimal("4"),
-                rate_type="static",
-            )
+            self._upsert_monthly_exchange_rate("USD", "EUR", month_start, Decimal("2"))
+            self._upsert_monthly_exchange_rate("GBP", "EUR", month_start, Decimal("4"))
             params = self.mocked_query_params("?currency=EUR&cost_type=unblended_cost", AWSCostForecastView)
             rate = AWSForecast(params)._get_weighted_exchange_rate({"USD", "GBP"}, month_start)
 
@@ -1267,13 +1241,7 @@ class ForecastStaticRateTest(IamTestCase):
                 markup_cost=Decimal("0"),
                 currency_code="GBP",
             )
-            MonthlyExchangeRate.objects.create(
-                effective_date=dh.this_month_start.date(),
-                base_currency="EUR",
-                target_currency="USD",
-                exchange_rate=hidden_rate,
-                rate_type="static",
-            )
+            self._upsert_monthly_exchange_rate("EUR", "USD", dh.this_month_start.date(), hidden_rate)
             params = self.mocked_query_params(
                 "?currency=USD&cost_type=unblended_cost",
                 AWSCostForecastView,
@@ -1290,30 +1258,27 @@ class ForecastStaticRateTest(IamTestCase):
         """EUR/USD prediction ratio equals the current-month static rate on any day."""
         ratios = []
         for day in (1, 15, 28):
-            mock_dh = self._build_mock_dh(day)
-            month_start = mock_dh.return_value.this_month_start.date()
-            self._seed_mer_rates(month_start)
+            with self.subTest(day=day):
+                dh = self._build_date_helper(day)
+                month_start = dh.this_month_start.date()
+                self._seed_mer_rates(month_start)
 
-            eur_total = self._predict_total("EUR", mock_dh)
-            usd_total = self._predict_total("USD", mock_dh)
-            ratios.append(eur_total / usd_total)
+                eur_total = self._predict_total("EUR", dh)
+                usd_total = self._predict_total("USD", dh)
+                ratio = eur_total / usd_total
+                self.assertAlmostEqual(ratio, float(self.STATIC_RATE), places=2)
+                ratios.append(ratio)
 
-        for ratio in ratios:
-            self.assertAlmostEqual(ratio, float(self.STATIC_RATE), places=2)
         self.assertAlmostEqual(ratios[0], ratios[1], places=4)
         self.assertAlmostEqual(ratios[1], ratios[2], places=4)
 
 
-class OCPForecastStaticRateTest(IamTestCase):
+class OCPForecastStaticRateTest(ForecastCurrencyTestMixin, IamTestCase):
     """Tests OCP per-field static exchange rate multipliers."""
 
     def setUp(self):
         super().setUp()
-        with schema_context(self.schema_name):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="USD")
-            EnabledCurrency.objects.create(currency_code="EUR")
-            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
+        self._set_enabled_currencies("USD", "EUR")
 
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
     @patch.object(OCPForecast, "_get_weighted_exchange_rate", return_value=Decimal("1.50"))
@@ -1350,12 +1315,7 @@ class OCPForecastStaticRateTest(IamTestCase):
         usd_rate = Decimal("2")
 
         with schema_context(self.schema_name):
-            MonthlyExchangeRate.objects.update_or_create(
-                effective_date=month_start,
-                base_currency="USD",
-                target_currency="EUR",
-                defaults={"exchange_rate": usd_rate, "rate_type": "static"},
-            )
+            self._upsert_monthly_exchange_rate("USD", "EUR", month_start, usd_rate)
             OCPCostSummaryP.objects.all().delete()
             for currency, source_uuid in (("USD", usd_source), ("EUR", eur_source)):
                 TenantAPIProvider.objects.create(uuid=source_uuid, name=currency, type=Provider.PROVIDER_OCP)
