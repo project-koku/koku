@@ -19,6 +19,7 @@ from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
+from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -521,6 +522,7 @@ class TestCeleryTasks(MasuTestCase):
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="EUR")
@@ -548,6 +550,7 @@ class TestCeleryTasks(MasuTestCase):
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="EUR")
@@ -577,6 +580,7 @@ class TestCeleryTasks(MasuTestCase):
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
 
@@ -592,6 +596,8 @@ class TestCeleryTasks(MasuTestCase):
         """Test that empty EnabledCurrency table causes early return."""
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             populate_dynamic_monthly_rates()
 

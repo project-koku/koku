@@ -18,10 +18,13 @@ from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.currency.models import ExchangeRateDictionary
 from api.iam.test.iam_test_case import IamTestCase
+from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
+from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
 from cost_models.static_exchange_rate_serializer import next_month_start
 from cost_models.static_exchange_rate_serializer import NumericDecimalField
 from cost_models.static_exchange_rate_serializer import static_rate_status
@@ -480,6 +483,39 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             self.assertEqual(StaticExchangeRate.objects.count(), 0)
+
+    def test_delete_rate_restores_dynamic_and_does_not_rematerialize(self):
+        """Deleting a static rate must not rematerialize STATIC MER from the definition."""
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        month_end = _month_end(today)
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(
+            currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}, "EUR": {"USD": "1.15", "EUR": "1.0"}}
+        )
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.get_or_create(currency_code="USD")
+            EnabledCurrency.objects.get_or_create(currency_code="EUR")
+            MonthlyExchangeRate.objects.filter(effective_date=month_start).delete()
+            rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.92"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+            upsert_static_monthly_rates(rate)
+
+        response = self.client.delete(self._url(rate.uuid), **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        with tenant_context(self.tenant):
+            self.assertEqual(StaticExchangeRate.objects.count(), 0)
+            mer = MonthlyExchangeRate.objects.get(
+                effective_date=month_start, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(mer.rate_type, RateType.DYNAMIC)
+            self.assertEqual(mer.exchange_rate, Decimal("0.87"))
 
     def test_delete_rate_with_past_months_allowed(self):
         """A rate with start_date in the past can be deleted."""

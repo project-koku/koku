@@ -201,9 +201,11 @@ Enable a **current tender** ISO 4217 currency for the tenant.
 
 **Success:** `200` with empty body.
 
-**Side effects (product behavior):** current-month dynamic monthly rates for
-pairs involving this currency are populated when market data is available;
-report caches for the tenant are invalidated.
+**Side effects (product behavior):** covering `StaticExchangeRate` definitions
+for this currency are rematerialized into current-month STATIC monthly rates
+(so a disable → re-enable cycle restores still-valid overrides). Remaining
+enabled pairs then receive current-month dynamic monthly rates when market
+data is available. Report caches for the tenant are invalidated.
 
 ---
 
