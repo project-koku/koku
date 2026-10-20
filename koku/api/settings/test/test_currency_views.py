@@ -24,7 +24,6 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.currency.currencies import get_enabled_currency_codes
 from api.iam.test.iam_test_case import IamTestCase
-from api.iam.test.iam_test_case import RbacPermissions
 from api.provider.models import Provider
 from api.settings.currency_views import ACTIVE_RATE_TYPE_DYNAMIC
 from api.settings.currency_views import ACTIVE_RATE_TYPE_NONE
@@ -669,47 +668,23 @@ class CurrencySettingsViewTest(IamTestCase):
 
         expired = rates_by_target["EUR"]
         self.assertEqual(expired["status"], "expired")
-        self.assertTrue(expired["can_edit"])
-        self.assertTrue(expired["can_delete"])
+        self.assertNotIn("can_edit", expired)
+        self.assertNotIn("can_delete", expired)
 
         active = rates_by_target["GBP"]
         self.assertEqual(active["status"], "active")
-        self.assertTrue(active["can_edit"])
-        self.assertTrue(active["can_delete"])
+        self.assertNotIn("can_edit", active)
+        self.assertNotIn("can_delete", active)
 
         upcoming = rates_by_target["JPY"]
         self.assertEqual(upcoming["status"], "upcoming")
-        self.assertTrue(upcoming["can_edit"])
-        self.assertTrue(upcoming["can_delete"])
+        self.assertNotIn("can_edit", upcoming)
+        self.assertNotIn("can_delete", upcoming)
 
         spanning = rates_by_target["CAD"]
         self.assertEqual(spanning["status"], "active")
-        self.assertTrue(spanning["can_edit"])
-        self.assertTrue(spanning["can_delete"])
-
-    @override_settings(ENHANCED_ORG_ADMIN=False)
-    @RbacPermissions({"settings": {"read": ["*"]}})
-    def test_list_static_rates_can_edit_false_without_cost_model_write(self):
-        """settings:read without cost_model write must not advertise can_edit/can_delete."""
-        today = timezone.now().date()
-        with tenant_context(self.tenant):
-            StaticExchangeRate.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="USD")
-            StaticExchangeRate.objects.create(
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
-                start_date=today.replace(day=1),
-                end_date=_month_end(today),
-            )
-
-        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        rate = response.data["data"][0]["static_rates"][0]
-        self.assertEqual(rate["status"], "active")
-        self.assertFalse(rate["can_edit"])
-        self.assertFalse(rate["can_delete"])
+        self.assertNotIn("can_edit", spanning)
+        self.assertNotIn("can_delete", spanning)
 
     def test_list_all_currencies_sorted_by_code_ascending(self):
         """Unfiltered list is A-Z by code (not enabled-first then disabled)."""
