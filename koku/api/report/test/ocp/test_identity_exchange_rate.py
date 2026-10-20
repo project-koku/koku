@@ -6,7 +6,6 @@
 from unittest.mock import patch
 
 from django.db.models import Case
-from django.db.models import Subquery
 from django.db.models import Value
 from django_tenants.utils import tenant_context
 
@@ -51,13 +50,21 @@ class OCPIdentityExchangeRateTest(IamTestCase):
         self.assertIsInstance(annotations["infra_exchange_rate"], Case)
 
     def test_constant_currency_uses_monthly_rate_annotations(self):
-        """The independent constant-currency path keeps its monthly subqueries."""
+        """The independent constant-currency path keeps its monthly Case annotations."""
         handler = self._handler({"00000000-0000-0000-0000-000000000001": "USD"})
+        handler.__dict__["request_source_to_currency_map"] = {
+            "00000000-0000-0000-0000-000000000001": "USD",
+        }
+        handler.__dict__["raw_currencies_for_conversion"] = {"EUR"}
+        handler.__dict__["monthly_exchange_rate_map"] = {
+            "USD": {handler.start_datetime.date().replace(day=1): 1},
+            "EUR": {handler.start_datetime.date().replace(day=1): 1.1},
+        }
 
         annotations = self._annotations(handler, constant_currency=True)
 
-        self.assertIsInstance(annotations["exchange_rate"], Subquery)
-        self.assertIsInstance(annotations["infra_exchange_rate"], Subquery)
+        self.assertIsInstance(annotations["exchange_rate"], Case)
+        self.assertIsInstance(annotations["infra_exchange_rate"], Case)
 
     def test_non_identity_source_currency_keeps_case(self):
         """Flag on must not replace a non-identity source conversion."""
