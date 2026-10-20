@@ -196,6 +196,8 @@ class TestSettingsTagMappingView(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         mock_resummarize.assert_called_once()
         self.assertTrue(mock_resummarize.call_args.kwargs.get("restore_unmapped"))
+        called_uuids = {str(uuid) for uuid in mock_resummarize.call_args.args[0]}
+        self.assertEqual(called_uuids, {str(self.enabled_uuid_list[0]), str(self.enabled_uuid_list[1])})
 
     @patch("api.settings.tags.mapping.view.resummarize_current_month_by_tag_keys")
     def test_remove_parent_requests_unmapped_rebuild(self, mock_resummarize):
@@ -213,6 +215,8 @@ class TestSettingsTagMappingView(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         mock_resummarize.assert_called_once()
         self.assertTrue(mock_resummarize.call_args.kwargs.get("restore_unmapped"))
+        called_uuids = {str(uuid) for uuid in mock_resummarize.call_args.args[0]}
+        self.assertEqual(called_uuids, {str(self.enabled_uuid_list[0]), str(self.enabled_uuid_list[1])})
 
     @patch("api.settings.tags.mapping.view.resummarize_current_month_by_tag_keys")
     def test_add_children_does_not_request_unmapped_rebuild(self, mock_resummarize):
