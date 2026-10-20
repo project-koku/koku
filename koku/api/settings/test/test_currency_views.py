@@ -1248,3 +1248,45 @@ class EnabledCurrencyViewTest(IamTestCase):
                 .filter(Q(base_currency="CHF") | Q(target_currency="CHF"))
                 .exists()
             )
+
+    def test_active_rate_type_reflects_static_after_disable_reenable(self):
+        """GET /settings/currency/ reports active_rate_type=static for the base currency after re-enable."""
+        date_helper = DateHelper()
+        current_month = date_helper.this_month_start.date()
+        current_end = date_helper.this_month_end.date()
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(
+            currency_exchange_dictionary={
+                "USD": {"CHF": "0.85", "USD": "1.0"},
+                "CHF": {"USD": "1.176470588235294", "CHF": "1.0"},
+            }
+        )
+
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.all().delete()
+            StaticExchangeRate.objects.all().delete()
+
+            self.client.post(self._url("USD"), **self.headers)
+            self.client.post(self._url("CHF"), **self.headers)
+
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="CHF",
+                exchange_rate=Decimal("0.91"),
+                start_date=current_month,
+                end_date=current_end,
+            )
+            upsert_static_monthly_rates(StaticExchangeRate.objects.get(base_currency="USD", target_currency="CHF"))
+
+            # Disable CHF, then re-enable.
+            self.client.delete(self._url("CHF"), **self.headers)
+            self.client.post(self._url("CHF"), **self.headers)
+
+            # The base currency (USD) entry should show active_rate_type=static
+            # because the USD->CHF static definition still covers the current month.
+            list_url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+            with patch("api.settings.currency_views.get_dynamic_rate_currencies", return_value={"usd", "chf"}):
+                response = self.client.get(list_url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            usd = next(item for item in response.data["data"] if item["code"] == "USD")
+            self.assertEqual(usd["active_rate_type"], ACTIVE_RATE_TYPE_STATIC)
