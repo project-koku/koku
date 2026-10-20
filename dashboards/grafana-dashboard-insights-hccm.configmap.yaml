@@ -4966,7 +4966,7 @@ data:
                 "type": "prometheus",
                 "uid": "${rds_datasource}"
               },
-              "expr": "rdsosmetrics_fileSys_usedFilePercent{exported_instance=\"$db_instance\"}",
+              "expr": "rdsosmetrics_fileSys_usedPercent{exported_instance=\"$db_instance\",mount_point=\"/rdsdbdata\"}",
               "instant": false,
               "legendFormat": "{{instance}} - {{exported_instance}}",
               "refId": "A"
