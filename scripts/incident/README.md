@@ -9,14 +9,21 @@ Full runbook (Kibana Dev Tools queries, limitations, S3 upload):
 Prod-specific values (Kibana index, buckets, namespaces):
 [service-docs runbook](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/runbook.md).
 
+Small Kibana CLI searches (≤1000 hits, no pagination):
+[service-docs `kibana-search`](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/kibana-log-search.md).
+Large incident exports still use Dev Tools + `search_after` (see the runbook).
+
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
 | `parse_kibana_ingress_payload_logs.py` | Parse Kibana Dev Tools export → `manifest.csv`, midnight filter, `urls.tsv` |
-| `download_payloads.py` | Download `.tgz` from presigned URLs in manifest |
+| `download_payloads.py` | Download `.tgz` from **still-valid** presigned URLs in manifest |
 | `split_midnight_payloads.py` | Copy midnight-filtered payloads to `payloads-midnight/` |
 | `upload_payloads.py` | Upload local `.tgz` via AWS CLI (`--bucket` required) |
+
+Expired URLs: keep the parsed `request_id` + `X-Amz-Date` list for ingress S3 recovery;
+do not expect `download_payloads.py` to work after the 24h TTL.
 
 ## Local outputs (never commit)
 
