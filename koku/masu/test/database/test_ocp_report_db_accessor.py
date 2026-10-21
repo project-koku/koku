@@ -64,6 +64,24 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.cluster_id = "testcluster"
         self.ocp_provider_uuid = self.ocp_provider.uuid
 
+    @patch.object(OCPReportDBAccessor, "_prepare_and_execute_raw_sql_query")
+    def test_populate_usage_costs_materializes_node_aggregate(self, mock_execute):
+        """Keep the node aggregate out of the outer join's repeated execution path."""
+        with self.accessor as acc:
+            acc.populate_usage_costs(
+                "Infrastructure",
+                {metric_constants.OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR: Decimal("0.3")},
+                "cpu",
+                self.start_date,
+                self.start_date,
+                self.ocp_provider_uuid,
+                1,
+            )
+
+        sql = mock_execute.call_args.args[1]
+        self.assertEqual(sql.count("WITH cte_node_cost AS MATERIALIZED ("), 1)
+        self.assertIn("LEFT JOIN cte_node_cost", sql)
+
     def test_get_usage_period_query_by_provider(self):
         """Test that periods are returned filtered by provider."""
         with self.accessor as acc:

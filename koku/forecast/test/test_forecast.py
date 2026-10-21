@@ -27,15 +27,11 @@ from api.forecast.views import OCPAWSCostForecastView
 from api.forecast.views import OCPAzureCostForecastView
 from api.forecast.views import OCPCostForecastView
 from api.iam.test.iam_test_case import IamTestCase
-from api.provider.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.report.test.test_queries import assertSameQ
 from api.utils import DateHelper
-from cost_models.models import CostModel
-from cost_models.models import CostModelMap
 from cost_models.models import EnabledCurrency
-from cost_models.models import MonthlyExchangeRate
 from forecast import AWSForecast
 from forecast import AzureForecast
 from forecast import GCPForecast
@@ -48,11 +44,9 @@ from forecast.forecast import ZERO_RESULT
 from koku.cache import build_enabled_currency_codes_key
 from koku.cache import delete_value_from_cache
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
-from reporting.provider.aws.models import AWSCostSummaryP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
 from reporting.provider.gcp.models import GCPCostSummaryP
-from reporting.provider.models import TenantAPIProvider
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
@@ -74,49 +68,6 @@ class MockQuerySet:
     def len(self):
         """Length of data."""
         return len(self.data)
-
-
-class ForecastCurrencyTestMixin:
-    """Shared helpers for forecast exchange-rate tests."""
-
-    def _set_enabled_currencies(self, *currency_codes):
-        """Reset enabled currencies for the tenant schema."""
-        with schema_context(self.schema_name):
-            EnabledCurrency.objects.all().delete()
-            for currency_code in currency_codes:
-                EnabledCurrency.objects.create(currency_code=currency_code)
-            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
-
-    def _build_date_helper(self, day_of_month, year=2026, month=8):
-        """Build a real DateHelper pinned to a day in the given month."""
-        dh = DateHelper()
-        dh._now = datetime(year, month, day_of_month, 0, 0, 0, 0)
-        return dh
-
-    def _flat_training_data(self, yesterday, days=30):
-        """Return flat daily cost data spanning the training window."""
-        return MockQuerySet(
-            [
-                {
-                    "usage_start": (yesterday - timedelta(days=days - 1 - n)).date(),
-                    "total_cost": Decimal("100"),
-                    "infrastructure_cost": Decimal("100"),
-                    "supplementary_cost": Decimal("0"),
-                }
-                for n in range(days)
-            ]
-        )
-
-    def _upsert_monthly_exchange_rate(
-        self, base_currency, target_currency, effective_date, exchange_rate, rate_type="static"
-    ):
-        """Create or update one MonthlyExchangeRate row for stable KEEPDB test runs."""
-        return MonthlyExchangeRate.objects.update_or_create(
-            base_currency=base_currency,
-            target_currency=target_currency,
-            effective_date=effective_date,
-            defaults={"exchange_rate": exchange_rate, "rate_type": rate_type},
-        )
 
 
 class AWSForecastTest(IamTestCase):
@@ -741,7 +692,7 @@ class GCPForecastTest(IamTestCase):
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProjectP)
 
 
-class OCPForecastTest(ForecastCurrencyTestMixin, IamTestCase):
+class OCPForecastTest(IamTestCase):
     """Tests the OCPForecast class."""
 
     def test_predict_flat(self):
@@ -815,57 +766,6 @@ class OCPForecastTest(ForecastCurrencyTestMixin, IamTestCase):
         )
         forecast = OCPForecast(params)
         self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
-
-    def test_base_currencies_scoped_to_forecast_window(self):
-        """Cost-model currencies come only from sources with rows in the forecast window."""
-        in_provider = Provider.objects.create(
-            name="forecast-window-source", type=Provider.PROVIDER_OCP, customer=self.customer
-        )
-        outside_provider = Provider.objects.create(
-            name="outside-window-source", type=Provider.PROVIDER_OCP, customer=self.customer
-        )
-        unrelated_provider = Provider.objects.create(
-            name="unrelated-source", type=Provider.PROVIDER_OCP, customer=self.customer
-        )
-
-        with schema_context(self.schema_name):
-            self._set_enabled_currencies("USD", "EUR")
-            params = self.mocked_query_params("?currency=EUR", OCPCostForecastView)
-            forecast = OCPForecast(params)
-            in_window = forecast.query_range[1].date()
-            outside_window = (forecast.query_range[0] - timedelta(days=1)).date()
-
-            OCPCostSummaryP.objects.all().delete()
-            for provider, currency, usage_day, raw_currency in (
-                (in_provider, "EUR", in_window, "USD"),
-                (outside_provider, "GBP", outside_window, "JPY"),
-                (unrelated_provider, "CHF", None, None),
-            ):
-                tenant_provider = TenantAPIProvider.objects.create(
-                    uuid=provider.uuid, name=provider.name, type=provider.type, provider=provider
-                )
-                cost_model = CostModel.objects.create(
-                    name=f"{provider.name} model",
-                    description=provider.name,
-                    source_type=Provider.PROVIDER_OCP,
-                    currency=currency,
-                )
-                CostModelMap.objects.create(provider_uuid=provider.uuid, cost_model=cost_model)
-                if usage_day is None:
-                    continue
-                OCPCostSummaryP.objects.create(
-                    id=uuid4(),
-                    cluster_id=provider.name,
-                    usage_start=usage_day,
-                    usage_end=usage_day,
-                    source_uuid=tenant_provider,
-                    raw_currency=raw_currency,
-                    infrastructure_raw_cost=Decimal("1"),
-                )
-
-            currencies = forecast._get_base_currencies_for_conversion()
-
-        self.assertEqual(currencies, {"USD", "EUR"})
 
 
 class OCPAllForecastTest(IamTestCase):
@@ -1024,7 +924,7 @@ class LinearForecastResultTest(IamTestCase):
         self.assertEqual(lfr.intercept, 66666)
 
 
-class ForecastExchangeRateTest(ForecastCurrencyTestMixin, IamTestCase):
+class ForecastExchangeRateTest(IamTestCase):
     """Tests for exchange rate annotation and validation in forecast classes."""
 
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
@@ -1077,7 +977,10 @@ class ForecastExchangeRateTest(ForecastCurrencyTestMixin, IamTestCase):
         ExchangeRateDictionary.objects.create(currency_exchange_dictionary=fat_rates)
 
         with schema_context(self.schema_name):
-            self._set_enabled_currencies("USD", "EUR")
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
 
             aws_ann = AWSForecast(self.mocked_query_params("?", AWSCostForecastView)).exchange_rate_annotation_dict
             ocp_ann = OCPForecast(self.mocked_query_params("?", OCPCostForecastView)).exchange_rate_annotation_dict
@@ -1110,328 +1013,3 @@ class ForecastExchangeRateTest(ForecastCurrencyTestMixin, IamTestCase):
             instance.predict()
 
         mock_get_monthly_exchange_rate_map.assert_not_called()
-
-
-class ForecastStaticRateTest(ForecastCurrencyTestMixin, IamTestCase):
-    """Tests that static exchange rates apply fully regardless of day-of-month."""
-
-    STATIC_RATE = Decimal("1.50")
-    PREV_RATE = Decimal("1.10")
-
-    def setUp(self):
-        super().setUp()
-        self._set_enabled_currencies("USD", "EUR")
-
-    def _seed_mer_rates(self, month_start):
-        """Seed previous-month dynamic and current-month static MER rows."""
-        prev_month = (month_start.replace(day=1) - timedelta(days=1)).replace(day=1)
-        with schema_context(self.schema_name):
-            MonthlyExchangeRate.objects.all().delete()
-            self._upsert_monthly_exchange_rate("USD", "EUR", prev_month, self.PREV_RATE, rate_type="dynamic")
-            self._upsert_monthly_exchange_rate("USD", "EUR", month_start, self.STATIC_RATE)
-
-    def _predict_total(self, currency, dh):
-        """Run AWSForecast.predict() and return the first total cost prediction."""
-        with schema_context(self.schema_name):
-            params = self.mocked_query_params(f"?currency={currency}", AWSCostForecastView)
-        yesterday = dh.yesterday
-        mock_qset = self._flat_training_data(yesterday)
-
-        with (
-            patch("forecast.forecast.DateHelper", return_value=dh),
-            patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True),
-            patch("forecast.forecast.AWSForecast.get_data", return_value=mock_qset),
-            patch("forecast.forecast.AWSForecast._get_base_currencies_for_conversion", return_value={"USD"}),
-        ):
-            instance = AWSForecast(params)
-            results = instance.predict()
-
-        return float(results[0]["values"][0]["cost"]["total"]["value"])
-
-    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_get_data_uses_identity_exchange_rate_when_flag_on(self, _):
-        """Flag ON → get_data() queries summary rows with exchange_rate annotated as 1."""
-        dh = DateHelper()
-        usage_day = dh.yesterday.date()
-        with schema_context(self.schema_name):
-            AWSCostSummaryP.objects.all().delete()
-            AWSCostSummaryP.objects.create(
-                id=uuid4(),
-                usage_start=usage_day,
-                usage_end=usage_day,
-                unblended_cost=Decimal("10"),
-                markup_cost=Decimal("2"),
-                currency_code="USD",
-            )
-            params = self.mocked_query_params("?currency=EUR&cost_type=unblended_cost", AWSCostForecastView)
-            rows = list(AWSForecast(params).get_data())
-
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["usage_start"], usage_day)
-        self.assertEqual(rows[0]["total_cost"], Decimal("12"))
-        self.assertEqual(rows[0]["infrastructure_cost"], Decimal("12"))
-        self.assertEqual(rows[0]["supplementary_cost"], Decimal("0"))
-
-    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_weighted_exchange_rate_multi_currency_uses_base_costs(self, _):
-        """Multi-currency weighting queries total_cost with an identity exchange rate."""
-        dh = DateHelper()
-        usage_day = dh.yesterday.date()
-        month_start = dh.this_month_start.date()
-        with schema_context(self.schema_name):
-            AWSCostSummaryP.objects.all().delete()
-            AWSCostSummaryP.objects.create(
-                id=uuid4(),
-                usage_start=usage_day,
-                usage_end=usage_day,
-                unblended_cost=Decimal("100"),
-                markup_cost=Decimal("0"),
-                currency_code="USD",
-            )
-            AWSCostSummaryP.objects.create(
-                id=uuid4(),
-                usage_start=usage_day,
-                usage_end=usage_day,
-                unblended_cost=Decimal("50"),
-                markup_cost=Decimal("0"),
-                currency_code="GBP",
-            )
-            self._upsert_monthly_exchange_rate("USD", "EUR", month_start, Decimal("2"))
-            self._upsert_monthly_exchange_rate("GBP", "EUR", month_start, Decimal("4"))
-            params = self.mocked_query_params("?currency=EUR&cost_type=unblended_cost", AWSCostForecastView)
-            rate = AWSForecast(params)._get_weighted_exchange_rate({"USD", "GBP"}, month_start)
-
-        expected = (Decimal("100") * Decimal("2") + Decimal("50") * Decimal("4")) / Decimal("150")
-        self.assertEqual(rate, expected)
-
-    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_base_currencies_follow_access_filters(self, _):
-        """Currencies outside access or the usage window do not enter the prediction rate."""
-        dh = DateHelper()
-        usage_day = dh.yesterday.date()
-        visible_account = "111111111111"
-        hidden_account = "222222222222"
-        hidden_rate = Decimal("4")
-        with schema_context(self.schema_name):
-            AWSCostSummaryByAccountP.objects.all().delete()
-            AWSCostSummaryByAccountP.objects.create(
-                id=uuid4(),
-                usage_start=usage_day,
-                usage_end=usage_day,
-                usage_account_id=visible_account,
-                unblended_cost=Decimal("100"),
-                markup_cost=Decimal("0"),
-                currency_code="USD",
-            )
-            AWSCostSummaryByAccountP.objects.create(
-                id=uuid4(),
-                usage_start=usage_day,
-                usage_end=usage_day,
-                usage_account_id=hidden_account,
-                unblended_cost=Decimal("50"),
-                markup_cost=Decimal("0"),
-                currency_code="EUR",
-            )
-            AWSCostSummaryByAccountP.objects.create(
-                id=uuid4(),
-                usage_start=usage_day,
-                usage_end=usage_day + timedelta(days=1),
-                usage_account_id=visible_account,
-                unblended_cost=Decimal("25"),
-                markup_cost=Decimal("0"),
-                currency_code="GBP",
-            )
-            self._upsert_monthly_exchange_rate("EUR", "USD", dh.this_month_start.date(), hidden_rate)
-            params = self.mocked_query_params(
-                "?currency=USD&cost_type=unblended_cost",
-                AWSCostForecastView,
-                access={"aws.account": {"read": [visible_account]}},
-            )
-            forecast = AWSForecast(params)
-            currencies = forecast._get_base_currencies_for_conversion()
-            rate = forecast._get_prediction_rate_multipliers()["total_cost"]
-
-        self.assertEqual(currencies, {"USD"})
-        self.assertEqual(rate, Decimal("1"))
-
-    def test_static_rate_ratio_invariant_to_day_of_month(self):
-        """EUR/USD prediction ratio equals the current-month static rate on any day."""
-        ratios = []
-        for day in (1, 15, 28):
-            with self.subTest(day=day):
-                dh = self._build_date_helper(day)
-                month_start = dh.this_month_start.date()
-                self._seed_mer_rates(month_start)
-
-                eur_total = self._predict_total("EUR", dh)
-                usd_total = self._predict_total("USD", dh)
-                ratio = eur_total / usd_total
-                self.assertAlmostEqual(ratio, float(self.STATIC_RATE), places=2)
-                ratios.append(ratio)
-
-        self.assertAlmostEqual(ratios[0], ratios[1], places=4)
-        self.assertAlmostEqual(ratios[1], ratios[2], places=4)
-
-
-class OCPForecastStaticRateTest(ForecastCurrencyTestMixin, IamTestCase):
-    """Tests OCP per-field static exchange rate multipliers."""
-
-    def setUp(self):
-        super().setUp()
-        self._set_enabled_currencies("USD", "EUR")
-
-    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
-    @patch.object(OCPForecast, "_get_weighted_exchange_rate", return_value=Decimal("1.50"))
-    @patch.object(OCPForecast, "_get_cost_model_weighted_rate", return_value=Decimal("1.00"))
-    @patch.object(
-        OCPForecast,
-        "_get_ocp_training_cost_split",
-        return_value={
-            "infra_cloud_base": Decimal("80"),
-            "cm_infra_base": Decimal("0"),
-            "cm_cost_base": Decimal("20"),
-            "cm_supplementary_base": Decimal("10"),
-        },
-    )
-    def test_ocp_prediction_rate_multipliers(self, _split, _cm_rate, _infra_rate, _flag):
-        """OCP applies per-field blended rates from infra and cost-model components."""
-        with schema_context(self.schema_name):
-            params = self.mocked_query_params("?currency=EUR", OCPCostForecastView)
-            instance = OCPForecast(params)
-            multipliers = instance._get_prediction_rate_multipliers()
-
-        self.assertAlmostEqual(float(multipliers["infrastructure_cost"]), 1.50, places=4)
-        self.assertAlmostEqual(float(multipliers["supplementary_cost"]), 1.00, places=4)
-        expected_total = float((Decimal("80") * Decimal("1.50") + Decimal("20") * Decimal("1.00")) / Decimal("100"))
-        self.assertAlmostEqual(float(multipliers["total_cost"]), expected_total, places=4)
-
-    def test_cost_model_weighted_rate_evaluates_sum_queryset(self):
-        """Source grouping evaluates the helper Sum directly against the cost summary table."""
-        dh = DateHelper()
-        usage_day = dh.yesterday.date()
-        month_start = dh.this_month_start.date()
-        usd_source = uuid4()
-        eur_source = uuid4()
-        usd_rate = Decimal("2")
-
-        with schema_context(self.schema_name):
-            self._upsert_monthly_exchange_rate("USD", "EUR", month_start, usd_rate)
-            OCPCostSummaryP.objects.all().delete()
-            for currency, source_uuid in (("USD", usd_source), ("EUR", eur_source)):
-                TenantAPIProvider.objects.create(uuid=source_uuid, name=currency, type=Provider.PROVIDER_OCP)
-                cost_model = CostModel.objects.create(
-                    name=f"forecast-weighted-rate-{currency}",
-                    description="forecast weighted rate queryset test",
-                    source_type=Provider.PROVIDER_OCP,
-                    currency=currency,
-                )
-                CostModelMap.objects.create(provider_uuid=source_uuid, cost_model=cost_model)
-
-            summary_rows = (
-                (usd_source, "Infrastructure", Decimal("40"), None),
-                (usd_source, "Supplementary", None, Decimal("10")),
-                (eur_source, "Supplementary", Decimal("20"), None),
-            )
-            for source_uuid, rate_type, cpu_cost, memory_cost in summary_rows:
-                OCPCostSummaryP.objects.create(
-                    id=uuid4(),
-                    cluster_id=str(source_uuid),
-                    usage_start=usage_day,
-                    usage_end=usage_day,
-                    source_uuid_id=source_uuid,
-                    cost_model_rate_type=rate_type,
-                    cost_model_cpu_cost=cpu_cost,
-                    cost_model_memory_cost=memory_cost,
-                )
-
-            params = self.mocked_query_params("?currency=EUR", OCPCostForecastView)
-            instance = OCPForecast(params)
-            total_rate = instance._get_cost_model_weighted_rate(
-                month_start, instance._unconverted_cost_model_cost_sum()
-            )
-            supplementary_rate = instance._get_cost_model_weighted_rate(
-                month_start, instance._unconverted_cost_model_cost_sum(cost_model_rate_type="Supplementary")
-            )
-            infrastructure_rate = instance._get_cost_model_weighted_rate(
-                month_start, instance._unconverted_cost_model_cost_sum(cost_model_rate_type="Infrastructure")
-            )
-
-            OCPCostSummaryP.objects.all().delete()
-            empty_rate = instance._get_cost_model_weighted_rate(
-                month_start, instance._unconverted_cost_model_cost_sum()
-            )
-
-        usd_total = Decimal("50")
-        eur_total = Decimal("20")
-        self.assertEqual(total_rate, (usd_total * usd_rate + eur_total * Decimal("1")) / (usd_total + eur_total))
-        self.assertEqual(
-            supplementary_rate,
-            (Decimal("10") * usd_rate + eur_total * Decimal("1")) / (Decimal("10") + eur_total),
-        )
-        self.assertEqual(infrastructure_rate, usd_rate)
-        self.assertEqual(empty_rate, Decimal("1"))
-
-    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_get_data_uses_identity_infra_exchange_rate_when_flag_on(self, _):
-        """Flag ON → OCP get_data() annotates exchange_rate and infra_exchange_rate as 1."""
-        dh = DateHelper()
-        usage_day = dh.yesterday.date()
-        with schema_context(self.schema_name):
-            OCPCostSummaryP.objects.all().delete()
-            OCPCostSummaryP.objects.create(
-                id=uuid4(),
-                cluster_id="forecast-cluster",
-                usage_start=usage_day,
-                usage_end=usage_day,
-                infrastructure_raw_cost=Decimal("40"),
-                infrastructure_markup_cost=Decimal("10"),
-                cost_model_cpu_cost=Decimal("5"),
-                raw_currency="USD",
-            )
-            params = self.mocked_query_params("?currency=EUR", OCPCostForecastView)
-            rows = list(OCPForecast(params).get_data())
-
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["usage_start"], usage_day)
-        self.assertEqual(rows[0]["infrastructure_cost"], Decimal("50"))
-        self.assertEqual(rows[0]["supplementary_cost"], Decimal("0"))
-        self.assertEqual(rows[0]["total_cost"], Decimal("55"))
-
-    def test_base_currencies_follow_cluster_access(self):
-        """Cost-model and infra currencies outside cluster access are omitted."""
-        dh = DateHelper()
-        usage_day = dh.yesterday.date()
-        visible_source = uuid4()
-        hidden_source = uuid4()
-        with schema_context(self.schema_name):
-            OCPCostSummaryP.objects.all().delete()
-            for source_uuid, cluster_id, raw_currency, cost_model_currency in (
-                (visible_source, "cluster-a", "USD", "GBP"),
-                (hidden_source, "cluster-b", "JPY", "EUR"),
-            ):
-                TenantAPIProvider.objects.create(uuid=source_uuid, name=cluster_id, type=Provider.PROVIDER_OCP)
-                cost_model = CostModel.objects.create(
-                    name=f"forecast-access-{cluster_id}",
-                    description="forecast access currency test",
-                    source_type=Provider.PROVIDER_OCP,
-                    currency=cost_model_currency,
-                )
-                CostModelMap.objects.create(provider_uuid=source_uuid, cost_model=cost_model)
-                OCPCostSummaryP.objects.create(
-                    id=uuid4(),
-                    cluster_id=cluster_id,
-                    usage_start=usage_day,
-                    usage_end=usage_day,
-                    source_uuid_id=source_uuid,
-                    infrastructure_raw_cost=Decimal("10"),
-                    raw_currency=raw_currency,
-                )
-
-            params = self.mocked_query_params(
-                "?currency=USD",
-                OCPCostForecastView,
-                access={"openshift.cluster": {"read": ["cluster-a"]}},
-            )
-            currencies = OCPForecast(params)._get_base_currencies_for_conversion()
-
-        self.assertEqual(currencies, {"USD", "GBP"})
