@@ -17,6 +17,7 @@ from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import purge_expired_exchange_rates_for_all_tenants
+from cost_models.monthly_exchange_rate_utils import rematerialize_current_month_static_rates
 from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
@@ -812,6 +813,115 @@ class PopulateDynamicMonthlyRatesRematerializeTest(MasuTestCase):
             )
             self.assertEqual(gbp_row.rate_type, RateType.STATIC)
             self.assertEqual(gbp_row.exchange_rate, Decimal("0.75"))
+
+
+class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
+    """Direct tests for rematerialize_current_month_static_rates."""
+
+    def setUp(self):
+        super().setUp()
+        self.current_month = self.dh.this_month_start.date()
+        self.current_end = self.dh.this_month_end.date()
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.all().delete()
+            StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+    def test_returns_zero_when_enabled_codes_empty(self):
+        """An empty enabled_codes set is a no-op."""
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.91"),
+                start_date=self.current_month,
+                end_date=self.current_end,
+            )
+
+            count = rematerialize_current_month_static_rates(enabled_codes=set())
+
+            self.assertEqual(count, 0)
+            self.assertFalse(MonthlyExchangeRate.objects.exists())
+
+    def test_loads_enabled_codes_from_database_when_omitted(self):
+        """enabled_codes=None reads EnabledCurrency rows for the tenant."""
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.91"),
+                start_date=self.current_month,
+                end_date=self.current_end,
+            )
+
+            count = rematerialize_current_month_static_rates()
+
+            self.assertEqual(count, 1)
+            mer = MonthlyExchangeRate.objects.get(
+                effective_date=self.current_month, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(mer.rate_type, RateType.STATIC)
+            self.assertEqual(mer.exchange_rate, Decimal("0.91"))
+
+    def test_skips_non_positive_rate_without_writing_mer(self):
+        """Corrupt non-positive definitions are skipped instead of raising."""
+        with tenant_context(self.tenant):
+            static_rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.91"),
+                start_date=self.current_month,
+                end_date=self.current_end,
+            )
+            StaticExchangeRate.objects.filter(pk=static_rate.pk).update(exchange_rate=Decimal("0"))
+
+            with patch("cost_models.monthly_exchange_rate_utils.LOG.warning") as mock_warning:
+                count = rematerialize_current_month_static_rates(enabled_codes={"USD", "EUR"})
+
+            self.assertEqual(count, 0)
+            mock_warning.assert_called_once()
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.current_month, base_currency="USD", target_currency="EUR"
+                ).exists()
+            )
+
+    def test_skips_definition_not_covering_current_month(self):
+        """Future-only static definitions are outside the rematerialize query."""
+        future_start = (self.current_month + relativedelta(months=1)).replace(day=1)
+        future_end = (future_start + relativedelta(months=1)) - relativedelta(days=1)
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.91"),
+                start_date=future_start,
+                end_date=future_end,
+            )
+
+            count = rematerialize_current_month_static_rates(enabled_codes={"USD", "EUR"})
+
+            self.assertEqual(count, 0)
+            self.assertFalse(MonthlyExchangeRate.objects.exists())
+
+    @patch("cost_models.monthly_exchange_rate_utils.LOG.info")
+    def test_logs_count_when_rows_are_written(self, mock_info):
+        """Successful rematerialize emits an info log with the row count."""
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.91"),
+                start_date=self.current_month,
+                end_date=self.current_end,
+            )
+
+            count = rematerialize_current_month_static_rates(enabled_codes={"USD", "EUR"})
+
+        self.assertEqual(count, 1)
+        mock_info.assert_called_once()
 
 
 class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
