@@ -1083,7 +1083,7 @@ class ReportQueryHandler(QueryHandler):
 
         if self.currency:
             output["currency"] = self.currency
-            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
                 with tenant_context(self.tenant):
                     get_monthly_exchange_rate_map(
                         self._get_base_currencies_for_conversion(),
