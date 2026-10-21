@@ -8,7 +8,6 @@ import uuid
 from datetime import date
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import Mock
 
 from django.test import override_settings
 from django.test import SimpleTestCase
@@ -28,7 +27,6 @@ from cost_models.static_exchange_rate_serializer import static_rate_status
 from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_ACTIVE
 from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_EXPIRED
 from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_UPCOMING
-from cost_models.static_exchange_rate_serializer import user_can_mutate_static_rates
 
 
 def _month_end(d):
@@ -89,25 +87,6 @@ class StaticRateStatusHelperTest(SimpleTestCase):
         )
         self.assertEqual(next_month_start(current), date(2027, 1, 1))
 
-    def test_user_can_mutate_requires_cost_model_write_or_enhanced_admin(self):
-        """can_edit/can_delete follow CostModelsAccessPermission write rules."""
-        self.assertFalse(user_can_mutate_static_rates(None))
-
-        no_access = Mock(user=Mock(admin=False, access=None))
-        self.assertFalse(user_can_mutate_static_rates(no_access))
-
-        read_only = Mock(user=Mock(admin=False, access={"cost_model": {"read": ["*"], "write": []}}))
-        self.assertFalse(user_can_mutate_static_rates(read_only))
-
-        writer = Mock(user=Mock(admin=False, access={"cost_model": {"read": ["*"], "write": ["*"]}}))
-        self.assertTrue(user_can_mutate_static_rates(writer))
-
-        admin = Mock(user=Mock(admin=True, access=None))
-        with override_settings(ENHANCED_ORG_ADMIN=False):
-            self.assertFalse(user_can_mutate_static_rates(admin))
-        with override_settings(ENHANCED_ORG_ADMIN=True):
-            self.assertTrue(user_can_mutate_static_rates(admin))
-
 
 class StaticExchangeRateListViewTest(IamTestCase):
     """Tests for GET/POST settings/currency/static-rates/."""
@@ -142,8 +121,8 @@ class StaticExchangeRateListViewTest(IamTestCase):
         self.assertEqual(data["start_date"], month_start.isoformat())
         self.assertEqual(data["end_date"], month_end.isoformat())
         self.assertEqual(data["status"], STATIC_RATE_STATUS_ACTIVE)
-        self.assertTrue(data["can_edit"])
-        self.assertTrue(data["can_delete"])
+        self.assertNotIn("can_edit", data)
+        self.assertNotIn("can_delete", data)
         self.assertIn("created_timestamp", data)
         self.assertIn("updated_timestamp", data)
 
