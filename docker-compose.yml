@@ -814,7 +814,7 @@ services:
   kafka-zookeeper:
     container_name: koku-zookeeper
     image: confluentinc/cp-zookeeper:7.8.6
-    profiles: ["onprem"]
+    profiles: ["onprem", "payload_landing"]
     environment:
       - ZOOKEEPER_CLIENT_PORT=32181
       - ZOOKEEPER_SERVER_ID=1
@@ -822,7 +822,7 @@ services:
   kafka:
     container_name: koku-kafka
     image: confluentinc/cp-kafka:7.8.6
-    profiles: ["onprem"]
+    profiles: ["onprem", "payload_landing"]
     environment:
       - KAFKA_ADVERTISED_LISTENERS=DOCKER://kafka:29092,LOCALHOST://localhost:9092
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT
@@ -839,17 +839,21 @@ services:
 
   init-kafka:
     image: confluentinc/cp-kafka:7.8.6
-    profiles: ["onprem"]
+    profiles: ["onprem", "payload_landing"]
     entrypoint: [ '/bin/sh', '-c' ]
-    command: |
-      # blocks until kafka is reachable
-      kafka-topics --bootstrap-server kafka:29092 --list
+    # Single list element: bare `command: |` is parsed as argv tokens, not one shell script.
+    command:
+      - |
+        set -e
+        # blocks until kafka is reachable
+        kafka-topics --bootstrap-server kafka:29092 --list
 
-      echo -e 'Creating kafka topic'
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.sources.event-stream --replication-factor 1 --partitions 1
+        echo -e 'Creating kafka topics'
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.sources.event-stream --replication-factor 1 --partitions 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.upload.announce --replication-factor 1 --partitions 1
 
-      echo -e 'Successfully created the following topics:'
-      kafka-topics --bootstrap-server kafka:29092 --list
+        echo -e 'Successfully created the following topics:'
+        kafka-topics --bootstrap-server kafka:29092 --list
     depends_on:
       - kafka
 

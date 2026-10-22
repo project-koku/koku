@@ -188,8 +188,14 @@ Conceptual daily job (product behavior, not task wiring):
 2. If `CURRENCY_URL` is empty, skip the fetch; existing snapshot / static rates
   remain usable.
 3. For each tenant:
-  - Upsert **current-month** dynamic monthly rates for enabled pairs,
-   skipping pairs that already have a static override for the month.
+  - Rematerialize **current-month** STATIC monthly rates from
+   `StaticExchangeRate` definitions whose window covers this month, for
+   enabled pairs only. This restores overrides after a currency is
+   re-enabled and writes the new month when a future window becomes current.
+   Past (finalized) months are not rewritten.
+  - Upsert **current-month** dynamic monthly rates for remaining enabled
+   pairs, skipping pairs that already have a static override for the month
+   (from the rematerialized definition, or an existing STATIC MER row).
   - **Backfill** missing past months inside the retention window
   (see below).
   - Invalidate cached report views when monthly rates changed.
