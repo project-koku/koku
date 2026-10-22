@@ -37,7 +37,7 @@ namespace_usage_information as (
         sum(gpu_pod_uptime * COALESCE(gpu_usage.mig_slice_count, 1)) as pod_usage_slice_hours,
         gpu_usage.usage_start
     FROM {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu_usage
-    WHERE source = {{source_uuid}}
+    WHERE source = {{source_uuid | string}}
       AND year = {{year}}
       AND month = {{month}}
       AND gpu_usage.usage_start >= DATE({{start_date}})
@@ -103,6 +103,6 @@ WHERE unalloc.namespace = 'GPU unallocated'
         WHERE gpu.node = unalloc.node
           AND gpu.gpu_model_name = unalloc.all_labels->>'gpu-model'
           AND gpu.usage_start = unalloc.usage_start
-          AND gpu.source = {{source_uuid}}
+          AND gpu.source = {{source_uuid | string}}
     )
 RETURNING 1;

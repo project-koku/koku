@@ -182,6 +182,49 @@ class OCPReportDBCleanerTest(MasuTestCase):
             remaining = RatesToUsage.objects.filter(source_uuid=self.ocp_provider_uuid).count()
             self.assertEqual(remaining, 0, "RTU rows must be deleted when purging provider data")
 
+    def test_purge_expired_report_data_for_provider_deletes_cost_breakdown(self):
+        """Test that purging by provider_uuid also removes OCPCostUIBreakDownP rows.
+
+        OCPCostUIBreakDownP.source_uuid is a FK to TenantAPIProvider only -- it has no
+        relation to OCPUsageReportPeriod, so the cascade_delete() walk rooted at
+        OCPUsageReportPeriod in purge_expired_report_data() can never reach it. Without an
+        explicit delete here, these rows are silently orphaned whenever a provider's data is
+        purged without deleting the Provider record itself (e.g. via ExpiredDataRemover /
+        masu's remove_expired_data task with a provider_uuid).
+        """
+        from reporting.provider.ocp.models import OCPCostUIBreakDownP
+
+        with schema_context(self.schema):
+            rp = (
+                OCPUsageReportPeriod.objects.filter(provider_id=self.ocp_provider_uuid)
+                .order_by("-report_period_start")
+                .first()
+            )
+            if not rp:
+                self.skipTest("No report period for OCP provider")
+            OCPCostUIBreakDownP.objects.filter(source_uuid=self.ocp_provider_uuid).delete()
+            OCPCostUIBreakDownP.objects.create(
+                source_uuid_id=self.ocp_provider_uuid,
+                usage_start=rp.report_period_start.date(),
+                usage_end=rp.report_period_start.date(),
+                cluster_id="test-cluster",
+                custom_name="test-rate",
+                metric_type="cpu_usage",
+                path="root",
+                depth=0,
+                parent_path="",
+                top_category="root",
+                breakdown_category="root",
+            )
+            self.assertEqual(OCPCostUIBreakDownP.objects.filter(source_uuid=self.ocp_provider_uuid).count(), 1)
+
+        cleaner = OCPReportDBCleaner(self.schema)
+        cleaner.purge_expired_report_data(provider_uuid=self.ocp_provider_uuid)
+
+        with schema_context(self.schema):
+            remaining = OCPCostUIBreakDownP.objects.filter(source_uuid=self.ocp_provider_uuid).count()
+            self.assertEqual(remaining, 0, "Cost breakdown rows must be deleted when purging provider data")
+
     def test_purge_expired_report_data_no_args(self):
         """Test that the provider_uuid deletes all data for the provider."""
         cleaner = OCPReportDBCleaner(self.schema)
