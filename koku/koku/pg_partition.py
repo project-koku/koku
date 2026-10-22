@@ -2141,3 +2141,126 @@ class PartitionHandlerMixin:
                     LOG.debug(f"created = {created}")
                     if created:
                         LOG.info(f"Created partition {newpart.schema_name}.{newpart.table_name}")
+
+
+# Classification labels for partition tracking reconciliation (COST-8415).
+TRACKING_SAFE_ORPHAN = "safe_orphan"
+TRACKING_PHYSICAL_PRESENT = "physical_present"
+
+
+def relation_exists(schema_name, table_name):
+    """Return True if schema_name.table_name exists in pg_class."""
+    sql = """
+SELECT EXISTS (
+    SELECT 1
+      FROM pg_class c
+      JOIN pg_namespace n
+        ON n.oid = c.relnamespace
+     WHERE n.nspname = %s::name
+       AND c.relname = %s::name
+)
+"""
+    cur = conn_execute(sql, (schema_name, table_name))
+    return bool(cur.fetchone()[0])
+
+
+def _is_default_partition_parameters(partition_parameters):
+    if not isinstance(partition_parameters, dict):
+        return False
+    return bool(partition_parameters.get("default"))
+
+
+def classify_partition_tracking(schema_name):
+    """
+    Classify each partitioned_tables row in schema_name against PostgreSQL.
+
+    safe_orphan: tracking row whose physical table_name does not exist — DELETE is a
+    registry-only change (trfn_partition_manager takes no DDL action).
+    physical_present: relation exists (live, detached, or name reuse) — never auto-delete.
+    """
+    with schema_context(schema_name):
+        records = list(PartitionedTable.objects.filter(schema_name=schema_name).order_by("table_name"))
+
+    classified = []
+    for record in records:
+        exists = relation_exists(schema_name, record.table_name)
+        classified.append(
+            {
+                "id": record.id,
+                "schema_name": schema_name,
+                "table_name": record.table_name,
+                "partition_of_table_name": record.partition_of_table_name,
+                "active": record.active,
+                "is_default": _is_default_partition_parameters(record.partition_parameters),
+                "classification": TRACKING_PHYSICAL_PRESENT if exists else TRACKING_SAFE_ORPHAN,
+            }
+        )
+    return classified
+
+
+def reconcile_stale_partition_tracking(schema_name, *, delete=False, sample=5):
+    """
+    Inventory (and optionally delete) safe_orphan partition tracking rows for one schema.
+
+    Only deletes rows whose physical table is still absent at delete time. Never deletes
+    physical_present rows. Default is dry-run (delete=False).
+
+    Returns:
+        dict with keys: schema_name, delete, counts (by classification), deleted,
+        samples (up to sample rows per classification).
+    """
+    classified = classify_partition_tracking(schema_name)
+    counts = {TRACKING_SAFE_ORPHAN: 0, TRACKING_PHYSICAL_PRESENT: 0}
+    samples = {TRACKING_SAFE_ORPHAN: [], TRACKING_PHYSICAL_PRESENT: []}
+    for row in classified:
+        label = row["classification"]
+        counts[label] = counts.get(label, 0) + 1
+        if len(samples.get(label, [])) < sample:
+            samples.setdefault(label, []).append(
+                {
+                    "table_name": row["table_name"],
+                    "partition_of_table_name": row["partition_of_table_name"],
+                    "is_default": row["is_default"],
+                    "active": row["active"],
+                }
+            )
+
+    deleted = 0
+    if delete:
+        safe_ids = [row["id"] for row in classified if row["classification"] == TRACKING_SAFE_ORPHAN]
+        if safe_ids:
+            with schema_context(schema_name):
+                still_safe_ids = []
+                for record in PartitionedTable.objects.filter(id__in=safe_ids):
+                    if relation_exists(schema_name, record.table_name):
+                        LOG.warning(
+                            log_json(
+                                msg="partition tracking reconcile skipped; physical table appeared before delete",
+                                schema=schema_name,
+                                table=record.table_name,
+                                partition_of=record.partition_of_table_name,
+                            )
+                        )
+                        continue
+                    still_safe_ids.append(record.id)
+                if still_safe_ids:
+                    deleted, _ = PartitionedTable.objects.filter(id__in=still_safe_ids).delete()
+
+    LOG.info(
+        log_json(
+            msg="partition tracking reconcile",
+            schema=schema_name,
+            delete=delete,
+            deleted=deleted,
+            safe_orphan=counts.get(TRACKING_SAFE_ORPHAN, 0),
+            physical_present=counts.get(TRACKING_PHYSICAL_PRESENT, 0),
+            samples=samples,
+        )
+    )
+    return {
+        "schema_name": schema_name,
+        "delete": delete,
+        "counts": counts,
+        "deleted": deleted,
+        "samples": samples,
+    }

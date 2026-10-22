@@ -1489,3 +1489,106 @@ partition by range (usage_start);
         self.assertEqual(counts["created"], 1)
         self.assertEqual(counts["missing"], [])
         self.assertTrue(any("'outcome': 'created'" in line for line in logs.output))
+
+
+class TestReconcileStalePartitionTracking(IamTestCase):
+    """Safe cleanup of partitioned_tables rows whose physical tables are gone (COST-8415)."""
+
+    SCHEMA_NAME = "org1234567"
+    LIVE_TABLE = "__pg_partition_reconcile_live"
+    STALE_TABLE = "__pg_partition_reconcile_stale"
+
+    def setUp(self):
+        super().setUp()
+        self._create_partitioned_table(self.LIVE_TABLE)
+        self._create_partitioned_table(self.STALE_TABLE)
+        _execute(f"drop table {self.SCHEMA_NAME}.{self.STALE_TABLE} cascade")
+
+    def tearDown(self):
+        with schema_context(self.SCHEMA_NAME):
+            PartitionedTable.objects.filter(
+                schema_name=self.SCHEMA_NAME,
+                partition_of_table_name__in=[self.LIVE_TABLE, self.STALE_TABLE],
+            ).delete()
+        _execute(f"drop table if exists {self.SCHEMA_NAME}.{self.LIVE_TABLE} cascade")
+        _execute(f"drop table if exists {self.SCHEMA_NAME}.{self.STALE_TABLE} cascade")
+        # Name-reuse helper tables from individual tests
+        _execute(f"drop table if exists {self.SCHEMA_NAME}.{self.STALE_TABLE}_default cascade")
+        super().tearDown()
+
+    def _create_partitioned_table(self, table_name):
+        _execute(
+            f"""
+create table if not exists {self.SCHEMA_NAME}.{table_name} (
+    id bigserial,
+    usage_start date not null,
+    primary key (usage_start, id)
+)
+partition by range (usage_start);
+"""
+        )
+        with schema_context(self.SCHEMA_NAME):
+            ppart.get_or_create_partition(
+                {
+                    "schema_name": self.SCHEMA_NAME,
+                    "table_name": f"{table_name}_default",
+                    "partition_of_table_name": table_name,
+                    "partition_type": PartitionedTable.RANGE,
+                    "partition_col": "usage_start",
+                    "partition_parameters": {"default": True},
+                    "active": True,
+                }
+            )
+
+    def _tracking(self, table_name):
+        with schema_context(self.SCHEMA_NAME):
+            return PartitionedTable.objects.filter(schema_name=self.SCHEMA_NAME, table_name=table_name).first()
+
+    def test_dry_run_classifies_safe_orphan_and_does_not_delete(self):
+        result = ppart.reconcile_stale_partition_tracking(self.SCHEMA_NAME, delete=False)
+        self.assertFalse(result["delete"])
+        self.assertEqual(result["deleted"], 0)
+        self.assertGreaterEqual(result["counts"][ppart.TRACKING_SAFE_ORPHAN], 1)
+        self.assertIsNotNone(self._tracking(f"{self.STALE_TABLE}_default"))
+        self.assertIsNotNone(self._tracking(f"{self.LIVE_TABLE}_default"))
+
+    def test_delete_removes_only_safe_orphan_rows(self):
+        result = ppart.reconcile_stale_partition_tracking(self.SCHEMA_NAME, delete=True)
+        self.assertGreaterEqual(result["deleted"], 1)
+        self.assertIsNone(self._tracking(f"{self.STALE_TABLE}_default"))
+        self.assertIsNotNone(self._tracking(f"{self.LIVE_TABLE}_default"))
+        self.assertTrue(ppart.relation_exists(self.SCHEMA_NAME, f"{self.LIVE_TABLE}_default"))
+
+    def test_name_reuse_is_physical_present_and_not_deleted(self):
+        """A same-named default attached to another parent must not be deleted."""
+        replacement = "__pg_partition_reconcile_replacement"
+        _execute(
+            f"""
+create table {self.SCHEMA_NAME}.{replacement} (
+    id bigserial,
+    usage_start date not null,
+    primary key (usage_start, id)
+)
+partition by range (usage_start);
+"""
+        )
+        _execute(
+            f"create table {self.SCHEMA_NAME}.{self.STALE_TABLE}_default "
+            f"partition of {self.SCHEMA_NAME}.{replacement} default"
+        )
+        try:
+            classified = ppart.classify_partition_tracking(self.SCHEMA_NAME)
+            stale_default = next(row for row in classified if row["table_name"] == f"{self.STALE_TABLE}_default")
+            self.assertEqual(stale_default["classification"], ppart.TRACKING_PHYSICAL_PRESENT)
+            self.assertEqual(stale_default["partition_of_table_name"], self.STALE_TABLE)
+
+            result = ppart.reconcile_stale_partition_tracking(self.SCHEMA_NAME, delete=True)
+            self.assertIsNotNone(self._tracking(f"{self.STALE_TABLE}_default"))
+            self.assertTrue(ppart.relation_exists(self.SCHEMA_NAME, f"{self.STALE_TABLE}_default"))
+            # Live default still present; name-reused stale default was not among deleted safe orphans
+            self.assertNotIn(
+                f"{self.STALE_TABLE}_default",
+                [s["table_name"] for s in result["samples"].get(ppart.TRACKING_SAFE_ORPHAN, [])],
+            )
+        finally:
+            _execute(f"drop table if exists {self.SCHEMA_NAME}.{replacement} cascade")
