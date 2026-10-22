@@ -19,6 +19,7 @@ from django.db import connection
 from django.db import DatabaseError
 from django.db import IntegrityError
 from django.db import OperationalError
+from django.db import transaction
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
@@ -1758,6 +1759,57 @@ class OCPReportDBAccessorTest(MasuTestCase):
         statements = [query["sql"] for query in captured.captured_queries]
         self.assertTrue(any("to_regclass" in sql for sql in statements))
         self.assertFalse(any(sql.startswith("ANALYZE ") for sql in statements))
+
+    def test_tag_mapping_pre_analyze_restores_timeouts_in_outer_transaction(self):
+        partition = "reporting_ocpusagelineitem_daily_summary_2200_03"
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f'CREATE TABLE "{self.schema}"."{partition}" PARTITION OF '
+                f'"{self.schema}"."reporting_ocpusagelineitem_daily_summary" '
+                "FOR VALUES FROM ('2200-03-01') TO ('2200-04-01')"
+            )
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL lock_timeout = '17s'")
+                cursor.execute("SET LOCAL statement_timeout = '2min'")
+            self.accessor._analyze_tag_mapping_partition(partition)
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+                self.assertEqual(cursor.fetchone(), ("17s", "2min"))
+
+    def test_tag_mapping_pre_analyze_restores_timeouts_when_partition_absent(self):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL lock_timeout = '17s'")
+                cursor.execute("SET LOCAL statement_timeout = '2min'")
+            self.accessor._analyze_tag_mapping_partition("reporting_ocpusagelineitem_daily_summary_2201_03")
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+                self.assertEqual(cursor.fetchone(), ("17s", "2min"))
+
+    def test_tag_mapping_pre_analyze_error_rolls_back_timeouts(self):
+        partition = "reporting_ocpusagelineitem_daily_summary_2200_04"
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f'CREATE TABLE "{self.schema}"."{partition}" PARTITION OF '
+                f'"{self.schema}"."reporting_ocpusagelineitem_daily_summary" '
+                "FOR VALUES FROM ('2200-04-01') TO ('2200-05-01')"
+            )
+
+        def fail_analyze(execute, sql, params, many, context):
+            if sql.startswith("ANALYZE "):
+                return execute("SELECT 1 / 0", None, False, context)
+            return execute(sql, params, many, context)
+
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL lock_timeout = '17s'")
+                cursor.execute("SET LOCAL statement_timeout = '2min'")
+            with connection.execute_wrapper(fail_analyze), self.assertRaises(DatabaseError):
+                self.accessor._analyze_tag_mapping_partition(partition)
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+                self.assertEqual(cursor.fetchone(), ("17s", "2min"))
 
     def test_tag_mapping_pre_analyze_failure_still_runs_update(self):
         with schema_context(self.schema):

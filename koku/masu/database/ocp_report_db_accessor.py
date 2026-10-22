@@ -454,10 +454,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         """Refresh only an existing monthly leaf; bound optional maintenance independently of the UPDATE."""
         qualified_name = f"{connection.ops.quote_name(self.schema)}.{connection.ops.quote_name(partition_name)}"
         with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+            previous_lock_timeout, previous_statement_timeout = cursor.fetchone()
             cursor.execute("SET LOCAL lock_timeout = '5s'")
             cursor.execute("SET LOCAL statement_timeout = '60s'")
             cursor.execute("SELECT to_regclass(%s)", [qualified_name])
-            if cursor.fetchone()[0] is None:
+            partition_exists = cursor.fetchone()[0] is not None
+            if not partition_exists:
                 LOG.info(
                     log_json(
                         msg="OCP tag-mapping partition absent; skipping ANALYZE",
@@ -465,9 +468,16 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                         partition=partition_name,
                     )
                 )
+            else:
+                started = time.monotonic()
+                cursor.execute(f"ANALYZE {qualified_name}")
+            # A released savepoint does not undo SET LOCAL in an enclosing transaction.
+            cursor.execute(
+                "SELECT set_config('lock_timeout', %s, true), set_config('statement_timeout', %s, true)",
+                [previous_lock_timeout, previous_statement_timeout],
+            )
+            if not partition_exists:
                 return
-            started = time.monotonic()
-            cursor.execute(f"ANALYZE {qualified_name}")
         LOG.info(
             log_json(
                 msg="OCP tag-mapping pre-ANALYZE complete",
