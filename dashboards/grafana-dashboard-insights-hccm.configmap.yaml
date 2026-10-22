@@ -5582,120 +5582,6 @@ data:
             "x": 0,
             "y": 133
           },
-          "id": 32,
-          "panels": [],
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "iLX_mMBnk"
-              },
-              "refId": "A"
-            }
-          ],
-          "title": "PostgreSQL",
-          "type": "row"
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": {
-            "uid": "${Datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 7,
-            "w": 24,
-            "x": 0,
-            "y": 134
-          },
-          "hiddenSeries": false,
-          "id": 30,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "10.4.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "datasource": {
-                "uid": "${Datasource}"
-              },
-              "expr": "max by(schema)(postgresql_schema_size_bytes{namespace=\"$namespace\", schema=~\"acct.*\"} > 1048576000)",
-              "legendFormat": "{{schema}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeRegions": [],
-          "title": "PostgreSQL Tenant Schema Size",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "mode": "time",
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "bytes",
-              "logBase": 1,
-              "show": true
-            },
-            {
-              "format": "short",
-              "logBase": 1,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false
-          }
-        },
-        {
-          "collapsed": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "iLX_mMBnk"
-          },
-          "gridPos": {
-            "h": 1,
-            "w": 24,
-            "x": 0,
-            "y": 141
-          },
           "id": 40,
           "panels": [],
           "targets": [
@@ -5737,7 +5623,7 @@ data:
             "h": 6,
             "w": 4,
             "x": 0,
-            "y": 142
+            "y": 134
           },
           "id": 42,
           "options": {
@@ -5797,7 +5683,7 @@ data:
             "h": 6,
             "w": 5,
             "x": 4,
-            "y": 142
+            "y": 134
           },
           "id": 44,
           "options": {
@@ -5857,7 +5743,7 @@ data:
             "h": 6,
             "w": 4,
             "x": 9,
-            "y": 142
+            "y": 134
           },
           "id": 46,
           "options": {
@@ -5906,7 +5792,7 @@ data:
             "h": 6,
             "w": 11,
             "x": 13,
-            "y": 142
+            "y": 134
           },
           "id": 54,
           "legend": {
@@ -5959,7 +5845,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 148
+            "y": 140
           },
           "id": 48,
           "options": {
@@ -6012,7 +5898,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 148
+            "y": 140
           },
           "hiddenSeries": false,
           "id": 50,
@@ -6100,7 +5986,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 148
+            "y": 140
           },
           "hiddenSeries": false,
           "id": 52,
@@ -6195,7 +6081,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 155
+            "y": 147
           },
           "id": 56,
           "options": {
@@ -6248,7 +6134,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 155
+            "y": 147
           },
           "hiddenSeries": false,
           "id": 57,
@@ -6337,7 +6223,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 155
+            "y": 147
           },
           "hiddenSeries": false,
           "id": 58,
@@ -6432,7 +6318,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 162
+            "y": 154
           },
           "id": 59,
           "options": {
@@ -6485,7 +6371,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 162
+            "y": 154
           },
           "hiddenSeries": false,
           "id": 60,
@@ -6574,7 +6460,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 162
+            "y": 154
           },
           "hiddenSeries": false,
           "id": 61,
@@ -6669,7 +6555,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 169
+            "y": 161
           },
           "id": 63,
           "options": {
@@ -6722,7 +6608,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 169
+            "y": 161
           },
           "hiddenSeries": false,
           "id": 65,
@@ -6811,7 +6697,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 169
+            "y": 161
           },
           "hiddenSeries": false,
           "id": 66,
@@ -6906,7 +6792,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 176
+            "y": 168
           },
           "id": 64,
           "options": {
@@ -6959,7 +6845,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 176
+            "y": 168
           },
           "hiddenSeries": false,
           "id": 67,
@@ -7048,7 +6934,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 176
+            "y": 168
           },
           "hiddenSeries": false,
           "id": 68,
@@ -7126,7 +7012,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 183
+            "y": 175
           },
           "id": 114,
           "panels": [],
@@ -7186,7 +7072,7 @@ data:
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 184
+            "y": 176
           },
           "id": 113,
           "options": {
