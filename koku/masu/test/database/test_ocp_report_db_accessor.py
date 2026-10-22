@@ -16,8 +16,10 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.db import connection
+from django.db import DatabaseError
 from django.db import IntegrityError
 from django.db import OperationalError
+from django.db import transaction
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
@@ -1691,6 +1693,190 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertIn("lids.uuid = update_data.uuid", updates[0])
         self.assertIn("lids.usage_start = update_data.usage_start", updates[0])
 
+    def test_tag_mapping_pre_analyze_flag_off_keeps_update_unchanged(self):
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with (
+            patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False),
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+            CaptureQueriesContext(connection) as captured,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today, [1])
+        update.assert_called_once()
+        self.assertFalse(any("ANALYZE" in query["sql"] for query in captured.captured_queries))
+
+    def test_tag_mapping_pre_analyze_targets_existing_monthly_leaf_before_update(self):
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        partition = "reporting_ocpusagelineitem_daily_summary_2200_01"
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f'CREATE TABLE "{self.schema}"."{partition}" PARTITION OF '
+                f'"{self.schema}"."reporting_ocpusagelineitem_daily_summary" '
+                "FOR VALUES FROM ('2200-01-01') TO ('2200-02-01')"
+            )
+
+        def flag_enabled(schema, flag, dev_fallback=False):
+            self.assertEqual(schema, self.schema)
+            self.assertTrue(dev_fallback)
+            return flag.endswith("ocp_tag_mapping_pre_analyze")
+
+        with (
+            patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", side_effect=flag_enabled),
+            CaptureQueriesContext(connection) as captured,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                datetime(2200, 1, 1), datetime(2200, 1, 2), [1]
+            )
+        statements = [query["sql"] for query in captured.captured_queries]
+        analyze_indexes = [index for index, sql in enumerate(statements) if sql.startswith("ANALYZE ")]
+        update_indexes = [
+            index for index, sql in enumerate(statements) if "cte_update_labels" in sql and "UPDATE" in sql
+        ]
+        self.assertEqual(len(analyze_indexes), 1)
+        self.assertEqual(len(update_indexes), 1)
+        self.assertLess(analyze_indexes[0], update_indexes[0])
+        self.assertIn(f'"{self.schema}"."{partition}"', statements[analyze_indexes[0]])
+
+    def test_tag_mapping_pre_analyze_skips_absent_leaf(self):
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with (
+            patch(
+                "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema",
+                side_effect=lambda schema, flag, **kwargs: flag.endswith("ocp_tag_mapping_pre_analyze"),
+            ),
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+            CaptureQueriesContext(connection) as captured,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                datetime(2201, 1, 1), datetime(2201, 1, 2), [1]
+            )
+        update.assert_called_once()
+        statements = [query["sql"] for query in captured.captured_queries]
+        self.assertTrue(any("to_regclass" in sql for sql in statements))
+        self.assertFalse(any(sql.startswith("ANALYZE ") for sql in statements))
+
+    def test_tag_mapping_pre_analyze_restores_timeouts_in_outer_transaction(self):
+        partition = "reporting_ocpusagelineitem_daily_summary_2200_03"
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f'CREATE TABLE "{self.schema}"."{partition}" PARTITION OF '
+                f'"{self.schema}"."reporting_ocpusagelineitem_daily_summary" '
+                "FOR VALUES FROM ('2200-03-01') TO ('2200-04-01')"
+            )
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL lock_timeout = '17s'")
+                cursor.execute("SET LOCAL statement_timeout = '2min'")
+            self.accessor._analyze_tag_mapping_partition(partition)
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+                self.assertEqual(cursor.fetchone(), ("17s", "2min"))
+
+    def test_tag_mapping_pre_analyze_restores_timeouts_when_partition_absent(self):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL lock_timeout = '17s'")
+                cursor.execute("SET LOCAL statement_timeout = '2min'")
+            self.accessor._analyze_tag_mapping_partition("reporting_ocpusagelineitem_daily_summary_2201_03")
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+                self.assertEqual(cursor.fetchone(), ("17s", "2min"))
+
+    def test_tag_mapping_pre_analyze_error_rolls_back_timeouts(self):
+        partition = "reporting_ocpusagelineitem_daily_summary_2200_04"
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f'CREATE TABLE "{self.schema}"."{partition}" PARTITION OF '
+                f'"{self.schema}"."reporting_ocpusagelineitem_daily_summary" '
+                "FOR VALUES FROM ('2200-04-01') TO ('2200-05-01')"
+            )
+
+        def fail_analyze(execute, sql, params, many, context):
+            if sql.startswith("ANALYZE "):
+                return execute("SELECT 1 / 0", None, False, context)
+            return execute(sql, params, many, context)
+
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL lock_timeout = '17s'")
+                cursor.execute("SET LOCAL statement_timeout = '2min'")
+            with connection.execute_wrapper(fail_analyze), self.assertRaises(DatabaseError):
+                self.accessor._analyze_tag_mapping_partition(partition)
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+                self.assertEqual(cursor.fetchone(), ("17s", "2min"))
+
+    def test_tag_mapping_pre_analyze_failure_still_runs_update(self):
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with (
+            patch(
+                "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema",
+                side_effect=lambda schema, flag, **kwargs: flag.endswith("ocp_tag_mapping_pre_analyze"),
+            ),
+            patch.object(self.accessor, "_analyze_tag_mapping_partition", side_effect=DatabaseError("test failure")),
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+            self.assertLogs("masu.database.ocp_report_db_accessor", level="WARNING") as logs,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today, [1])
+        update.assert_called_once()
+        self.assertTrue(any("OCP tag-mapping pre-ANALYZE failed" in line for line in logs.output))
+
+    def test_tag_mapping_pre_analyze_handles_each_month_once(self):
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with (
+            patch(
+                "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema",
+                side_effect=lambda schema, flag, **kwargs: flag.endswith("ocp_tag_mapping_pre_analyze"),
+            ),
+            patch.object(self.accessor, "_analyze_tag_mapping_partition") as analyze,
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                datetime(2200, 1, 1), datetime(2200, 2, 2), [1]
+            )
+        self.assertEqual(
+            analyze.call_args_list,
+            [
+                call("reporting_ocpusagelineitem_daily_summary_2200_01"),
+                call("reporting_ocpusagelineitem_daily_summary_2200_02"),
+            ],
+        )
+        update.assert_called_once()
+
+    def test_tag_mapping_pre_analyze_skips_no_report_period_or_mapping(self):
+        with (
+            patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=True),
+            patch.object(self.accessor, "_analyze_tag_mapping_partition") as analyze,
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today, [1])
+        analyze.assert_not_called()
+        update.assert_not_called()
+
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with (
+            patch(
+                "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False
+            ) as flag,
+            patch.object(self.accessor, "_analyze_tag_mapping_partition") as analyze,
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+        analyze.assert_not_called()
+        update.assert_called_once()
+        self.assertFalse(any(args[0][1].endswith("ocp_tag_mapping_pre_analyze") for args in flag.call_args_list))
+
     def test_tag_mapping_guardrail_flags_are_independent(self):
         """Each flag changes only its own database work, and the UPDATE runs once."""
         with schema_context(self.schema):
@@ -1703,7 +1889,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 def flag_enabled(schema, flag, dev_fallback=False):
                     self.assertEqual(schema, self.schema)
                     self.assertTrue(dev_fallback)
-                    return diagnostics if flag.endswith("ocp_tag_mapping_diagnostics") else timeout
+                    if flag.endswith("ocp_tag_mapping_diagnostics"):
+                        return diagnostics
+                    return timeout if flag.endswith("ocp_tag_mapping_statement_timeout") else False
 
                 with (
                     patch(
