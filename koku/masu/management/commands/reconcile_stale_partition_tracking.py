@@ -29,7 +29,9 @@ LOG = logging.getLogger(__name__)
 
 def _tenant_schema_names(*, schema: str | None = None) -> list[str]:
     excluded = {"public", Tenant._TEMPLATE_SCHEMA}
-    if schema:
+    if schema is not None:
+        if not schema:
+            raise CommandError("--schema must not be empty.")
         if schema in excluded:
             raise CommandError(f"Schema {schema} is not a customer tenant schema.")
         if not Tenant.objects.filter(schema_name=schema).exists():

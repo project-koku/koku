@@ -13,6 +13,7 @@ import string
 import time
 import uuid
 from contextlib import contextmanager
+from typing import Any
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
@@ -2148,7 +2149,7 @@ TRACKING_SAFE_ORPHAN = "safe_orphan"
 TRACKING_PHYSICAL_PRESENT = "physical_present"
 
 
-def relation_exists(schema_name, table_name):
+def relation_exists(schema_name: str, table_name: str) -> bool:
     """Return True if schema_name.table_name exists in pg_class."""
     sql = """
 SELECT EXISTS (
@@ -2164,13 +2165,13 @@ SELECT EXISTS (
     return bool(cur.fetchone()[0])
 
 
-def _is_default_partition_parameters(partition_parameters):
+def _is_default_partition_parameters(partition_parameters: Any) -> bool:
     if not isinstance(partition_parameters, dict):
         return False
     return bool(partition_parameters.get("default"))
 
 
-def classify_partition_tracking(schema_name):
+def classify_partition_tracking(schema_name: str) -> list[dict[str, Any]]:
     """
     Classify each partitioned_tables row in schema_name against PostgreSQL.
 
@@ -2198,7 +2199,34 @@ def classify_partition_tracking(schema_name):
     return classified
 
 
-def reconcile_stale_partition_tracking(schema_name, *, delete=False, sample=5):
+def _delete_safe_orphan_tracking(schema_name: str, candidate_ids: list[int]) -> int:
+    """
+    Delete candidate tracking rows only when the physical relation is still absent.
+
+    Existence is enforced in the same DELETE statement (NOT EXISTS on pg_class) so a
+    concurrent CREATE cannot be selected for deletion after a separate Python check.
+    """
+    if not candidate_ids:
+        return 0
+    sql = """
+DELETE FROM partitioned_tables AS pt
+ WHERE pt.id = ANY(%s)
+   AND pt.schema_name = %s
+   AND NOT EXISTS (
+         SELECT 1
+           FROM pg_class c
+           JOIN pg_namespace n
+             ON n.oid = c.relnamespace
+          WHERE n.nspname = pt.schema_name::name
+            AND c.relname = pt.table_name::name
+       )
+"""
+    with schema_context(schema_name):
+        cur = conn_execute(sql, (candidate_ids, schema_name))
+        return cur.rowcount
+
+
+def reconcile_stale_partition_tracking(schema_name: str, *, delete: bool = False, sample: int = 5) -> dict[str, Any]:
     """
     Inventory (and optionally delete) safe_orphan partition tracking rows for one schema.
 
@@ -2211,7 +2239,7 @@ def reconcile_stale_partition_tracking(schema_name, *, delete=False, sample=5):
     """
     classified = classify_partition_tracking(schema_name)
     counts = {TRACKING_SAFE_ORPHAN: 0, TRACKING_PHYSICAL_PRESENT: 0}
-    samples = {TRACKING_SAFE_ORPHAN: [], TRACKING_PHYSICAL_PRESENT: []}
+    samples: dict[str, list[dict[str, Any]]] = {TRACKING_SAFE_ORPHAN: [], TRACKING_PHYSICAL_PRESENT: []}
     for row in classified:
         label = row["classification"]
         counts[label] = counts.get(label, 0) + 1
@@ -2228,23 +2256,7 @@ def reconcile_stale_partition_tracking(schema_name, *, delete=False, sample=5):
     deleted = 0
     if delete:
         safe_ids = [row["id"] for row in classified if row["classification"] == TRACKING_SAFE_ORPHAN]
-        if safe_ids:
-            with schema_context(schema_name):
-                still_safe_ids = []
-                for record in PartitionedTable.objects.filter(id__in=safe_ids):
-                    if relation_exists(schema_name, record.table_name):
-                        LOG.warning(
-                            log_json(
-                                msg="partition tracking reconcile skipped; physical table appeared before delete",
-                                schema=schema_name,
-                                table=record.table_name,
-                                partition_of=record.partition_of_table_name,
-                            )
-                        )
-                        continue
-                    still_safe_ids.append(record.id)
-                if still_safe_ids:
-                    deleted, _ = PartitionedTable.objects.filter(id__in=still_safe_ids).delete()
+        deleted = _delete_safe_orphan_tracking(schema_name, safe_ids)
 
     LOG.info(
         log_json(

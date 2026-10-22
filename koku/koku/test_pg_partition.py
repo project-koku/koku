@@ -1592,3 +1592,12 @@ partition by range (usage_start);
             )
         finally:
             _execute(f"drop table if exists {self.SCHEMA_NAME}.{replacement} cascade")
+
+    def test_delete_sql_skips_row_when_relation_exists(self):
+        """DELETE ... NOT EXISTS must not remove tracking for a present relation."""
+        live_default = self._tracking(f"{self.LIVE_TABLE}_default")
+        self.assertIsNotNone(live_default)
+        deleted = ppart._delete_safe_orphan_tracking(self.SCHEMA_NAME, [live_default.id])
+        self.assertEqual(deleted, 0)
+        self.assertIsNotNone(self._tracking(f"{self.LIVE_TABLE}_default"))
+        self.assertTrue(ppart.relation_exists(self.SCHEMA_NAME, f"{self.LIVE_TABLE}_default"))
