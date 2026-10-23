@@ -115,20 +115,29 @@ def _ocp_providers_for_tag_keys(start_date, keys=None):
     )
 
 
-def _parent_child_key_name_collision():
-    """True when a parent key name is also used as a child key name.
+def _incremental_mapping_unsafe_reason():
+    """Why mapping-only apply can disagree with a parquet rebuild, or None.
 
-    Mapping SQL rewrites stored JSON by key name in a single pass. Applying
-    that to already-mapped tags can rename a generated parent if the same
-    name is another mapping's child (common with cross-provider mappings).
-    A parquet rebuild starts from original keys and stays consistent.
+    Mapping SQL rewrites stored JSON by key name in a single pass and cannot
+    tell generated parents from original keys. Unsafe when:
+
+    * a parent key name is also a child key name (a later mapping can rename
+      an already-mapped parent)
+    * more than one distinct child key maps to the same parent key (a second
+      child can drop or overwrite a generated parent instead of merging)
     """
     parent_keys = set()
     child_keys = set()
+    children_by_parent = defaultdict(set)
     for parent_key, child_key in TagMapping.objects.values_list("parent__key", "child__key"):
         parent_keys.add(parent_key)
         child_keys.add(child_key)
-    return bool(parent_keys & child_keys)
+        children_by_parent[parent_key].add(child_key)
+    if parent_keys & child_keys:
+        return "parent/child key-name collision"
+    if any(len(children) > 1 for children in children_by_parent.values()):
+        return "multiple children map to one parent"
+    return None
 
 
 def _use_mapping_only_apply(schema_name, *, restore_unmapped=False):
@@ -137,8 +146,14 @@ def _use_mapping_only_apply(schema_name, *, restore_unmapped=False):
         return False
     if not is_apply_tag_mappings_enabled(schema_name):
         return False
-    if _parent_child_key_name_collision():
-        LOG.info(log_json(msg="tag mapping parent/child key-name collision; using full summary", schema=schema_name))
+    if reason := _incremental_mapping_unsafe_reason():
+        LOG.info(
+            log_json(
+                msg="tag mapping cannot use incremental apply; using full summary",
+                schema=schema_name,
+                reason=reason,
+            )
+        )
         return False
     return True
 
@@ -147,9 +162,9 @@ def _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type, *, re
     """Queue mapping-only apply when enabled; otherwise a full current-month summary.
 
     Mapping SQL rewrites child keys in place. Removals cannot reverse that, so
-    ``restore_unmapped`` always queues a parquet/Trino rebuild. A parent/child
-    key-name collision also forces a rebuild so incremental apply cannot
-    disagree with ingest.
+    ``restore_unmapped`` always queues a parquet/Trino rebuild. Parent/child
+    key-name overlap and many-to-one parents also force a rebuild so
+    incremental apply cannot disagree with ingest.
     """
     if _use_mapping_only_apply(schema_name, restore_unmapped=restore_unmapped):
         delayed_apply_tag_mappings(schema_name, provider_uuids)

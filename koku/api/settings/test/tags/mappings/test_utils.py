@@ -201,6 +201,14 @@ class TestTagMappingUtils(MasuTestCase):
         TagMapping.objects.create(parent=azure_department, child=aws_child)
         TagMapping.objects.create(parent=gcp_parent, child=aws_department)
 
+    def _create_many_to_one_parent_mapping(self):
+        """Two AWS children map to the same parent key."""
+        aws_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)[:3])
+        self.assertGreaterEqual(len(aws_keys), 3)
+        parent, child_a, child_b = aws_keys
+        TagMapping.objects.create(parent=parent, child=child_a)
+        TagMapping.objects.create(parent=parent, child=child_b)
+
     @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
     @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
     @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
@@ -246,6 +254,23 @@ class TestTagMappingUtils(MasuTestCase):
         """Mapping-only apply can remap a generated parent; overlapping key names rebuild instead."""
         with tenant_context(self.tenant):
             self._create_parent_child_key_name_collision()
+            uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).values_list("uuid", flat=True)
+            resummarize_current_month_by_tag_keys(uuids, self.schema_name)
+
+        mock_delayed_apply.assert_not_called()
+        mock_delayed_summarize.assert_called()
+        queued = self._queued_provider_uuids(mock_delayed_summarize, Provider.PROVIDER_AWS)
+        self.assertIn(self.aws_provider.uuid, queued)
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_many_to_one_parent_queues_full_summary_when_flag_on(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        """Mapping-only apply can drop a sibling child; many-to-one parents rebuild instead."""
+        with tenant_context(self.tenant):
+            self._create_many_to_one_parent_mapping()
             uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).values_list("uuid", flat=True)
             resummarize_current_month_by_tag_keys(uuids, self.schema_name)
 
