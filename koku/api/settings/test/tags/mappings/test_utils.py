@@ -9,8 +9,10 @@ from api.utils import DateHelper
 from masu.processor.tasks import APPLY_TAG_MAPPINGS_TASK
 from masu.processor.tasks import UPDATE_SUMMARY_TABLES_TASK
 from masu.test import MasuTestCase
+from reporting.models import AWSCostEntryBill
 from reporting.models import AWSTagsSummary
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 from reporting_common.models import DelayedCeleryTasks
 
 
@@ -160,46 +162,94 @@ class TestTagMappingUtils(MasuTestCase):
         self.assertIn(self.ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
         self.assertEqual(queued[Provider.PROVIDER_AWS], [self.aws_provider.uuid])
 
-    def _aws_parent_child_keys(self):
-        keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)[:2])
-        self.assertGreaterEqual(len(keys), 2)
-        return keys[0], keys[1]
+    def _aws_azure_enabled_keys(self):
+        aws_child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True).first()
+        azure_parent = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE, enabled=True).first()
+        self.assertIsNotNone(aws_child)
+        self.assertIsNotNone(azure_parent)
+        return aws_child, azure_parent
 
-    def _drop_current_month_aws_tag_summary(self, key):
+    def _drop_current_month_aws_tag_summaries(self):
+        start = DateHelper().this_month_start
+        self.assertTrue(
+            AWSCostEntryBill.objects.filter(provider_id=self.aws_provider.uuid, billing_period_start=start).exists()
+        )
         AWSTagsSummary.objects.filter(
-            key=key, cost_entry_bill__billing_period_start=DateHelper().this_month_start
+            cost_entry_bill__provider_id=self.aws_provider.uuid,
+            cost_entry_bill__billing_period_start=start,
         ).delete()
+
+    def _queued_provider_uuids(self, mock_delayed_summarize, provider_type):
+        queued = {call.args[2]: call.args[1] for call in mock_delayed_summarize.call_args_list}
+        self.assertIn(provider_type, queued)
+        return queued[provider_type]
+
+    def _create_parent_child_key_name_collision(self):
+        """AWS child → Azure parent whose key is also an AWS child of a GCP parent."""
+        aws_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)[:2])
+        self.assertGreaterEqual(len(aws_keys), 2)
+        aws_child, aws_department = aws_keys
+        azure_department = EnabledTagKeys.objects.get(
+            provider_type=Provider.PROVIDER_AZURE, key=aws_department.key, enabled=True
+        )
+        gcp_parent = (
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP, enabled=True)
+            .exclude(key=aws_department.key)
+            .first()
+        )
+        self.assertIsNotNone(gcp_parent)
+        TagMapping.objects.create(parent=azure_department, child=aws_child)
+        TagMapping.objects.create(parent=gcp_parent, child=aws_department)
 
     @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
     @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
     @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
-    def test_restore_unmapped_finds_provider_by_parent_key_when_child_missing(
+    def test_restore_unmapped_finds_provider_without_tag_summary_rows(
         self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
     ):
-        """After mapping, tag summaries keep the parent key and drop the child."""
+        """Removals discover current-month bills even when mapping left no tag-summary rows."""
         with tenant_context(self.tenant):
-            parent, child = self._aws_parent_child_keys()
-            self._drop_current_month_aws_tag_summary(child.key)
-            resummarize_current_month_by_tag_keys([child.uuid, parent.uuid], self.schema_name, restore_unmapped=True)
+            aws_child, azure_parent = self._aws_azure_enabled_keys()
+            self._drop_current_month_aws_tag_summaries()
+            resummarize_current_month_by_tag_keys(
+                [aws_child.uuid, azure_parent.uuid], self.schema_name, restore_unmapped=True
+            )
 
         mock_delayed_apply.assert_not_called()
-        mock_delayed_summarize.assert_called()
-        queued = mock_delayed_summarize.call_args.args[1]
+        queued = self._queued_provider_uuids(mock_delayed_summarize, Provider.PROVIDER_AWS)
         self.assertIn(self.aws_provider.uuid, queued)
 
     @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=False)
     @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
     @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
-    def test_restore_unmapped_falls_back_when_child_key_missing_from_summary(
+    def test_restore_unmapped_finds_provider_without_tag_summary_rows_flag_off(
         self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
     ):
-        """If only the child UUID is supplied, still queue current-month sources of that type."""
+        """Ingest mapping is unconditional, so empty tag summaries must also work with the flag off."""
         with tenant_context(self.tenant):
-            _parent, child = self._aws_parent_child_keys()
-            self._drop_current_month_aws_tag_summary(child.key)
-            resummarize_current_month_by_tag_keys([child.uuid], self.schema_name, restore_unmapped=True)
+            aws_child, azure_parent = self._aws_azure_enabled_keys()
+            self._drop_current_month_aws_tag_summaries()
+            resummarize_current_month_by_tag_keys(
+                [aws_child.uuid, azure_parent.uuid], self.schema_name, restore_unmapped=True
+            )
+
+        mock_delayed_apply.assert_not_called()
+        queued = self._queued_provider_uuids(mock_delayed_summarize, Provider.PROVIDER_AWS)
+        self.assertIn(self.aws_provider.uuid, queued)
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_key_name_collision_queues_full_summary_when_flag_on(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        """Mapping-only apply can remap a generated parent; overlapping key names rebuild instead."""
+        with tenant_context(self.tenant):
+            self._create_parent_child_key_name_collision()
+            uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).values_list("uuid", flat=True)
+            resummarize_current_month_by_tag_keys(uuids, self.schema_name)
 
         mock_delayed_apply.assert_not_called()
         mock_delayed_summarize.assert_called()
-        queued = mock_delayed_summarize.call_args.args[1]
+        queued = self._queued_provider_uuids(mock_delayed_summarize, Provider.PROVIDER_AWS)
         self.assertIn(self.aws_provider.uuid, queued)

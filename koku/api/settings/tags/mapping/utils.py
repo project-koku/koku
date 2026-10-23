@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query handler for Tag Mappings."""
+import logging
 from collections import defaultdict
 from functools import reduce
 
@@ -11,6 +12,7 @@ from django.db.models import Func
 from django.db.models import Q
 from django.db.models import QuerySet
 
+from api.common import log_json
 from api.models import Provider
 from api.settings.utils import SettingsFilter
 from api.utils import DateHelper
@@ -20,12 +22,18 @@ from koku.cache import set_cached_tag_rate_map
 from masu.processor import is_apply_tag_mappings_enabled
 from masu.processor.tasks import delayed_apply_tag_mappings
 from masu.processor.tasks import delayed_summarize_current_month
+from reporting.models import AWSCostEntryBill
 from reporting.models import AWSTagsSummary
+from reporting.models import AzureCostEntryBill
 from reporting.models import AzureTagsSummary
+from reporting.models import GCPCostEntryBill
 from reporting.models import GCPTagsSummary
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 from reporting.provider.ocp.models import OCPTagsValues
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+
+LOG = logging.getLogger(__name__)
 
 
 class TagMappingFilters(SettingsFilter):
@@ -67,15 +75,20 @@ def tag_mapping_enabled_key_uuids(mappings):
     return list(uuids)
 
 
-def _cloud_providers_for_tag_keys(model, start_date, keys=None):
-    """Current-month cloud sources whose tag summary contains any of keys.
+def _cloud_providers_for_tag_keys(model, start_date, keys):
+    """Current-month cloud sources whose tag summary contains any of keys."""
+    return list(
+        model.objects.filter(key__in=keys, cost_entry_bill__billing_period_start=start_date)
+        .values_list("cost_entry_bill__provider__uuid", flat=True)
+        .distinct()
+    )
 
-    When keys is None, return every source that has a current-month tag summary.
-    """
-    queryset = model.objects.filter(cost_entry_bill__billing_period_start=start_date)
-    if keys is not None:
-        queryset = queryset.filter(key__in=keys)
-    return list(queryset.values_list("cost_entry_bill__provider__uuid", flat=True).distinct())
+
+def _cloud_providers_with_current_month_bills(bill_model, start_date):
+    """Current-month cloud sources that have a bill, regardless of tag summaries."""
+    return list(
+        bill_model.objects.filter(billing_period_start=start_date).values_list("provider_id", flat=True).distinct()
+    )
 
 
 def _ocp_providers_for_tag_keys(start_date, keys=None):
@@ -102,13 +115,43 @@ def _ocp_providers_for_tag_keys(start_date, keys=None):
     )
 
 
+def _parent_child_key_name_collision():
+    """True when a parent key name is also used as a child key name.
+
+    Mapping SQL rewrites stored JSON by key name in a single pass. Applying
+    that to already-mapped tags can rename a generated parent if the same
+    name is another mapping's child (common with cross-provider mappings).
+    A parquet rebuild starts from original keys and stays consistent.
+    """
+    parent_keys = set()
+    child_keys = set()
+    for parent_key, child_key in TagMapping.objects.values_list("parent__key", "child__key"):
+        parent_keys.add(parent_key)
+        child_keys.add(child_key)
+    return bool(parent_keys & child_keys)
+
+
+def _use_mapping_only_apply(schema_name, *, restore_unmapped=False):
+    """Whether to apply mappings in place instead of rebuilding from parquet."""
+    if restore_unmapped:
+        return False
+    if not is_apply_tag_mappings_enabled(schema_name):
+        return False
+    if _parent_child_key_name_collision():
+        LOG.info(log_json(msg="tag mapping parent/child key-name collision; using full summary", schema=schema_name))
+        return False
+    return True
+
+
 def _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type, *, restore_unmapped=False):
     """Queue mapping-only apply when enabled; otherwise a full current-month summary.
 
     Mapping SQL rewrites child keys in place. Removals cannot reverse that, so
-    ``restore_unmapped`` always queues a parquet/Trino rebuild.
+    ``restore_unmapped`` always queues a parquet/Trino rebuild. A parent/child
+    key-name collision also forces a rebuild so incremental apply cannot
+    disagree with ingest.
     """
-    if not restore_unmapped and is_apply_tag_mappings_enabled(schema_name):
+    if _use_mapping_only_apply(schema_name, restore_unmapped=restore_unmapped):
         delayed_apply_tag_mappings(schema_name, provider_uuids)
         return
     delayed_summarize_current_month(schema_name, provider_uuids, provider_type)
@@ -116,7 +159,7 @@ def _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type, *, re
 
 def _queue_ocp_tag_mapping_refresh(schema_name, provider_uuids, *, restore_unmapped=False):
     """Queue OCP mapping apply, or a full OCP plus linked-cloud rebuild."""
-    if not restore_unmapped and is_apply_tag_mappings_enabled(schema_name):
+    if _use_mapping_only_apply(schema_name, restore_unmapped=restore_unmapped):
         # Mapping-only job covers OCP daily summary and linked OCP-on-cloud
         # tables; do not also queue a cloud re-summary.
         delayed_apply_tag_mappings(schema_name, provider_uuids)
@@ -143,29 +186,35 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name, *, restore
     """
 
     start_date = DateHelper().this_month_start
-    cloud_model_mapping = {
+    cloud_summary_mapping = {
         Provider.PROVIDER_AWS: AWSTagsSummary,
         Provider.PROVIDER_AZURE: AzureTagsSummary,
         Provider.PROVIDER_GCP: GCPTagsSummary,
     }
+    cloud_bill_mapping = {
+        Provider.PROVIDER_AWS: AWSCostEntryBill,
+        Provider.PROVIDER_AZURE: AzureCostEntryBill,
+        Provider.PROVIDER_GCP: GCPCostEntryBill,
+    }
     key_sorting = defaultdict(list)
     for row in EnabledTagKeys.objects.filter(uuid__in=list_of_uuids):
         key_sorting[row.provider_type].append(row.key)
-    # After mapping, tag summaries keep the parent key and drop the child.
-    # Removals search every collected key so the parent still finds sources.
-    all_keys = [key for keys in key_sorting.values() for key in keys]
 
     for provider_type, key_list in key_sorting.items():
-        lookup_keys = all_keys if restore_unmapped else key_list
-        if model := cloud_model_mapping.get(provider_type):
-            provider_uuids = _cloud_providers_for_tag_keys(model, start_date, lookup_keys)
-            if restore_unmapped and not provider_uuids:
-                provider_uuids = _cloud_providers_for_tag_keys(model, start_date)
+        if bill_model := cloud_bill_mapping.get(provider_type):
+            # Removals cannot trust tag summaries: mapping-first ingest can
+            # leave a bill with no rows when the parent key is not enabled
+            # for this provider type. Discover from bills instead.
+            if restore_unmapped:
+                provider_uuids = _cloud_providers_with_current_month_bills(bill_model, start_date)
+            else:
+                provider_uuids = _cloud_providers_for_tag_keys(
+                    cloud_summary_mapping[provider_type], start_date, key_list
+                )
             _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type, restore_unmapped=restore_unmapped)
         elif provider_type == Provider.PROVIDER_OCP:
+            lookup_keys = None if restore_unmapped else key_list
             provider_uuids = _ocp_providers_for_tag_keys(start_date, lookup_keys)
-            if restore_unmapped and not provider_uuids:
-                provider_uuids = _ocp_providers_for_tag_keys(start_date)
             _queue_ocp_tag_mapping_refresh(schema_name, provider_uuids, restore_unmapped=restore_unmapped)
 
 
