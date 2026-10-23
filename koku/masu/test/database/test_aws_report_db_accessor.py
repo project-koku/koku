@@ -492,8 +492,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
                     self.accessor.populate_ocp_on_aws_tag_information([1], self.dh.this_month_start, self.dh.today, 1)
 
                 self.assertEqual(execute.call_count, 2)
-                sql = execute.call_args.args[1]
-                params = execute.call_args.args[2]
+                mapping_call = next(call for call in execute.call_args_list if "cte_update_tag_keys" in call.args[1])
+                sql = mapping_call.args[1]
+                params = mapping_call.args[2]
                 rendered, bind_params = self.accessor.prepare_query(sql, params)
                 self.assertEqual("cte_update_tag_keys as MATERIALIZED (" in rendered, materialize_enabled)
                 self.assertEqual("cte_update_tag_keys as (" in rendered, not materialize_enabled)
@@ -537,7 +538,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         self.assertEqual(analyze.call_count, 2)
         self.assertEqual(execute.call_count, 2)
-        rendered, _ = self.accessor.prepare_query(execute.call_args.args[1], execute.call_args.args[2])
+        mapping_call = next(call for call in execute.call_args_list if "cte_update_tag_keys" in call.args[1])
+        rendered, _ = self.accessor.prepare_query(mapping_call.args[1], mapping_call.args[2])
         self.assertIn("cte_update_tag_keys as MATERIALIZED (", rendered)
 
     def test_ocp_on_aws_materialization_preserves_mapped_tags(self):
