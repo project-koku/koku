@@ -45,6 +45,7 @@ from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
 from masu.processor import OCP_MARKUP_SKIP_UNCHANGED_FLAG
 from masu.processor import OCP_TAG_MAPPING_DIAGNOSTICS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
 from masu.processor import OCP_TAG_MAPPING_PRE_ANALYZE_FLAG
 from masu.processor import OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
@@ -401,6 +402,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "report_period_ids": report_period_ids,
             "schema": self.schema,
             "infrastructure_only": infrastructure_only,
+            "materialize_tag_mapping_candidates": is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            ),
         }
         self._pre_analyze_tag_mapping_partitions(start_date, end_date, report_period_ids)
         diagnostics = is_feature_flag_enabled_by_schema(

@@ -58,3 +58,35 @@ number of large tenants have millions.  An unindexed UPDATE/DELETE on
 take tens of seconds, blocking the API request under `@transaction.atomic`.
 
 Always add an index on FK columns in partitioned tables.
+
+## Stale `partitioned_tables` tracking (COST-8415)
+
+Each tenant schema has a `partitioned_tables` registry. Creating/dropping partitions
+goes through that table and `trfn_partition_manager`. When a migration removes
+partitioned models (or drops parents) without cleaning the registry, tracking rows
+can remain. The monthly pre-create task **skips** those stale defaults (it does not
+delete them).
+
+This is a **rare** event — typically when a provider or partitioned model family is
+removed from the product — not something that accumulates day-to-day.
+
+### If you remove partitioned models
+
+1. Drop/remove the physical tables (as the migration already does).
+2. Clear leftover registry rows **only** when the physical `schema.table_name` no
+   longer exists. A `DELETE` on `partitioned_tables` while a same-named relation
+   still exists will `DETACH` / `TRUNCATE` / `DROP` it via the trigger.
+3. Prefer the management command (dry-run first, then `--delete` after reviewing
+   samples):
+
+```bash
+# Inventory only (default)
+pipenv run python koku/manage.py reconcile_stale_partition_tracking --schema orgEXAMPLE
+# After reviewing log samples:
+pipenv run python koku/manage.py reconcile_stale_partition_tracking --schema orgEXAMPLE --delete
+```
+
+Or call `koku.pg_partition.reconcile_stale_partition_tracking(schema_name, delete=...)`
+from a one-off ops path / migration RunPython with the same rule: never delete a
+row whose relation still exists in `pg_class` (name reuse / detached tables stay
+as report-only).
