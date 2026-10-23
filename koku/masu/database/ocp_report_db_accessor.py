@@ -464,43 +464,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                     )
                 )
 
-    def _analyze_tag_mapping_partition(self, partition_name):
-        """Refresh only an existing monthly leaf; bound optional maintenance independently of the UPDATE."""
-        qualified_name = f"{connection.ops.quote_name(self.schema)}.{connection.ops.quote_name(partition_name)}"
-        with transaction.atomic(), connection.cursor() as cursor:
-            cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
-            previous_lock_timeout, previous_statement_timeout = cursor.fetchone()
-            cursor.execute("SET LOCAL lock_timeout = '5s'")
-            cursor.execute("SET LOCAL statement_timeout = '60s'")
-            cursor.execute("SELECT to_regclass(%s)", [qualified_name])
-            partition_exists = cursor.fetchone()[0] is not None
-            if not partition_exists:
-                LOG.info(
-                    log_json(
-                        msg="OCP tag-mapping partition absent; skipping ANALYZE",
-                        schema=self.schema,
-                        partition=partition_name,
-                    )
-                )
-            else:
-                started = time.monotonic()
-                cursor.execute(f"ANALYZE {qualified_name}")
-            # A released savepoint does not undo SET LOCAL in an enclosing transaction.
-            cursor.execute(
-                "SELECT set_config('lock_timeout', %s, true), set_config('statement_timeout', %s, true)",
-                [previous_lock_timeout, previous_statement_timeout],
-            )
-            if not partition_exists:
-                return
-        LOG.info(
-            log_json(
-                msg="OCP tag-mapping pre-ANALYZE complete",
-                schema=self.schema,
-                partition=partition_name,
-                elapsed_seconds=time.monotonic() - started,
-            )
-        )
-
     def _log_tag_mapping_plan(self, sql, sql_params):
         """Log estimated plan shape without expressions that can contain parameter values."""
         try:

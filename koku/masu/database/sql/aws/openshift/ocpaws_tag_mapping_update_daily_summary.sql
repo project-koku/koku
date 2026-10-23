@@ -14,7 +14,7 @@ WITH cte_tag_key_mapping AS (
             OR enabledtagkeys.provider_type = 'OCP'
         )
 ),
-cte_update_tag_keys as (
+cte_update_tag_keys as {% if materialize_tag_mapping_candidates %}MATERIALIZED {% endif %}(
     SELECT
         lids.uuid as uuid,
         lids.usage_start as usage_start,

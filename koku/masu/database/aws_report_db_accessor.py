@@ -10,6 +10,7 @@ import uuid
 
 from dateutil.parser import parse
 from django.db import connection
+from django.db import DatabaseError
 from django.db.models import F
 from django.db.models import Q
 from django_tenants.utils import schema_context
@@ -25,6 +26,8 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_tag_processing_disabled
 from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
+from masu.processor import OCP_TAG_MAPPING_PRE_ANALYZE_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -353,6 +356,26 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if has_mappings:
             sql = pkgutil.get_data("masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_daily_summary.sql")
             sql = sql.decode("utf-8")
+            sql_params["materialize_tag_mapping_candidates"] = is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            )
+            if bill_ids and is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_PRE_ANALYZE_FLAG, dev_fallback=True
+            ):
+                for month_start, _ in self.date_helper.list_month_tuples(start_date, end_date):
+                    partition_name = f"{OCPAWSCostLineItemProjectDailySummaryP._meta.db_table}_{month_start:%Y_%m}"
+                    try:
+                        self._analyze_tag_mapping_partition(partition_name, label="OCP-on-AWS")
+                    except DatabaseError as exc:
+                        LOG.warning(
+                            log_json(
+                                msg="OCP-on-AWS tag-mapping pre-ANALYZE failed",
+                                schema=self.schema,
+                                partition=partition_name,
+                                error_type=type(exc).__name__,
+                                pgcode=getattr(exc, "pgcode", None),
+                            )
+                        )
             self._prepare_and_execute_raw_sql_query(
                 self._table_map["ocp_on_aws_project_daily_summary"], sql, sql_params
             )
