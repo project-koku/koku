@@ -71,6 +71,43 @@ class ReportDBAccessorBase:
         connection = transaction.get_connection()
         connection.set_schema_to_public()
 
+    def _analyze_tag_mapping_partition(self, partition_name, label="OCP"):
+        """Refresh an existing monthly leaf with bounded maintenance timeouts."""
+        qualified_name = f"{connection.ops.quote_name(self.schema)}.{connection.ops.quote_name(partition_name)}"
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+            previous_lock_timeout, previous_statement_timeout = cursor.fetchone()
+            cursor.execute("SET LOCAL lock_timeout = '5s'")
+            cursor.execute("SET LOCAL statement_timeout = '60s'")
+            cursor.execute("SELECT to_regclass(%s)", [qualified_name])
+            partition_exists = cursor.fetchone()[0] is not None
+            if not partition_exists:
+                LOG.info(
+                    log_json(
+                        msg=f"{label} tag-mapping partition absent; skipping ANALYZE",
+                        schema=self.schema,
+                        partition=partition_name,
+                    )
+                )
+            else:
+                started = time.monotonic()
+                cursor.execute(f"ANALYZE {qualified_name}")
+            # A released savepoint does not undo SET LOCAL in an enclosing transaction.
+            cursor.execute(
+                "SELECT set_config('lock_timeout', %s, true), set_config('statement_timeout', %s, true)",
+                [previous_lock_timeout, previous_statement_timeout],
+            )
+            if not partition_exists:
+                return
+        LOG.info(
+            log_json(
+                msg=f"{label} tag-mapping pre-ANALYZE complete",
+                schema=self.schema,
+                partition=partition_name,
+                elapsed_seconds=time.monotonic() - started,
+            )
+        )
+
     @property
     def line_item_daily_summary_table(self):
         """Require this property in subclases."""
