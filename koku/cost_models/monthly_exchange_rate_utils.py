@@ -65,6 +65,19 @@ def _months_in_static_window(start_date, end_date):
     yield from _iter_month_starts(window_start, window_end)
 
 
+def _upsert_static_month(static_rate, month_start):
+    """Write one STATIC MonthlyExchangeRate row for the given month."""
+    MonthlyExchangeRate.objects.update_or_create(
+        effective_date=month_start,
+        base_currency=static_rate.base_currency,
+        target_currency=static_rate.target_currency,
+        defaults={
+            "exchange_rate": static_rate.exchange_rate,
+            "rate_type": RateType.STATIC,
+        },
+    )
+
+
 def upsert_static_monthly_rates(static_rate):
     """Upsert MonthlyExchangeRate STATIC rows for each month in the rate window.
 
@@ -74,19 +87,59 @@ def upsert_static_monthly_rates(static_rate):
     The reverse direction uses dynamic rates unless the user has explicitly
     defined a StaticExchangeRate for that direction.
     """
-    if static_rate.exchange_rate <= 0:
+    if Decimal(str(static_rate.exchange_rate)) <= 0:
         raise ValueError(f"exchange_rate must be positive, got {static_rate.exchange_rate}")
 
     for month_start in _months_in_static_window(static_rate.start_date, static_rate.end_date):
-        MonthlyExchangeRate.objects.update_or_create(
-            effective_date=month_start,
-            base_currency=static_rate.base_currency,
-            target_currency=static_rate.target_currency,
-            defaults={
-                "exchange_rate": static_rate.exchange_rate,
-                "rate_type": RateType.STATIC,
-            },
-        )
+        _upsert_static_month(static_rate, month_start)
+
+
+def rematerialize_current_month_static_rates(code=None, enabled_codes=None):
+    """Re-apply covering StaticExchangeRate definitions onto current-month MER rows.
+
+    Used on currency re-enable, daily crawl, and new-schema fill so surviving
+    static definitions take effect when the STATIC MER row is missing (deleted
+    on disable, or not yet written because the month just became current).
+
+    Current month only. Past months are finalized and left untouched.
+    Only pairs where both currencies are enabled are written, so a disabled
+    currency does not get its current-month rows recreated.
+    When code is provided, only definitions involving that currency are applied.
+    Forward only — reverse stays dynamic unless a reverse definition exists.
+    """
+    if enabled_codes is None:
+        enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+    if not enabled_codes:
+        return 0
+
+    current_month = DateHelper().this_month_start.date()
+    qs = StaticExchangeRate.objects.filter(
+        start_date__lte=current_month,
+        end_date__gte=current_month,
+    )
+    if code:
+        qs = qs.filter(Q(base_currency=code) | Q(target_currency=code))
+
+    updated = 0
+    for static_rate in qs:
+        if static_rate.base_currency not in enabled_codes or static_rate.target_currency not in enabled_codes:
+            continue
+        if Decimal(str(static_rate.exchange_rate)) <= 0:
+            LOG.warning(
+                log_json(
+                    msg="Skipping non-positive static exchange rate during rematerialize",
+                    base_currency=static_rate.base_currency,
+                    target_currency=static_rate.target_currency,
+                    rate=str(static_rate.exchange_rate),
+                )
+            )
+            continue
+        _upsert_static_month(static_rate, current_month)
+        updated += 1
+
+    if updated:
+        LOG.info(log_json(msg="Rematerialized current-month static exchange rates", count=updated, code=code))
+    return updated
 
 
 def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, start_date, end_date):
@@ -158,9 +211,12 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
     from the next later existing MonthlyExchangeRate for that pair. Existing rows
     are never overwritten.
 
-    Reads the latest rates from ExchangeRateDictionary and writes dynamic
-    MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.
-    If ERD is missing/empty and backfill_past_months is True, still backfill from existing MER.
+    First rematerializes current-month STATIC rows from StaticExchangeRate
+    definitions that cover this month (re-enable, month rollover). Then reads
+    the latest rates from ExchangeRateDictionary and writes dynamic
+    MonthlyExchangeRate rows for remaining enabled currency pairs. Static
+    overrides are preserved. If ERD is missing/empty and backfill_past_months
+    is True, still backfill from existing MER.
 
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
@@ -171,7 +227,7 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
         return 0
 
     current_month = DateHelper().this_month_start.date()
-    updated_count = 0
+    updated_count = rematerialize_current_month_static_rates(code=code, enabled_codes=enabled_codes)
     erd = ExchangeRateDictionary.objects.first()
     if erd and erd.currency_exchange_dictionary:
         exchange_dict = erd.currency_exchange_dictionary

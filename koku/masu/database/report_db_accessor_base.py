@@ -32,6 +32,8 @@ from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.processor.parquet.summary_sql_metadata import trino_safe_array_literal
 
@@ -68,6 +70,43 @@ class ReportDBAccessorBase:
         """Context manager reset schema to public and exit."""
         connection = transaction.get_connection()
         connection.set_schema_to_public()
+
+    def _analyze_tag_mapping_partition(self, partition_name, label="OCP"):
+        """Refresh an existing monthly leaf with bounded maintenance timeouts."""
+        qualified_name = f"{connection.ops.quote_name(self.schema)}.{connection.ops.quote_name(partition_name)}"
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+            previous_lock_timeout, previous_statement_timeout = cursor.fetchone()
+            cursor.execute("SET LOCAL lock_timeout = '5s'")
+            cursor.execute("SET LOCAL statement_timeout = '60s'")
+            cursor.execute("SELECT to_regclass(%s)", [qualified_name])
+            partition_exists = cursor.fetchone()[0] is not None
+            if not partition_exists:
+                LOG.info(
+                    log_json(
+                        msg=f"{label} tag-mapping partition absent; skipping ANALYZE",
+                        schema=self.schema,
+                        partition=partition_name,
+                    )
+                )
+            else:
+                started = time.monotonic()
+                cursor.execute(f"ANALYZE {qualified_name}")
+            # A released savepoint does not undo SET LOCAL in an enclosing transaction.
+            cursor.execute(
+                "SELECT set_config('lock_timeout', %s, true), set_config('statement_timeout', %s, true)",
+                [previous_lock_timeout, previous_statement_timeout],
+            )
+            if not partition_exists:
+                return
+        LOG.info(
+            log_json(
+                msg=f"{label} tag-mapping pre-ANALYZE complete",
+                schema=self.schema,
+                partition=partition_name,
+                elapsed_seconds=time.monotonic() - started,
+            )
+        )
 
     @property
     def line_item_daily_summary_table(self):
@@ -362,15 +401,28 @@ class ReportDBAccessorBase:
         We need to find the expected values for the openshift specific keys.
         Keys: openshift-project, openshift-node, openshift-cluster
         Ex: ("openshift-project": "project_a")
+
+        When OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG is ON, read distinct node/namespace
+        from the day-partitioned OCP summary table. When OFF, keep the legacy full-month
+        scan of raw pod-usage parquet.
         """
-        matched_tag_params = sql_metadata.build_params(
-            ["schema", "start_date", "end_date", "month", "year", "days", "matched_tag_strs", "ocp_provider_uuid"]
+        use_summary = is_feature_flag_enabled_by_schema(
+            self.schema, OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG, dev_fallback=True
         )
+        param_keys = ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs", "ocp_provider_uuid"]
+        if use_summary:
+            param_keys.append("days")
+        matched_tag_params = sql_metadata.build_params(param_keys)
         # OCP-on-cloud special-tag lookup is Trino-only (no self_hosted_sql counterpart).
-        matched_tags_sql = pkgutil.get_data(
-            "masu.database", f"{self.trino_sql_folder_name}/openshift/ocp_special_matched_tags.sql"
-        )
+        sql_filename = "ocp_special_matched_tags.sql" if use_summary else "ocp_special_matched_tags_pod_usage.sql"
+        matched_tags_sql = pkgutil.get_data("masu.database", f"{self.trino_sql_folder_name}/openshift/{sql_filename}")
         matched_tags_sql = matched_tags_sql.decode("utf-8")
-        LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
+        LOG.info(
+            log_json(
+                msg="Finding expected values for openshift special tags",
+                use_summary_lookup=use_summary,
+                **matched_tag_params,
+            )
+        )
         matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)
         return trino_safe_array_literal(matched_tags_result[0][0] or [])

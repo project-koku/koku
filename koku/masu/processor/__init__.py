@@ -21,6 +21,7 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 # Unleash flag names. Keep sorted by constant name: new flags then land in different
 # places instead of all appending at the end, which conflicts between concurrent PRs.
+APPLY_TAG_MAPPINGS_FLAG = "cost-management.backend.apply-tag-mappings"
 AWS_EMPTY_SPLIT_FINALIZATION_FLAG = "cost-management.backend.aws_empty_split_finalization"
 CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
@@ -33,11 +34,15 @@ INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-qu
 INGRESS_STAGING_LISTENER_FLAG = "cost-management.backend.ingress-staging-listener"
 OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG = "cost-management.backend.ocp_cloud_cluster_summary_views"
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
+OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG = "cost-management.backend.ocp_hive_zero_pad_partitions"
 OCP_MARKUP_SKIP_UNCHANGED_FLAG = "cost-management.backend.ocp_markup_skip_unchanged"
 OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG = "cost-management.backend.ocp_on_cloud_pg_idempotent_delete"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
 OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
+OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG = "cost-management.backend.ocp-special-matched-tags-from-summary"
 OCP_TAG_MAPPING_DIAGNOSTICS_FLAG = "cost-management.backend.ocp_tag_mapping_diagnostics"
+OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG = "cost-management.backend.ocp_tag_mapping_materialized_candidates"
+OCP_TAG_MAPPING_PRE_ANALYZE_FLAG = "cost-management.backend.ocp_tag_mapping_pre_analyze"
 OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG = "cost-management.backend.ocp_tag_mapping_statement_timeout"
 PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
 TAG_KEYS_REPORT_PERIOD_IDS_FLAG = "cost-management.backend.tag_keys_report_period_ids"
@@ -51,6 +56,11 @@ def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):
         return UNLEASH_CLIENT.is_enabled(feature_flag, context, fallback_development_true)
     else:
         return UNLEASH_CLIENT.is_enabled(feature_flag, context)
+
+
+def is_apply_tag_mappings_enabled(schema):  # pragma: no cover
+    """Apply tag mappings without a full current-month re-summary."""
+    return is_feature_flag_enabled_by_schema(schema, APPLY_TAG_MAPPINGS_FLAG, dev_fallback=True)
 
 
 def is_purge_trino_files_enabled(schema):  # pragma: no cover

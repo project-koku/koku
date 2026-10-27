@@ -809,6 +809,30 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 ---
 
+### Ingress Staging Reconciler
+
+**Task**: `masu.external.downloader.ocp.payload_landing.reconcile_ingress_staging`
+
+**Schedule**: Every minute
+
+**Queue**: `ocp` (default beat routing; consumed by `worker-ocp`)
+
+**Description**: Lists `ingress_staging/pending/` and registers up to 1000 S3 inbox markers into staging rows before it enqueues work. A marker is deleted only after the upsert succeeds. It then enqueues staged HCCM ingress rows that the listener's eager handoff did not finish. It does not claim rows. A successful publish sets `reconciled_at`; that `request_id` is not published again until the two-hour lease passes. Pending rows younger than one minute are left for the in-flight task. The worker task `masu.processor.ocp.staged_payloads.process_staged.process_staged_ingress_payload` claims the row and extracts the tarball on the customer OCP queue (`ocp`, `ocp_xl`, or `ocp_penalty`). Line items run as `process_staged_ingress_reports` on that same queue family. See [`reconcile.py`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) and [`process_staged.py`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py).
+
+---
+
+### Ingress Staging Retention
+
+**Task**: `masu.external.downloader.ocp.payload_landing.expire_ingress_staging`
+
+**Schedule**: Hourly at minute 0
+
+**Queue**: `ocp` (default beat routing; consumed by `worker-ocp`)
+
+**Description**: Deletes `processed` staging rows whose `stored_at` is older than seven days, and deletes the matching tarball and `by_request` receipt. `failed` rows and their objects are kept. Each run loops in batches of 100 until the expired backlog is gone or a 55-minute time budget elapses.
+
+---
+
 ## Additional Utility Tasks
 
 ### `masu.celery.tasks.collect_queue_metrics`
@@ -1004,7 +1028,7 @@ Koku uses multiple queue types to organize task processing:
    - `XL` - Extra-large provider refreshes
    - `PRIORITY` - High-priority refreshes
 6. **OCPQueue**:
-   - `DEFAULT` - OpenShift-specific processing
+   - `DEFAULT` - OpenShift-specific processing (includes HCCM ingress staging register, reconcile, extract, and line items when the staging listener flag is on)
    - `XL` - Extra-large OCP providers
    - `PRIORITY` - High-priority OCP processing
 7. **PriorityQueue**:

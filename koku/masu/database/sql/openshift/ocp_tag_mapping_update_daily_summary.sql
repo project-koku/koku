@@ -10,7 +10,7 @@ WITH cte_tag_key_mapping AS (
         enabledtagkeys.enabled
         AND enabledtagkeys.provider_type = 'OCP'
 ),
-cte_labels_to_update as (
+cte_labels_to_update as {% if materialize_tag_mapping_candidates %}MATERIALIZED {% endif %}(
     SELECT
         lids.uuid as uuid,
         lids.usage_start as usage_start,
@@ -30,6 +30,12 @@ cte_labels_to_update as (
         AND lids.pod_labels ?| ARRAY(SELECT child_key FROM cte_tag_key_mapping)
         {% if report_period_ids %}
             AND lids.report_period_id IN {{ report_period_ids | inclause }}
+        {% endif %}
+        {% if infrastructure_only %}
+            AND lids.infrastructure_raw_cost IS NOT NULL
+            AND lids.infrastructure_raw_cost != 0
+        {% else %}
+            AND (lids.infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0)
         {% endif %}
     UNION ALL
     SELECT
@@ -51,6 +57,12 @@ cte_labels_to_update as (
         AND lids.volume_labels ?| ARRAY(SELECT child_key FROM cte_tag_key_mapping)
         {% if report_period_ids %}
             AND lids.report_period_id IN {{ report_period_ids | inclause }}
+        {% endif %}
+        {% if infrastructure_only %}
+            AND lids.infrastructure_raw_cost IS NOT NULL
+            AND lids.infrastructure_raw_cost != 0
+        {% else %}
+            AND (lids.infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0)
         {% endif %}
 ),
 cte_update_labels as (

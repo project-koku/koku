@@ -18,6 +18,7 @@ from uuid import uuid4
 from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
+from django.db import DatabaseError
 from django.db import IntegrityError
 from django.db import transaction
 from django.db.models import DecimalField
@@ -41,9 +42,13 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
+from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
 from masu.processor import OCP_MARKUP_SKIP_UNCHANGED_FLAG
 from masu.processor import OCP_TAG_MAPPING_DIAGNOSTICS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
+from masu.processor import OCP_TAG_MAPPING_PRE_ANALYZE_FLAG
 from masu.processor import OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG
+from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.util.common import filter_dictionary
 from masu.util.common import SummaryRangeConfig
 from masu.util.common import trino_table_exists
@@ -365,12 +370,21 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
 
-    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
+    def update_line_item_daily_summary_with_tag_mapping(
+        self, start_date, end_date, report_period_ids=None, infrastructure_only=False
+    ):
         """Maps child keys to parent key.
+
+        OCP and cloud summaries partition this table by infrastructure_raw_cost.
+        Pass infrastructure_only=False (default) from the OCP summary to map usage
+        rows only; pass True from the cloud summary to map infrastructure rows only.
+
         Args:
             start_date (datetime.date) The date to start mapping keys
             end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
+            report_period_ids (list) A list of report period IDs.
+            infrastructure_only (bool) True maps nonzero infrastructure_raw_cost
+                rows; False maps null/zero infrastructure_raw_cost rows.
         Returns
             (None)
         """
@@ -387,7 +401,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end_date": end_date,
             "report_period_ids": report_period_ids,
             "schema": self.schema,
+            "infrastructure_only": infrastructure_only,
+            "materialize_tag_mapping_candidates": is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            ),
         }
+        self._pre_analyze_tag_mapping_partitions(start_date, end_date, report_period_ids)
         diagnostics = is_feature_flag_enabled_by_schema(
             self.schema, OCP_TAG_MAPPING_DIAGNOSTICS_FLAG, dev_fallback=True
         )
@@ -423,6 +442,27 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, redact_query_on_error=True)
         else:
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
+
+    def _pre_analyze_tag_mapping_partitions(self, start_date, end_date, report_period_ids):
+        """Refresh statistics only for flagged OCP tenants with a scoped report period."""
+        if not report_period_ids or not is_feature_flag_enabled_by_schema(
+            self.schema, OCP_TAG_MAPPING_PRE_ANALYZE_FLAG, dev_fallback=True
+        ):
+            return
+        for month_start, _ in DateHelper().list_month_tuples(start_date, end_date):
+            partition_name = f"{OCPUsageLineItemDailySummary._meta.db_table}_{month_start:%Y_%m}"
+            try:
+                self._analyze_tag_mapping_partition(partition_name)
+            except DatabaseError as exc:
+                LOG.warning(
+                    log_json(
+                        msg="OCP tag-mapping pre-ANALYZE failed",
+                        schema=self.schema,
+                        partition=partition_name,
+                        error_type=type(exc).__name__,
+                        pgcode=getattr(exc, "pgcode", None),
+                    )
+                )
 
     def _log_tag_mapping_plan(self, sql, sql_params):
         """Log estimated plan shape without expressions that can contain parameter values."""
@@ -712,8 +752,14 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
-        self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
+        # One delete per calendar day (SQL matches padded + legacy). Dual list for read filters.
+        days_for_delete = tuple(f"{day.day:02d}" for day in days)
+        days_for_read = hive_partition_day_values(days)
+        # Gate zero-padded writes so rolling deploys cannot store day=5 and day=05 together.
+        zero_pad_hive_partitions = is_feature_flag_enabled_by_schema(
+            self.schema, OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG, dev_fallback=True
+        )
+        self.delete_ocp_hive_partition_by_day(days_for_delete, source, year, month)
 
         sql = pkgutil.get_data(
             "masu.database",
@@ -731,8 +777,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "source": str(source),
             "year": year,
             "month": month,
-            "days": days_tup,
+            "days": days_for_read,
             "storage_exists": storage_exists,
+            "zero_pad_hive_partitions": zero_pad_hive_partitions,
         }
 
         try:

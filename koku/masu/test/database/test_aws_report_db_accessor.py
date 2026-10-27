@@ -12,6 +12,9 @@ from unittest.mock import patch
 
 from dateutil import relativedelta
 from django.conf import settings
+from django.db import connection
+from django.db import DatabaseError
+from django.db import transaction
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
@@ -462,6 +465,120 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ).count()
             self.assertEqual(0, actual_child_count)
 
+    def test_ocp_on_aws_tag_mapping_guardrail_flags(self):
+        """The existing flags independently control the AWS plan fence and leaf ANALYZE."""
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+
+        for analyze_enabled, materialize_enabled in ((False, False), (True, False), (False, True), (True, True)):
+            with self.subTest(analyze=analyze_enabled, materialize=materialize_enabled):
+
+                def flag_enabled(schema, flag, **kwargs):
+                    if flag.endswith("ocp_tag_mapping_pre_analyze"):
+                        return analyze_enabled
+                    if flag.endswith("ocp_tag_mapping_materialized_candidates"):
+                        return materialize_enabled
+                    return False
+
+                with (
+                    patch(
+                        "masu.database.aws_report_db_accessor.is_feature_flag_enabled_by_schema",
+                        side_effect=flag_enabled,
+                    ),
+                    patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as execute,
+                    patch.object(self.accessor, "_analyze_tag_mapping_partition") as analyze,
+                ):
+                    self.accessor.populate_ocp_on_aws_tag_information([1], self.dh.this_month_start, self.dh.today, 1)
+
+                self.assertEqual(execute.call_count, 2)
+                mapping_call = next(call for call in execute.call_args_list if "cte_update_tag_keys" in call.args[1])
+                sql = mapping_call.args[1]
+                params = mapping_call.args[2]
+                rendered, bind_params = self.accessor.prepare_query(sql, params)
+                self.assertEqual("cte_update_tag_keys as MATERIALIZED (" in rendered, materialize_enabled)
+                self.assertEqual("cte_update_tag_keys as (" in rendered, not materialize_enabled)
+                self.assertIn("cost_entry_bill_id in", rendered)
+                if materialize_enabled:
+                    with connection.cursor() as cursor:
+                        cursor.db.set_schema(self.schema)
+                        cursor.execute(f"EXPLAIN (FORMAT JSON) {rendered}", params=bind_params)
+                        plan = cursor.fetchone()[0][0]["Plan"]
+                    pending = [plan]
+                    nodes = []
+                    while pending:
+                        node = pending.pop()
+                        nodes.append(node)
+                        pending.extend(node.get("Plans", []))
+                    self.assertEqual(sum(node.get("Subplan Name") == "CTE cte_update_tag_keys" for node in nodes), 1)
+                    self.assertTrue(any(node.get("Node Type") == "CTE Scan" for node in nodes))
+                if analyze_enabled:
+                    analyze.assert_called_once_with(
+                        f"{OCPAWSCostLineItemProjectDailySummaryP._meta.db_table}_{self.dh.this_month_start:%Y_%m}",
+                        label="OCP-on-AWS",
+                    )
+                else:
+                    analyze.assert_not_called()
+
+    def test_ocp_on_aws_tag_mapping_analyze_failure_keeps_update(self):
+        """A failed optional monthly ANALYZE does not suppress the mapping UPDATE."""
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+
+        start_date = self.dh.this_month_start - relativedelta.relativedelta(months=1)
+        with (
+            patch("masu.database.aws_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=True),
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as execute,
+            patch.object(
+                self.accessor, "_analyze_tag_mapping_partition", side_effect=[DatabaseError("test"), None]
+            ) as analyze,
+        ):
+            self.accessor.populate_ocp_on_aws_tag_information([1], start_date, self.dh.today, 1)
+
+        self.assertEqual(analyze.call_count, 2)
+        self.assertEqual(execute.call_count, 2)
+        mapping_call = next(call for call in execute.call_args_list if "cte_update_tag_keys" in call.args[1])
+        rendered, _ = self.accessor.prepare_query(mapping_call.args[1], mapping_call.args[2])
+        self.assertIn("cte_update_tag_keys as MATERIALIZED (", rendered)
+
+    def test_ocp_on_aws_materialization_preserves_mapped_tags(self):
+        """Both SQL shapes update the same seeded rows to the same JSONB tags."""
+        with schema_context(self.schema):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
+            populated = [
+                key
+                for key in enabled_tags
+                if OCPAWSCostLineItemProjectDailySummaryP.objects.filter(tags__has_key=key.key).exists()
+            ][:2]
+            parent, child = populated
+            TagMapping.objects.create(parent=parent, child=child)
+            rows = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
+                usage_start__gte=self.dh.this_month_start,
+                usage_start__lte=self.dh.today,
+            )
+            bill_ids = list(rows.values_list("cost_entry_bill_id", flat=True).distinct())
+            self.assertTrue(rows.filter(tags__has_key=child.key).exists())
+
+            savepoint = transaction.savepoint()
+            with patch("masu.database.aws_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False):
+                self.accessor.populate_ocp_on_aws_tag_information(bill_ids, self.dh.this_month_start, self.dh.today, 1)
+            legacy = list(rows.order_by("uuid").values_list("uuid", "usage_start", "tags"))
+            transaction.savepoint_rollback(savepoint)
+
+            def materialize_only(schema, flag, **kwargs):
+                return flag.endswith("ocp_tag_mapping_materialized_candidates")
+
+            with patch(
+                "masu.database.aws_report_db_accessor.is_feature_flag_enabled_by_schema", side_effect=materialize_only
+            ):
+                self.accessor.populate_ocp_on_aws_tag_information(bill_ids, self.dh.this_month_start, self.dh.today, 1)
+            materialized = list(rows.order_by("uuid").values_list("uuid", "usage_start", "tags"))
+            self.assertEqual(materialized, legacy)
+            self.assertTrue(
+                any(parent.key in (tags or {}) and child.key not in (tags or {}) for _, _, tags in materialized)
+            )
+
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_ec2_compute_summary_table_trino(self, mock_trino):
         """
@@ -544,6 +661,61 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "SELECT *\nFROM calculated_capacity"
         )[0]
         self.assertIn("lineitem_usagetype LIKE '%EBS:VolumeUsage%'", capacity_section)
+
+    def test_ocp_on_aws_summary_uses_prunable_month_predicate(self):
+        """COST-8094: avoid lpad on partition column so Trino can prune month partitions."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/aws/openshift/populate_daily_summary/2_summarize_data_by_cluster.sql",
+        )
+        sql_template = sql_template.decode("utf-8")
+        self.assertNotIn("lpad(ocp.month, 2, '0') = {{month}}", sql_template)
+        self.assertIn(
+            "ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+            sql_template,
+        )
+        # Unattributed storage CTE must use the prunable predicate
+        unattributed = sql_template.split("cte_total_pv_capacity as (")[1].split("SELECT  cast(uuid()")[0]
+        self.assertIn(
+            "ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+            unattributed,
+        )
+
+    def test_matched_tags_sql_uses_prunable_month_predicate(self):
+        """COST-8094: matched-tags lookups must prune month partitions."""
+        for path in (
+            "trino_sql/aws/openshift/reporting_ocpaws_matched_tags.sql",
+            "trino_sql/openshift/ocp_special_matched_tags.sql",
+        ):
+            sql_template = pkgutil.get_data("masu.database", path).decode("utf-8")
+            with self.subTest(path=path):
+                self.assertNotIn("lpad(month, 2, '0') = {{month}}", sql_template)
+                self.assertIn(
+                    "month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+                    sql_template,
+                )
+
+    def test_summary_sql_metadata_days_tup_includes_padded_and_legacy(self):
+        """COST-8094: days_tup dual for reads; days_delete_tup one padded value per day."""
+        from datetime import date
+
+        from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
+
+        metadata = SummarySqlMetadata(
+            schema=self.schema,
+            ocp_provider_uuid=str(self.ocp_provider_uuid),
+            cloud_provider_uuid=str(self.aws_provider_uuid),
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 9),
+            matched_tag_strs=[],
+            bill_id=1,
+            report_period_id=1,
+        )
+        self.assertIn("01", metadata.days_tup)
+        self.assertIn("1", metadata.days_tup)
+        self.assertIn("09", metadata.days_tup)
+        self.assertIn("9", metadata.days_tup)
+        self.assertEqual(metadata.days_delete_tup, ("01", "02", "03", "04", "05", "06", "07", "08", "09"))
 
     def test_ocp_on_aws_disk_capacity_formula_ignores_provisioned_performance_lines(self):
         """COST-8328: provisioned throughput/IOPS rates must not drive capacity."""

@@ -369,7 +369,7 @@ class OCPGpuGroupBySerializer(GroupSerializer):
 class OCPGpuFilterSerializer(BaseFilterSerializer):
     """Serializer for handling GPU query parameter filter."""
 
-    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model", "gpu_mode", "mig_profile")
+    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model", "gpu_mode", "mig_profile", "category")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
@@ -378,6 +378,7 @@ class OCPGpuFilterSerializer(BaseFilterSerializer):
     gpu_model = StringOrListField(child=serializers.CharField(), required=False)
     gpu_mode = StringOrListField(child=serializers.CharField(), required=False)
     mig_profile = StringOrListField(child=serializers.CharField(), required=False)
+    category = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPGpuOrderBySerializer(OrderSerializer):
