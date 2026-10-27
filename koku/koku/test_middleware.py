@@ -61,6 +61,13 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
         self.assertIsNone(result)
 
+    @patch("koku.middleware.schema_exists", return_value=False)
+    def test_process_exception_schema_not_yet_created(self, _mock_schema_exists):
+        """Assert empty result set when Tenant exists but PG schema is not yet created."""
+        mock_request = self.request_context["request"]
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
+        self.assertIsInstance(result, JsonResponse)
+
 
 class KokuTenantMiddlewareTest(IamTestCase):
     """Tests against the koku tenant middleware."""
