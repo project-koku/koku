@@ -7,8 +7,13 @@ from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import connection
 from django.db import models
 from django.db.models import JSONField
+from django.db.models.signals import post_delete
+from django.db.models.signals import post_save
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 from api.provider.models import Provider
 from koku.settings import KOKU_DEFAULT_CURRENCY
@@ -108,6 +113,36 @@ class CostModelMap(models.Model):
         ordering = ["-id"]
         unique_together = ("provider_uuid", "cost_model")
         db_table = "cost_model_map"
+
+
+@receiver(post_save, sender=CostModelMap)
+@receiver(post_delete, sender=CostModelMap)
+def refresh_source_cost_model_mapping(sender, instance, **kwargs):
+    """A map edit changes one provider's `/sources/` cost_models list."""
+    if kwargs.get("raw"):
+        return
+    from sources.cache_events import dynamic_source_changed_on_commit
+
+    dynamic_source_changed_on_commit(connection.schema_name, instance.provider_uuid)
+
+
+@receiver(pre_save, sender=CostModel)
+def detect_cost_model_rename(sender, instance, update_fields, **kwargs):
+    if kwargs.get("raw") or instance._state.adding or (update_fields is not None and "name" not in update_fields):
+        instance._source_name_changed = False
+    else:
+        old_name = sender.objects.filter(pk=instance.pk).values_list("name", flat=True).first()
+        instance._source_name_changed = old_name is not None and old_name != instance.name
+
+
+@receiver(post_save, sender=CostModel)
+def refresh_sources_after_cost_model_rename(sender, instance, **kwargs):
+    if getattr(instance, "_source_name_changed", False) and not kwargs.get("raw"):
+        from sources.cache_events import dynamic_source_changed_on_commit
+
+        schema = connection.schema_name
+        for provider_uuid in CostModelMap.objects.filter(cost_model=instance).values_list("provider_uuid", flat=True):
+            dynamic_source_changed_on_commit(schema, provider_uuid)
 
 
 class PriceList(models.Model):

@@ -29,8 +29,6 @@ from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from api.utils import DateHelper
 from cost_models.models import CostModelMap
-from koku.cache import invalidate_cache_for_tenant_and_cache_key
-from koku.cache import SOURCES_CACHE_PREFIX
 from koku.database import execute_delete_sql
 from masu.util.ocp.operator_versions import LATEST_OPERATOR_VERSION
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -40,6 +38,7 @@ from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
+from sources.cache_events import source_cache_changed
 
 DATE_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG = logging.getLogger(__name__)
@@ -566,9 +565,13 @@ class ProviderManager:
 @receiver(post_save, sender=Provider)
 def provider_post_save_refresh_cache(*args, **kwargs):
     """Invalidate sources view cache after provider save."""
+    visible_fields = {"active", "paused", "polling_timestamp", "infrastructure", "additional_context", "type"}
+    update_fields = kwargs.get("update_fields")
+    if update_fields is not None and not visible_fields.intersection(update_fields):
+        return
     provider: Provider = kwargs["instance"]
     if customer := provider.customer:
-        invalidate_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
+        source_cache_changed(customer.schema_name, provider_uuid=provider.uuid, include_dependents=True)
 
 
 @receiver(post_delete, sender=Provider)

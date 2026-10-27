@@ -42,13 +42,17 @@ from api.provider.provider_manager import ProviderManagerError
 from api.provider.provider_manager import unlinked_source_details
 from api.report.constants import URL_ENCODED_SAFE
 from koku.cache import CacheEnum
-from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import SOURCES_LIST_GRANULAR_CACHE_FLAG
 from masu.util.aws.common import get_available_regions
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
 from sources.api.source_type_mapping import get_provider_type
+from sources.cache import get_or_fill_details
+from sources.cache import get_or_fill_response
+from sources.cache_events import source_cache_changed
 from sources.kafka_publisher import publish_application_destroy_event
 from sources.storage import SourcesStorageError
 
@@ -79,7 +83,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
                 if settings.ONPREM:
                     publish_application_destroy_event(source)
                 result = super().destroy(request, *args, **kwargs)
-                invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+                source_cache_changed(schema_name, page=True)
                 return result
         LOG.error("Failed to remove Source")
         return Response("Failed to remove Source", status=500)
@@ -264,7 +268,7 @@ class SourcesViewSet(*MIXIN_LIST):
         schema_name = request.user.customer.schema_name
         try:
             response = super().create(request, *args, **kwargs)
-            invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+            source_cache_changed(schema_name, page=True)
             return response
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
@@ -277,18 +281,43 @@ class SourcesViewSet(*MIXIN_LIST):
         schema_name = request.user.customer.schema_name
         try:
             result = super().update(request, *args, **kwargs)
-            invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+            source_cache_changed(schema_name, page=True)
             return result
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
         except SourcesDependencyError as error:
             raise SourcesDependencyException(str(error))
 
+    def list(self, request, *args, **kwargs):
+        """Obtain the list of sources."""
+        schema = request.user.customer.schema_name
+        if not is_feature_flag_enabled_by_schema(schema, SOURCES_LIST_GRANULAR_CACHE_FLAG, dev_fallback=True):
+            return self._legacy_list(request, *args, **kwargs)
+
+        def build_page():
+            return super(SourcesViewSet, self).list(request, *args, **kwargs).data
+
+        _, tenant = self._get_account_and_tenant(request)
+        data, rendered = get_or_fill_response(
+            request,
+            build_page,
+            lambda uuids: get_or_fill_details(schema, tenant, uuids),
+            self._remove_client_secret,
+            lambda payload: request.accepted_renderer.render(
+                payload, request.accepted_media_type, self.get_renderer_context()
+            ),
+        )
+        response = Response(data)
+        response.content = rendered
+        response["Content-Type"] = request.accepted_media_type
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     @method_decorator(
         cache_page(settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=SOURCES_CACHE_PREFIX)
     )
-    def list(self, request, *args, **kwargs):
-        """Obtain the list of sources."""
+    def _legacy_list(self, request, *args, **kwargs):
+        """Keep the original full-response cache for tenants outside the flag."""
 
         response = super().list(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)

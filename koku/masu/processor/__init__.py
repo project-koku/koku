@@ -40,6 +40,7 @@ OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-quer
 OCP_TAG_MAPPING_DIAGNOSTICS_FLAG = "cost-management.backend.ocp_tag_mapping_diagnostics"
 OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG = "cost-management.backend.ocp_tag_mapping_statement_timeout"
 PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
+SOURCES_LIST_GRANULAR_CACHE_FLAG = "cost-management.backend.sources_list_granular_cache"
 TAG_KEYS_REPORT_PERIOD_IDS_FLAG = "cost-management.backend.tag_keys_report_period_ids"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 

@@ -151,7 +151,10 @@ class SourcesListBulkTest(IamTestCase):
         self.addCleanup(caches[CacheEnum.api].clear)
 
     def test_list_uses_bulk_details(self):
-        with patch("sources.api.view.bulk_source_details", wraps=bulk_source_details) as bulk:
+        with (
+            patch("sources.api.view.is_feature_flag_enabled_by_schema", return_value=False),
+            patch("sources.api.view.bulk_source_details", wraps=bulk_source_details) as bulk,
+        ):
             response = self.client.get(reverse("sources-list"), **self.request_context["request"].META)
         self.assertEqual(response.status_code, 200)
         bulk.assert_called_once()

@@ -731,6 +731,30 @@ Platform Sources (User Action)
 
 ---
 
+## `/sources/` cache freshness (COST-8142)
+
+When `cost-management.backend.sources_list_granular_cache` is enabled, the list
+endpoint caches a fully rendered response snapshot per tenant, URL, renderer,
+and user access fingerprint. A hot request reads that snapshot and a tenant
+epoch in one cache operation. If the epoch changed, it compares page and
+provider generation tokens, rebuilding the page only for source edits or
+patching the providers whose dynamic details changed. Provider details have
+their own cache entries. Both layers expire within one hour and at the next
+UTC month boundary, when current-month flags change. Enabled responses use
+`Cache-Control: private, no-store` so a browser requests fresh metadata.
+
+Source and provider edits, manifest status/completion changes, and cost-model
+map/name changes advance the relevant generation tokens after commit. The
+manifest path also refreshes OCP providers that use the changed provider as
+infrastructure. Unrelated manifest housekeeping fields do not advance tokens.
+The new path never enumerates Redis keys. Tenants outside the flag retain the
+legacy full-response cache and its existing source/provider invalidation.
+Cache failures fall back to database assembly. An already open UI tab still
+needs to issue another request to observe a completed ingest.
+The `sources_list_cache_reads_total`, `sources_list_cache_fill_seconds`, and
+`sources_list_cache_generations_total` metrics expose bounded outcome/scope
+labels for rollout checks; they never label a tenant or provider UUID.
+
 ## Related Documentation
 
 - [Celery Tasks Architecture](./celery-tasks.md)

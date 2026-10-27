@@ -2,10 +2,12 @@
 
 ## Decision and scope
 
-Replace the single cached, fully assembled `/sources/` list with two cached
-layers: a source-list page containing fields owned by `Sources`, and dynamic
-details keyed by individual provider. Assemble the existing response from both
-layers on each request. A committed write changes only the relevant layer/key;
+Replace the legacy cache with two cached layers: a fully assembled response
+snapshot and dynamic details keyed by individual provider. On a hot request,
+compare the snapshot's tenant epoch in the same batched read and return it
+without rebuilding 200 source rows. When the epoch changes, compare the page
+and provider generations in one batched read. A committed write changes only
+the relevant generation;
 no manifest or cost-model write scans Redis or forces every source in a tenant
 to be recomputed. This is a backend-only change. The endpoint and its response
 fields remain unchanged.
@@ -32,32 +34,40 @@ freshness by itself.
 
 ## Read path
 
-1. Build a *static page* from the existing filtered, ordered, paginated
-   `SourcesSerializer` result. Cache the page data and pagination metadata for
-   one hour. Its key includes tenant schema, an explicit source-list generation,
+1. Build a complete response snapshot from the existing filtered, ordered,
+   paginated `SourcesSerializer` result and provider details. Cache its page
+   generation, per-provider generation vector, and tenant epoch alongside the response for
+   one hour. Its key includes tenant schema,
    the complete normalized query string, renderer/`Accept`, and a fingerprint
    of the authenticated user's source visibility. Do not cache a response for
    one permission set under another user's key. Preserve pagination and filter
    behavior, including pages with no sources.
-2. For UUIDs on that page, fetch dynamic details with a batched cache read.
+2. On each request, batch-read the snapshot and tenant epoch. If the epoch
+   matches, return the stored response directly. On a changed epoch, batch-read
+   the page/provider generations. If the page generation differs, rebuild the page and refresh its
+   provider details. If only provider generations differ, refresh and patch
+   those providers in the snapshot, leaving all others untouched.
+3. For changed UUIDs, fetch dynamic details with a batched cache read.
    Keys include tenant schema, provider UUID, and provider generation. For
    missing entries, call `bulk_source_details(missing_uuids, tenant)` once,
    then populate those entries in a batch. An unlinked source has an explicit
    cached fallback from `unlinked_source_details` so it is not queried forever.
    Keep the current secret-stripping and response shape.
-3. Assemble the page in source order. Static data never includes dynamic
-   `status`, `has_data`, current/previous-month flags, `cost_models`, or other
-   fields from `bulk_source_details`; these always come from the provider layer.
-4. Use short, bounded locks for simultaneous cold fills of the same page or
+4. Preserve source order, pagination, secret stripping, and response shape.
+   Replacing a provider's details must also remove stale dynamic fields from
+   the old snapshot when they disappear.
+5. Use short, bounded locks for simultaneous cold fills of the same page or
    provider batch. A waiter rechecks cache and may compute from the database if
    the lock holder fails. A cache outage falls back to the existing database
    path. Do not serve stale data indefinitely or turn a cache failure into an
    API failure.
 
-Generation changes are atomic in Redis and occur *after the database commit*.
-Readers use the new generation in their cache keys, so a read that began
-before the commit cannot repopulate the current key with old data. Old entries
-expire naturally; no `KEYS`/`SCAN` operation is required. Explicit schema
+Generation tokens and the tenant epoch are replaced together in Redis *after the database commit*.
+Readers compare the stored snapshot vector with current tokens; a read that
+began before the commit cannot stamp old data with a new token. Missing tokens
+are initialized with unique values rather than a default zero, so eviction
+cannot make an old snapshot compare equal. Old detail entries expire naturally;
+no `KEYS`/`SCAN` operation is required. Explicit schema
 context is required for cache operations made by public-schema ingestion code,
 because the current API cache uses `django_tenants.cache.make_key`. If a
 generation key is unavailable, bypass that layer until the cache is healthy.
@@ -121,6 +131,24 @@ cache fix successful. Repeat in an ephemeral environment with at least 190
 actual sources and a realistic request rate before enabling a new cache path
 globally. The local numbers are directional, not production SLOs.
 
+The local candidate on 2026-10-17 returned the same response fingerprint as
+the baseline for all 200 sources, with zero failures:
+
+| Scenario | Baseline p95 | Candidate p95 | Calls |
+| --- | ---: | ---: | ---: |
+| Warm, 5 ms interval, concurrency 4 | 11.27 ms | 7.51 / 9.71 / 11.52 ms (repeats) | 120 each |
+| Fresh key, 5 ms interval, concurrency 4 | 94.06 ms | 57.90 ms | 120 |
+| Fresh key, 250 ms interval, concurrency 4 | 25.60 ms | 25.28 ms | 120 |
+| Cold burst, concurrency 8 | 247.92 ms | 95.51 / 101.37 / 137.25 ms (repeats) | 32 each |
+| One provider generation changed, then 8-way burst | No freshness path | 99.43 ms | 32 |
+
+The live API response digest matched throughout. These measurements use 10
+Nise-backed sources plus 190 linked synthetic source rows; they demonstrate
+list-scale behavior and targeted refresh, not 190 concurrent ingestion streams.
+Earlier measurements varied substantially while the implementation and local
+server were changing. Reproduce on the intended deployment image and a
+representative ephemeral tenant before rollout.
+
 Freshness checks: (1) read the same exact `/sources/?limit=1000` URL before
 and after a Nise-backed manifest completes; verify the target source's status
 and data flags change, (2) run the IQE cost-model detach/reassign reproducer,
@@ -135,7 +163,7 @@ ENV_FOR_DYNACONF=local iqe tests plugin cost_management -k "test_api_cost_model_
 Gate the new path behind a backend enablement flag with local fallback on and
 production default off, following [`unleash-flags.md`](../../../docs/agent/unleash-flags.md).
 Keep the legacy path during rollout. Record per-layer hit rates, fill duration,
-missing-provider count, generation changes by event type, and cache errors;
+missing-provider count, generation changes by page/provider scope, and cache errors;
 avoid high-cardinality provider labels. Verify parity and latency on selected
 ephemeral/stage tenants before broad enablement. No API contract or migration
 change is expected.

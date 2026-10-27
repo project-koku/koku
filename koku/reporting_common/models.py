@@ -9,7 +9,10 @@ from uuid import uuid4
 from django.conf import settings
 from django.db import models
 from django.db import transaction
+from django.db.models.signals import post_delete
+from django.db.models.signals import post_save
 from django.db.models.signals import pre_delete
+from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 
@@ -64,6 +67,56 @@ class CostUsageReportManifest(models.Model):
     report_tracker = models.JSONField(default=dict, null=True)
     # s3_parquet_cleared_tracker is additional parquet context for OCP daily operator payloads
     s3_parquet_cleared_tracker = models.JSONField(default=dict, null=True)
+
+
+_SOURCE_VISIBLE_MANIFEST_FIELDS = {
+    "creation_datetime",
+    "completed_datetime",
+    "state",
+    "billing_period_start_datetime",
+    "operator_version",
+    "cluster_channel",
+    "operator_certified",
+    "operator_airgapped",
+    "operator_errors",
+    "operator_daily_reports",
+    "cluster_id",
+}
+
+
+@receiver(pre_save, sender=CostUsageReportManifest)
+def detect_source_visible_manifest_change(sender, instance, update_fields, **kwargs):
+    """Avoid invalidating source details for manifest housekeeping saves."""
+    if kwargs.get("raw"):
+        instance._source_visible_change = False
+    elif instance._state.adding:
+        instance._source_visible_change = True
+    elif update_fields is not None:
+        instance._source_visible_change = bool(_SOURCE_VISIBLE_MANIFEST_FIELDS.intersection(update_fields))
+    else:
+        old = sender.objects.filter(pk=instance.pk).values(*_SOURCE_VISIBLE_MANIFEST_FIELDS).first()
+        instance._source_visible_change = old is None or any(
+            old[field] != getattr(instance, field) for field in _SOURCE_VISIBLE_MANIFEST_FIELDS
+        )
+
+
+@receiver(post_save, sender=CostUsageReportManifest)
+def refresh_source_for_manifest(sender, instance, **kwargs):
+    if getattr(instance, "_source_visible_change", False) and not kwargs.get("raw") and instance.provider.customer:
+        from sources.cache_events import dynamic_source_changed_on_commit
+
+        dynamic_source_changed_on_commit(
+            instance.provider.customer.schema_name, instance.provider_id, include_dependents=True
+        )
+
+
+@receiver(post_delete, sender=CostUsageReportManifest)
+def refresh_source_after_manifest_delete(sender, instance, **kwargs):
+    from sources.cache_events import dynamic_source_changed_on_commit
+
+    provider = Provider.objects.filter(pk=instance.provider_id).select_related("customer").first()
+    if provider is not None and provider.customer:
+        dynamic_source_changed_on_commit(provider.customer.schema_name, instance.provider_id, include_dependents=True)
 
 
 class CostUsageReportStatus(models.Model):

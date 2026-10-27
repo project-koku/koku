@@ -19,9 +19,8 @@ from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerAuthorizationError
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
-from koku.cache import invalidate_cache_for_tenant_and_cache_key
-from koku.cache import SOURCES_CACHE_PREFIX
 from koku.middleware import IdentityHeaderMiddleware
+from sources.cache_events import source_cache_changed
 
 LOG = logging.getLogger(__name__)
 
@@ -134,7 +133,7 @@ class ProviderBuilder:
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
         finally:
-            invalidate_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
+            source_cache_changed(customer.schema_name, page=True, provider_uuid=source.koku_uuid)
             connection.set_schema_to_public()
         return instance
 
@@ -157,7 +156,7 @@ class ProviderBuilder:
         serializer.is_valid(raise_exception=True)
         serializer.save()
         connection.set_schema_to_public()
-        invalidate_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
+        source_cache_changed(customer.schema_name, page=True, provider_uuid=source.koku_uuid)
         return instance
 
     def destroy_provider(self, provider_uuid, retry_count=None):
@@ -177,5 +176,5 @@ class ProviderBuilder:
             except ProviderManagerAuthorizationError as err:
                 LOG.warning(str(err), exc_info=err)
 
-        invalidate_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
+        source_cache_changed(customer.schema_name, page=True, provider_uuid=provider_uuid)
         connection.set_schema_to_public()
