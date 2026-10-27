@@ -511,10 +511,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return merged
 
     def _cost_model_currency_case(self):
-        """Build a Case mapping source_uuid to its cost-model currency for CSV audit columns."""
+        """Build a Case mapping source_uuid to its cost-model currency for CSV audit columns.
+
+        Uses request_source_to_currency_map so the Case stays report-scoped, matching
+        _monthly_source_exchange_rate_case.
+        """
         whens = [
             When(source_uuid=uuid, then=Value(currency, output_field=TextField()))
-            for uuid, currency in self.source_to_currency_map.items()
+            for uuid, currency in self.request_source_to_currency_map.items()
         ]
         return Case(*whens, default=None, output_field=TextField())
 
