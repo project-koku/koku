@@ -23,6 +23,7 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
@@ -123,7 +124,9 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
 
         # Tenant row exists but the PostgreSQL schema may not have been created
         # yet — transient state during async first-source initialization.
-        if not schema_exists(schema_name):
+        # Only intercept ProgrammingError (missing-relation) to avoid masking
+        # unrelated exceptions such as request timeouts.
+        if isinstance(exception, ProgrammingError) and not schema_exists(schema_name):
             LOG.info(
                 "Tenant schema '%s' found in DB but PG schema not yet created "
                 "(async init window). Returning empty response.",
