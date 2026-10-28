@@ -12,7 +12,7 @@ metadata:
   creationTimestamp: null
 
   labels:
-    appstudio.openshift.io/application: koku
+    appstudio.openshift.io/application: koku-onprem
     appstudio.openshift.io/component: koku-onprem
     pipelines.appstudio.openshift.io/type: build
 
@@ -21,7 +21,7 @@ metadata:
 
 spec:
   taskRunTemplate:
-    serviceAccountName: build-pipeline-koku
+    serviceAccountName: build-pipeline-koku-onprem
 
   params:
     - name: git-url
