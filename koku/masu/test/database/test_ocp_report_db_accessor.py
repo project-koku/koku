@@ -9,6 +9,7 @@ import random
 import uuid
 from collections import defaultdict
 from datetime import datetime
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import call
 from unittest.mock import Mock
@@ -29,6 +30,7 @@ from django.test import override_settings
 from django.test import SimpleTestCase
 from django.test.utils import CaptureQueriesContext
 from django_tenants.utils import schema_context
+from model_bakery import baker
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoUserError
 
@@ -1877,6 +1879,99 @@ class OCPReportDBAccessorTest(MasuTestCase):
         update.assert_called_once()
         self.assertFalse(any(args[0][1].endswith("ocp_tag_mapping_pre_analyze") for args in flag.call_args_list))
 
+    def test_tag_mapping_materialization_flag_controls_candidate_cte(self):
+        """Only the enabled path fences the candidate scan against repeated execution."""
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                with (
+                    patch(
+                        "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema",
+                        side_effect=lambda schema, name, **kwargs: enabled
+                        and name == "cost-management.backend.ocp_tag_mapping_materialized_candidates",
+                    ) as flag,
+                    patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+                ):
+                    self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                        self.dh.this_month_start, self.dh.today, [1]
+                    )
+                update.assert_called_once()
+                sql, bind_params = self.accessor.prepare_query(update.call_args.args[1], update.call_args.args[2])
+                self.assertEqual("cte_labels_to_update as MATERIALIZED (" in sql, enabled)
+                self.assertEqual("cte_labels_to_update as (" in sql, not enabled)
+                self.assertIn("lids.report_period_id IN", sql)
+                self.assertIn("cte_update_labels as (", sql)
+                self.assertEqual(
+                    sum(
+                        call_.args[1] == "cost-management.backend.ocp_tag_mapping_materialized_candidates"
+                        for call_ in flag.call_args_list
+                    ),
+                    1,
+                )
+                if enabled:
+                    with connection.cursor() as cursor:
+                        cursor.db.set_schema(self.schema)
+                        cursor.execute(f"EXPLAIN (FORMAT JSON) {sql}", params=bind_params)
+                        plan = cursor.fetchone()[0][0]["Plan"]
+                    nodes = [plan]
+                    for node in nodes:
+                        nodes.extend(node.get("Plans", []))
+                    self.assertEqual(sum(node.get("Subplan Name") == "CTE cte_labels_to_update" for node in nodes), 1)
+                    self.assertTrue(any(node.get("Node Type") == "CTE Scan" for node in nodes))
+
+    def test_tag_mapping_materialization_preserves_disjoint_label_rows(self):
+        """The new plan must write the same pod, volume, and combined labels for normal rows."""
+        self._assert_tag_mapping_materialization_preserves_disjoint_label_rows()
+
+    @override_settings(ONPREM=True)
+    def test_tag_mapping_materialization_preserves_disjoint_label_rows_onprem(self):
+        """The shared PostgreSQL UPDATE behaves identically on the on-prem path."""
+        self._assert_tag_mapping_materialization_preserves_disjoint_label_rows()
+
+    def _assert_tag_mapping_materialization_preserves_disjoint_label_rows(self):
+        first_day = self.dh.this_month_start
+        second_day = first_day + timedelta(days=1)
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+            row_ids = {}
+            for day in (first_day, second_day):
+                row_ids[day] = []
+                for label_type in ("pod_labels", "volume_labels"):
+                    row = baker.make(
+                        OCPUsageLineItemDailySummary,
+                        uuid=uuid.uuid4(),
+                        usage_start=day,
+                        usage_end=day,
+                        pod_labels={child.key: "child-value"} if label_type == "pod_labels" else None,
+                        volume_labels={child.key: "child-value"} if label_type == "volume_labels" else None,
+                        all_labels={child.key: "child-value"},
+                    )
+                    row_ids[day].append(row.uuid)
+
+        results = []
+        for day, enabled in ((first_day, False), (second_day, True)):
+            with patch(
+                "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema",
+                side_effect=lambda schema, name, **kwargs: enabled
+                and name == "cost-management.backend.ocp_tag_mapping_materialized_candidates",
+            ):
+                self.accessor.update_line_item_daily_summary_with_tag_mapping(day, day)
+            with schema_context(self.schema):
+                rows = OCPUsageLineItemDailySummary.objects.filter(uuid__in=row_ids[day], usage_start=day)
+                results.append(
+                    sorted(
+                        ((row.pod_labels, row.volume_labels, row.all_labels) for row in rows),
+                        key=lambda labels: labels[0] is None,
+                    )
+                )
+        self.assertEqual(results[0], results[1])
+        self.assertEqual(results[1][0], ({parent.key: "child-value"}, None, {parent.key: "child-value"}))
+        self.assertEqual(results[1][1], (None, {parent.key: "child-value"}, {parent.key: "child-value"}))
+
     def test_tag_mapping_guardrail_flags_are_independent(self):
         """Each flag changes only its own database work, and the UPDATE runs once."""
         with schema_context(self.schema):
@@ -2017,7 +2112,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 usage_start__lte=self.dh.today,
             ).count()
             TagMapping.objects.create(parent=parent_obj, child=child_obj)
-            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+            # Usage and infrastructure rows are mapped by separate ownership paths.
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=False
+            )
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=True
+            )
             expected_parent_count = (parent_count + child_count) - value_precedence_count
             actual_parent_count = OCPUsageLineItemDailySummary.objects.filter(
                 all_labels__has_key=parent_key,
@@ -2054,6 +2155,41 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.assertNotIn(distinct_value, child_values)
                 tested = True
             self.assertTrue(tested)
+
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_update_line_item_daily_summary_with_tag_mapping_row_ownership_filters(self, _mock_flag):
+        """OCP and cloud summaries partition tag mapping by infrastructure_raw_cost."""
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+
+        # Default (OCP summary): usage rows only
+        with CaptureQueriesContext(connection) as captured:
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=False
+            )
+        updates = [
+            q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]
+        ]
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(
+            updates[0].count("infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0"),
+            2,
+        )
+        self.assertNotIn("infrastructure_raw_cost IS NOT NULL", updates[0])
+
+        # Cloud summary: infrastructure rows only
+        with CaptureQueriesContext(connection) as captured:
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=True
+            )
+        updates = [
+            q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]
+        ]
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(updates[0].count("infrastructure_raw_cost IS NOT NULL"), 2)
+        self.assertEqual(updates[0].count("infrastructure_raw_cost != 0"), 2)
+        self.assertNotIn("infrastructure_raw_cost IS NULL OR", updates[0])
 
     def test_no_report_period_populate_vm_tag_based_costs(self):
         """

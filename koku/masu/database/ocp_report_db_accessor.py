@@ -45,6 +45,7 @@ from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
 from masu.processor import OCP_MARKUP_SKIP_UNCHANGED_FLAG
 from masu.processor import OCP_TAG_MAPPING_DIAGNOSTICS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
 from masu.processor import OCP_TAG_MAPPING_PRE_ANALYZE_FLAG
 from masu.processor import OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
@@ -369,12 +370,21 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
 
-    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
+    def update_line_item_daily_summary_with_tag_mapping(
+        self, start_date, end_date, report_period_ids=None, infrastructure_only=False
+    ):
         """Maps child keys to parent key.
+
+        OCP and cloud summaries partition this table by infrastructure_raw_cost.
+        Pass infrastructure_only=False (default) from the OCP summary to map usage
+        rows only; pass True from the cloud summary to map infrastructure rows only.
+
         Args:
             start_date (datetime.date) The date to start mapping keys
             end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
+            report_period_ids (list) A list of report period IDs.
+            infrastructure_only (bool) True maps nonzero infrastructure_raw_cost
+                rows; False maps null/zero infrastructure_raw_cost rows.
         Returns
             (None)
         """
@@ -391,6 +401,10 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end_date": end_date,
             "report_period_ids": report_period_ids,
             "schema": self.schema,
+            "infrastructure_only": infrastructure_only,
+            "materialize_tag_mapping_candidates": is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            ),
         }
         self._pre_analyze_tag_mapping_partitions(start_date, end_date, report_period_ids)
         diagnostics = is_feature_flag_enabled_by_schema(
@@ -449,43 +463,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                         pgcode=getattr(exc, "pgcode", None),
                     )
                 )
-
-    def _analyze_tag_mapping_partition(self, partition_name):
-        """Refresh only an existing monthly leaf; bound optional maintenance independently of the UPDATE."""
-        qualified_name = f"{connection.ops.quote_name(self.schema)}.{connection.ops.quote_name(partition_name)}"
-        with transaction.atomic(), connection.cursor() as cursor:
-            cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
-            previous_lock_timeout, previous_statement_timeout = cursor.fetchone()
-            cursor.execute("SET LOCAL lock_timeout = '5s'")
-            cursor.execute("SET LOCAL statement_timeout = '60s'")
-            cursor.execute("SELECT to_regclass(%s)", [qualified_name])
-            partition_exists = cursor.fetchone()[0] is not None
-            if not partition_exists:
-                LOG.info(
-                    log_json(
-                        msg="OCP tag-mapping partition absent; skipping ANALYZE",
-                        schema=self.schema,
-                        partition=partition_name,
-                    )
-                )
-            else:
-                started = time.monotonic()
-                cursor.execute(f"ANALYZE {qualified_name}")
-            # A released savepoint does not undo SET LOCAL in an enclosing transaction.
-            cursor.execute(
-                "SELECT set_config('lock_timeout', %s, true), set_config('statement_timeout', %s, true)",
-                [previous_lock_timeout, previous_statement_timeout],
-            )
-            if not partition_exists:
-                return
-        LOG.info(
-            log_json(
-                msg="OCP tag-mapping pre-ANALYZE complete",
-                schema=self.schema,
-                partition=partition_name,
-                elapsed_seconds=time.monotonic() - started,
-            )
-        )
 
     def _log_tag_mapping_plan(self, sql, sql_params):
         """Log estimated plan shape without expressions that can contain parameter values."""

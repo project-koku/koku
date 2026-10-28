@@ -25,6 +25,7 @@ from api.settings.tags.mapping.serializers import TagMappingSerializer
 from api.settings.tags.mapping.serializers import ViewOptionsSerializer
 from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
+from api.settings.tags.mapping.utils import tag_mapping_enabled_key_uuids
 from api.settings.tags.mapping.utils import TagMappingFilters
 from api.settings.tags.serializers import SettingsTagIDSerializer
 from api.settings.utils import NonValidatedMultipleChoiceFilter
@@ -139,10 +140,12 @@ class SettingsTagMappingChildRemoveView(APIView):
         children_uuids = request.data.get("ids", [])
         serializer = SettingsTagIDSerializer(data={"id_list": children_uuids})
         serializer.is_valid(raise_exception=True)
-        if not TagMapping.objects.filter(child__uuid__in=children_uuids).exists():
+        mappings = list(TagMapping.objects.filter(child__uuid__in=children_uuids))
+        if not mappings:
             return Response({"detail": "Invalid children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
+        refresh_uuids = tag_mapping_enabled_key_uuids(mappings)
         TagMapping.objects.filter(child__in=children_uuids).delete()
-        resummarize_current_month_by_tag_keys(children_uuids, request.user.customer.schema_name)
+        resummarize_current_month_by_tag_keys(refresh_uuids, request.user.customer.schema_name, restore_unmapped=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -153,10 +156,11 @@ class SettingsTagMappingParentRemoveView(APIView):
         parents_uuid = request.data.get("ids", [])
         serializer = SettingsTagIDSerializer(data={"id_list": parents_uuid})
         serializer.is_valid(raise_exception=True)
-        if not TagMapping.objects.filter(parent__uuid__in=parents_uuid).exists():
+        mappings = list(TagMapping.objects.filter(parent__uuid__in=parents_uuid))
+        if not mappings:
             return Response({"detail": "Invalid parents UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
-        # We should resummarize based on the child uuids since they were the ones replaced.
-        child_uuids = list(TagMapping.objects.filter(parent__in=parents_uuid).values_list("child", flat=True))
+        # Parent keys remain in tag summaries after mapping; child keys may not.
+        refresh_uuids = tag_mapping_enabled_key_uuids(mappings)
         TagMapping.objects.filter(parent__in=parents_uuid).delete()
-        resummarize_current_month_by_tag_keys(child_uuids, request.user.customer.schema_name)
+        resummarize_current_month_by_tag_keys(refresh_uuids, request.user.customer.schema_name, restore_unmapped=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
