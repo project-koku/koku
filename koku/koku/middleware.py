@@ -23,11 +23,13 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
 from django_tenants.middleware import TenantMainMiddleware
+from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 
 from api.common import log_json
@@ -117,6 +119,19 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
         try:
             Tenant.objects.get(schema_name=schema_name)
         except Tenant.DoesNotExist:
+            paginator = EmptyResultsSetPagination([], request)
+            return paginator.get_paginated_response()
+
+        # Tenant row exists but the PostgreSQL schema may not have been created
+        # yet — transient state during async first-source initialization.
+        # Only intercept ProgrammingError (missing-relation) to avoid masking
+        # unrelated exceptions such as request timeouts.
+        if isinstance(exception, ProgrammingError) and not schema_exists(schema_name):
+            LOG.info(
+                "Tenant schema '%s' found in DB but PG schema not yet created "
+                "(async init window). Returning empty response.",
+                schema_name,
+            )
             paginator = EmptyResultsSetPagination([], request)
             return paginator.get_paginated_response()
 
