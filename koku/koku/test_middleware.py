@@ -37,6 +37,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku import middleware as MD
 from koku.cache import CacheEnum
 from koku.middleware import capture_soft_timeout_exception
+from koku.middleware import check_masu_admin_token
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
@@ -44,6 +45,7 @@ from koku.middleware import KokuTenantSchemaExistsMiddleware
 from koku.middleware import RequestTimeoutError
 from koku.middleware import RequestTimeoutMiddleware
 from koku.middleware import RequestTimingMiddleware
+from koku.middleware import requires_masu_admin_token
 from koku.middleware import sentry_before_send
 from koku.test_rbac import mocked_requests_get_500_text
 
@@ -799,3 +801,132 @@ class SentryBeforeSendTest(IamTestCase):
         hint = {}
         result = sentry_before_send(event, hint)
         self.assertEqual(result, event)
+
+
+class MasuAdminTokenGateTest(IamTestCase):
+    """On-prem Masu shared-secret gate (COST-8059)."""
+
+    def setUp(self):
+        """Set up middleware tests."""
+        super().setUp()
+        self.mock_get_response = Mock()
+
+    def _request(self, path, authorization=None):
+        request = Mock(path=path, META={})
+        if authorization is not None:
+            request.META["HTTP_AUTHORIZATION"] = authorization
+        return request
+
+    @override_settings(ONPREM=True)
+    @patch("koku.middleware.MASU", True)
+    def test_requires_token_for_admin_paths(self, _):
+        """Allow-listed admin paths require the token when ONPREM+MASU."""
+        for path in (
+            "/api/cost-management/v1/report_data/",
+            "/api/cost-management/v1/running_celery_tasks/",
+            "/api/cost-management/v1/celery_queue_tasks/",
+            "/api/cost-management/v1/celery_queue_lengths/",
+            "/api/cost-management/v1/db-performance/db-settings/",
+        ):
+            self.assertTrue(requires_masu_admin_token(self._request(path)), path)
+
+    @override_settings(ONPREM=True)
+    @patch("koku.middleware.MASU", True)
+    def test_exempts_status_and_probes(self, _):
+        """Health and probe paths stay open without a token."""
+        for path in (
+            "/api/cost-management/v1/status/",
+            "/api/cost-management/v1/openapi.json",
+            "/livez",
+            "/readyz",
+        ):
+            self.assertFalse(requires_masu_admin_token(self._request(path)), path)
+
+    @override_settings(ONPREM=False)
+    @patch("koku.middleware.MASU", True)
+    def test_saas_does_not_require_token(self, _):
+        """SaaS Masu keeps relying on network isolation (no token gate)."""
+        self.assertFalse(requires_masu_admin_token(self._request("/api/cost-management/v1/report_data/")))
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    def test_check_accepts_valid_bearer_token(self):
+        """Valid Bearer token is accepted."""
+        request = self._request("/report_data/", authorization="Bearer secret-token")
+        self.assertIsNone(check_masu_admin_token(request))
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    def test_check_rejects_missing_invalid_and_empty_config(self):
+        """Missing/invalid tokens and empty configured secret fail closed."""
+        cases = [
+            self._request("/report_data/"),
+            self._request("/report_data/", authorization="Bearer wrong"),
+            self._request("/report_data/", authorization="Basic secret-token"),
+        ]
+        for request in cases:
+            response = check_masu_admin_token(request)
+            self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+        with override_settings(MASU_ADMIN_TOKEN=""):
+            response = check_masu_admin_token(self._request("/report_data/", authorization="Bearer anything"))
+            self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    @patch("koku.middleware.MASU", True)
+    def test_process_request_returns_401_without_token(self, _):
+        """Middleware short-circuits with 401 when the token is missing."""
+        middleware = IdentityHeaderMiddleware(self.mock_get_response)
+        response = middleware.process_request(self._request("/api/cost-management/v1/report_data/"))
+        self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_missing_token_returns_401(self, _):
+        """High-risk path /report_data/ rejects requests without a token."""
+        response = self.client.get(reverse("report_data"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_invalid_token_returns_401(self, _):
+        """High-risk path /report_data/ rejects an invalid token."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer wrong")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_valid_token_passes_gate(self, _):
+        """Valid token clears the gate (missing query params yield 400, not 401)."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer secret-token")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_empty_secret_fails_closed(self, _):
+        """Empty MASU_ADMIN_TOKEN in on-prem mode denies even with a Bearer header."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer anything")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_status_remains_open_without_token(self, _):
+        """/status/ stays reachable for health checks without a token."""
+        response = self.client.get(reverse("server-status"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    @patch("masu.api.running_celery_tasks.CELERY_INSPECT")
+    def test_gate_applies_across_allow_list(self, mock_celery, _):
+        """Shared gate covers the full on-prem allow list, not only report_data."""
+        mock_celery.active.return_value = {}
+        allow_list = (
+            "running_celery_tasks",
+            "celery_queue_tasks",
+            "celery_queue_lengths",
+            "db_settings",
+        )
+        for name in allow_list:
+            denied = self.client.get(reverse(name))
+            self.assertEqual(denied.status_code, status.HTTP_401_UNAUTHORIZED, name)
+            allowed = self.client.get(reverse(name), HTTP_AUTHORIZATION="Bearer secret-token")
+            self.assertNotEqual(allowed.status_code, status.HTTP_401_UNAUTHORIZED, name)
