@@ -18,7 +18,9 @@ from reporting.models import TenantAPIProvider
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryBill
+from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import RatesToUsage
 
 
 def create_test_provider(schema, provider):
@@ -195,6 +197,35 @@ class TestProviderDeleteSQL(IamTestCase):
         with schema_context(c.schema_name):
             ocpurp.save()
 
+        # RatesToUsage.source_uuid and OCPCostUIBreakDownP.source_uuid are both FKs to
+        # TenantAPIProvider (not OCPUsageReportPeriod). Provider.delete()'s cascade walks
+        # DB-level FK constraints filtered by table-name regex (see
+        # Provider._get_linked_table_names); confirm both RTU-derived tables are still
+        # reachable so a full source deletion doesn't orphan them (COST-7249 GA audit).
+        with schema_context(c.schema_name):
+            rtu_row = RatesToUsage.objects.create(
+                source_uuid_id=pocp.uuid,
+                report_period_id=ocpurp.id,
+                usage_start=period_start.date(),
+                usage_end=period_start.date(),
+                cluster_id=ocpurp.cluster_id,
+                custom_name="test-rate",
+                metric_type="cpu_usage",
+            )
+            breakdown_row = OCPCostUIBreakDownP.objects.create(
+                source_uuid_id=pocp.uuid,
+                usage_start=period_start.date(),
+                usage_end=period_start.date(),
+                cluster_id=ocpurp.cluster_id,
+                custom_name="test-rate",
+                metric_type="cpu_usage",
+                path="root",
+                depth=0,
+                parent_path="",
+                top_category="root",
+                breakdown_category="root",
+            )
+
         expected = "reporting_ocpusagereportperiod"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
@@ -205,5 +236,15 @@ class TestProviderDeleteSQL(IamTestCase):
 
         with schema_context(c.schema_name):
             self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=ocpurp.pk).count(), 0)
+            self.assertEqual(
+                RatesToUsage.objects.filter(pk=rtu_row.pk).count(),
+                0,
+                "RatesToUsage rows must not be orphaned by provider deletion",
+            )
+            self.assertEqual(
+                OCPCostUIBreakDownP.objects.filter(pk=breakdown_row.pk).count(),
+                0,
+                "OCPCostUIBreakDownP rows must not be orphaned by provider deletion",
+            )
 
         self.assertEqual(Provider.objects.filter(pk=pocp.pk).count(), 0)
