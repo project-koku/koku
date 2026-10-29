@@ -87,6 +87,24 @@ def _extract_masu_admin_token(request):
     return value.strip()
 
 
+def _path_after_api_prefix(path):
+    """Strip API_PATH_PREFIX so exempt matching ignores the configured prefix.
+
+    Prevents a prefix that contains an exempt substring (e.g. ``/api/status``)
+    from bypassing the token gate on every Masu route.
+    """
+    prefix = (settings.API_PATH_PREFIX or "").rstrip("/")
+    if not prefix:
+        return path
+    if not prefix.startswith("/"):
+        prefix = f"/{prefix}"
+    if path == prefix:
+        return "/"
+    if path.startswith(f"{prefix}/"):
+        return path[len(prefix) :]
+    return path
+
+
 def requires_masu_admin_token(request):
     """Return True when this Masu request must present MASU_ADMIN_TOKEN.
 
@@ -95,8 +113,8 @@ def requires_masu_admin_token(request):
     """
     if not (MASU and settings.ONPREM):
         return False
-    path = request.path
-    return not any(exempt in path for exempt in _MASU_ADMIN_TOKEN_EXEMPT_PATHS)
+    route_path = _path_after_api_prefix(request.path)
+    return not any(exempt in route_path for exempt in _MASU_ADMIN_TOKEN_EXEMPT_PATHS)
 
 
 def check_masu_admin_token(request):

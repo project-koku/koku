@@ -91,6 +91,11 @@
             "description": "An endpoint to review the status of manifest and reportstatus entries."
         }
     ],
+    "security": [
+        {
+            "MasuAdminBearer": []
+        }
+    ],
     "paths": {
         "/download/": {
             "get": {
@@ -501,11 +506,6 @@
                         }
                     }
                 ],
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Data summary task has been queued",
@@ -776,6 +776,7 @@
                         }
                     }
                 ],
+                "security": [],
                 "responses": {
                     "200": {
                         "description": "",

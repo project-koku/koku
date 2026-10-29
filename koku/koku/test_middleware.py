@@ -857,6 +857,13 @@ class MasuAdminTokenGateTest(IamTestCase):
         ):
             self.assertFalse(requires_masu_admin_token(self._request(path)), path)
 
+    @override_settings(ONPREM=True, API_PATH_PREFIX="/api/status")
+    @patch("koku.middleware.MASU", True)
+    def test_exempt_substring_in_prefix_does_not_bypass_gate(self):
+        """Exempt text inside API_PATH_PREFIX must not skip the token on admin routes."""
+        self.assertTrue(requires_masu_admin_token(self._request("/api/status/v1/report_data/")))
+        self.assertFalse(requires_masu_admin_token(self._request("/api/status/v1/status/")))
+
     @override_settings(ONPREM=False)
     @patch("koku.middleware.MASU", True)
     def test_saas_does_not_require_token(self):
