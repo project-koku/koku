@@ -20,6 +20,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db.utils import IntegrityError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import JsonResponse
 from django.test.utils import CaptureQueriesContext
 from django.test.utils import override_settings
@@ -59,6 +60,20 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
 
     def test_process_exception_not_empty_response(self):
         """Assert that an exception raised for a valid tenant does not return emtpy result set."""
+        mock_request = self.request_context["request"]
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
+        self.assertIsNone(result)
+
+    @patch("koku.middleware.schema_exists", return_value=False)
+    def test_process_exception_schema_not_yet_created(self, _mock_schema_exists):
+        """Assert empty result set when Tenant exists but PG schema is not yet created."""
+        mock_request = self.request_context["request"]
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, ProgrammingError())
+        self.assertIsInstance(result, JsonResponse)
+
+    @patch("koku.middleware.schema_exists", return_value=False)
+    def test_process_exception_non_programming_error_not_intercepted(self, _mock_schema_exists):
+        """Assert that non-ProgrammingError exceptions are not intercepted when PG schema is missing."""
         mock_request = self.request_context["request"]
         result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
         self.assertIsNone(result)
