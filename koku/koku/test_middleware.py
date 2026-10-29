@@ -826,6 +826,26 @@ class MasuAdminTokenGateTest(IamTestCase):
         super().setUp()
         self.mock_get_response = Mock()
 
+    @classmethod
+    def tearDownClass(cls):
+        """Reload masu URLconf so ONPREM imports do not strip SaaS routes for later tests.
+
+        ``masu.api.urls`` builds ``urlpatterns`` at import time from ``settings.ONPREM``.
+        Client tests that set ``ONPREM=True`` + ``ROOT_URLCONF='masu.urls'`` can leave a
+        truncated module cached in ``sys.modules``, breaking later ``reverse()`` calls.
+        """
+        import importlib
+        import sys
+
+        from django.urls import clear_url_caches
+
+        for name in ("masu.api.urls", "masu.urls"):
+            sys.modules.pop(name, None)
+        clear_url_caches()
+        # Re-import under default settings (ONPREM=False) so SaaS routes are restored.
+        importlib.import_module("masu.api.urls")
+        super().tearDownClass()
+
     def _request(self, path, authorization=None):
         request = Mock(path=path, META={})
         if authorization is not None:
@@ -900,35 +920,37 @@ class MasuAdminTokenGateTest(IamTestCase):
         response = middleware.process_request(self._request("/api/cost-management/v1/report_data/"))
         self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
 
-    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    # IQE_TEST_RUN=True keeps the full masu.api.urls surface when ONPREM reloads
+    # the URLconf (avoids stripping SaaS-only routes from the cached module).
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
     @patch("koku.middleware.MASU", True)
     def test_report_data_missing_token_returns_401(self):
         """High-risk path /report_data/ rejects requests without a token."""
         response = self.client.get(reverse("report_data"))
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
     @patch("koku.middleware.MASU", True)
     def test_report_data_invalid_token_returns_401(self):
         """High-risk path /report_data/ rejects an invalid token."""
         response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer wrong")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
     @patch("koku.middleware.MASU", True)
     def test_report_data_valid_token_passes_gate(self):
         """Valid token clears the gate (missing query params yield 400, not 401)."""
         response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer secret-token")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="", ROOT_URLCONF="masu.urls")
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="", ROOT_URLCONF="masu.urls")
     @patch("koku.middleware.MASU", True)
     def test_report_data_empty_secret_fails_closed(self):
         """Empty MASU_ADMIN_TOKEN in on-prem mode denies even with a Bearer header."""
         response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer anything")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
     @patch("koku.middleware.MASU", True)
     def test_status_remains_open_without_token(self):
         """/status/ is exempt from the admin-token gate."""
@@ -939,7 +961,7 @@ class MasuAdminTokenGateTest(IamTestCase):
         self.assertIsNone(response)
         self.assertTrue(hasattr(request, "user"))
 
-    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
     @patch("koku.middleware.MASU", True)
     @patch("masu.api.running_celery_tasks.CELERY_INSPECT")
     def test_gate_applies_across_allow_list(self, mock_celery):
