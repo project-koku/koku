@@ -144,15 +144,30 @@ class AWSReportDBCleaner:
                         partitions=partition_from,
                     )
                 )
-                # Will call trigger to detach, truncate, and drop partitions
-                del_count = execute_delete_sql(
-                    PartitionedTable.objects.filter(
-                        schema_name=self._schema,
-                        partition_of_table_name__in=table_names,
-                        partition_parameters__default=False,
-                        partition_parameters__from__lte=partition_from,
+                # Will call trigger to detach, truncate, and drop partitions.
+                #
+                # COST-7249 deadlock preflight, Finding I (parity with COST-8115 / Finding H for
+                # OCP): deleting a PartitionedTable row fires an ACCESS EXCLUSIVE DETACH/TRUNCATE/
+                # DROP on its *parent* table. table_names spans multiple parent tables here, so
+                # one combined execute_delete_sql call -- one statement, one transaction -- could
+                # hold ACCESS EXCLUSIVE on several of them at once, the precondition for
+                # Postgres's documented ATTACH/DETACH-partition queue-jump deadlock against any
+                # concurrent writer touching the same tables in the opposite order. Deleting one
+                # table's matching partitions per statement/transaction bounds this to ever
+                # holding a lock on a single parent table at a time, which eliminates the
+                # cross-table cycle. Spiked empirically against the same generic mechanism: see
+                # masu/test/database/test_partition_drop_write_deadlock.py (OCP) and
+                # test_multi_provider_partition_drop_deadlock.py (this fix).
+                del_count = 0
+                for table_name in table_names:
+                    del_count += execute_delete_sql(
+                        PartitionedTable.objects.filter(
+                            schema_name=self._schema,
+                            partition_of_table_name__in=[table_name],
+                            partition_parameters__default=False,
+                            partition_parameters__from__lte=partition_from,
+                        )
                     )
-                )
                 LOG.info(log_json(msg="deleted table partitions", schema=self._schema, records_deleted=del_count))
 
         return removed_items
