@@ -6,11 +6,18 @@
 import copy
 import logging
 import uuid
+from contextlib import contextmanager
+from contextlib import ExitStack
 from decimal import Decimal
 from decimal import InvalidOperation
 
+from django.db import connection
+from django.db import transaction
+
 from api.metrics.constants import COST_MODEL_METRIC_MAP
 from api.metrics.constants import UNLEASH_METRICS_GPU
+from cost_models.models import CostModelMap
+from cost_models.models import PriceListCostModelMap
 from cost_models.models import Rate
 
 LOG = logging.getLogger(__name__)
@@ -172,6 +179,57 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
     return incoming_ids, to_update, to_create_data
 
 
+@contextmanager
+def _provider_distribution_lock(provider_uuid):
+    """Acquire the same session-scoped advisory lock used by the RTU write/delete paths.
+
+    Keyed identically (pg_advisory_lock(hashtext(str(provider_uuid)))) to
+    OCPReportDBAccessor._distribution_provider_lock and Provider's own copy of
+    this primitive, so this serializes against every RTU write step and
+    against Provider.delete() for the same provider, without needing a shared
+    import between the masu, api, and cost_models apps.
+    """
+    lock_key = str(provider_uuid)
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [lock_key])
+    try:
+        yield
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_unlock(hashtext(%s))", [lock_key])
+
+
+@contextmanager
+def _multi_provider_distribution_lock(provider_uuids):
+    """Hold _provider_distribution_lock for every provider_uuid at once, in sorted order.
+
+    Sorting avoids a lock-ordering deadlock if two concurrent callers each try
+    to lock an overlapping set of providers in different orders (e.g. two
+    price lists that are each shared across two overlapping cost models).
+    """
+    with ExitStack() as stack:
+        for provider_uuid in sorted(set(map(str, provider_uuids))):
+            stack.enter_context(_provider_distribution_lock(provider_uuid))
+        yield
+
+
+def _provider_uuids_for_price_list(price_list):
+    """Resolve every provider_uuid reachable from a price list via its cost models.
+
+    A price list can be attached (PriceListCostModelMap) to multiple cost
+    models, each of which can be attached (CostModelMap) to multiple
+    providers. This is the full blast radius of rates_to_usage rows that
+    sync_rate_table's stale-Rate cleanup can cascade-delete for a single
+    price list edit.
+    """
+    cost_model_ids = PriceListCostModelMap.objects.filter(price_list=price_list).values_list(
+        "cost_model_id", flat=True
+    )
+    return list(
+        CostModelMap.objects.filter(cost_model_id__in=list(cost_model_ids)).values_list("provider_uuid", flat=True)
+    )
+
+
 def sync_rate_table(price_list, rates_data):
     """Synchronize Rate table rows with the rates JSON blob using diff-based sync.
 
@@ -182,8 +240,39 @@ def sync_rate_table(price_list, rates_data):
     price_list.rates with the enriched copy.
 
     Returns the enriched rates_data list.
+
+    COST-7249 deadlock preflight, Finding E: the stale-Rate delete below
+    cascades (Rate -> RatesToUsage, on_delete=CASCADE) into rates_to_usage
+    rows for every provider on every cost model attached to this price list --
+    not just one provider's report period. Locking here, at the single shared
+    choke point all five call sites (CostModelManager.create/update,
+    PriceListManager.create/update, PriceListViewSet._ensure_rate_sync) funnel
+    through, guarantees the fix can't be bypassed by a new call site later.
+    Spiked empirically: see
+    masu/test/database/test_cost_model_rate_delete_rtu_race.py.
+
+    Broader deadlock preflight, Finding G: CostModelManager.create/update
+    (two of the five call sites above) are @transaction.atomic, and
+    PriceListViewSet._ensure_rate_sync wraps its own call in transaction.atomic()
+    too -- so this function can run inside an already-open transaction. The
+    inner transaction.atomic() below is required, not decorative: it gives
+    Postgres a rollback boundary (a savepoint, when nested) so a DB-level
+    error raised by the body below is fully rolled back *before* the lock's
+    own `finally: pg_advisory_unlock(...)` runs. Without it, the unlock
+    statement would itself execute against an already-aborted transaction,
+    fail, and leak the session-scoped advisory lock on that connection until
+    it's closed -- exactly how Provider.delete() already guards its own
+    cascade (see api/provider/models.py). Spiked empirically: see
+    masu/test/database/test_sync_rate_table_lock_leak.py.
     """
     LOG.info(f"Syncing {len(rates_data)} rates to Rate table for PriceList {price_list.uuid}")
+    provider_uuids = _provider_uuids_for_price_list(price_list)
+    with _multi_provider_distribution_lock(provider_uuids), transaction.atomic():
+        return _sync_rate_table_locked(price_list, rates_data)
+
+
+def _sync_rate_table_locked(price_list, rates_data):
+    """Body of sync_rate_table, run while holding _multi_provider_distribution_lock."""
     existing_by_uuid = {r.uuid: r for r in Rate.objects.filter(price_list=price_list)}
     existing_by_name = {r.custom_name: r for r in existing_by_uuid.values()}
     all_existing_names = set(existing_by_name.keys())
