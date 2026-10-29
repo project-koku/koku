@@ -90,9 +90,6 @@ def requires_masu_admin_token(request):
 
     Gate applies only when MASU=True and ONPREM=True. SaaS keeps relying on
     network isolation. /status (and probe/doc paths) stay exempt.
-
-    TODO(COST-8059): Confirm with the team whether IQE_TEST_RUN should also
-    require this gate when it exposes SaaS-only masu endpoints under ONPREM.
     """
     if not (MASU and settings.ONPREM):
         return False
