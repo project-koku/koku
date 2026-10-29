@@ -6,6 +6,7 @@
 import copy
 import logging
 import operator
+from functools import cached_property
 from functools import reduce
 
 from django.db.models import CharField
@@ -69,6 +70,32 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self._limit = parameters.get_filter("limit")
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+        # Captured before execute_query() swaps the org unit group_by for an account group_by.
+        group_by = self.parameters.parameters.get("group_by", {})
+        self._org_unit_requested = any(key in group_by for key in ("org_unit_id", "or:org_unit_id"))
+
+    @cached_property
+    def conversion_queryset(self):
+        """Return rows used to discover conversion inputs.
+
+        Org unit requests run one query per sub-org, each with a different query_filter,
+        so scope conversion inputs to the report date range (plus the delta period) instead.
+        """
+        if not self._org_unit_requested:
+            return super().conversion_queryset
+        start_datetime = self.start_datetime
+        if self.include_previous_period_for_conversion:
+            start_datetime = start_datetime - self._get_date_delta()
+        return self.query_table.objects.filter(
+            usage_start__gte=start_datetime.date(), usage_start__lte=self.end_datetime.date()
+        )
+
+    @cached_property
+    def previous_conversion_queryset(self):
+        """Return previous-period rows; org unit requests already cover them in conversion_queryset."""
+        if not self._org_unit_requested:
+            return super().previous_conversion_queryset
+        return self.query_table.objects.none()
 
     @property
     def annotations(self):
