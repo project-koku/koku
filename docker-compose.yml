@@ -91,6 +91,8 @@ services:
       - ONPREM=${ONPREM-False}
       - IQE_TEST_RUN=${IQE_TEST_RUN-True}
       - MASU=True
+      # Shared secret for on-prem Masu admin gate (COST-8059). Empty + ONPREM fails closed.
+      - MASU_ADMIN_TOKEN=${MASU_ADMIN_TOKEN-}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
