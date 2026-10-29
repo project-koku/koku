@@ -1025,7 +1025,15 @@ class TestPurgeWiring(MasuTestCase):
 
         filter_call = mock_pt.objects.filter
         self.assertTrue(filter_call.called)
-        table_names_arg = filter_call.call_args[1].get("partition_of_table_name__in")
+        # COST-7249 deadlock preflight, Finding H: the fix for the partition-drop
+        # deadlock (see ocp_report_db_cleaner.py) replaced a single combined
+        # multi-table filter(partition_of_table_name__in=table_names) call with one
+        # filter(...) call per table name, so each individual call's
+        # partition_of_table_name__in is now a single-item list rather than the full
+        # table_names list. Collect across all calls instead of inspecting the last one.
+        table_names_arg = set()
+        for call in filter_call.call_args_list:
+            table_names_arg.update(call.kwargs.get("partition_of_table_name__in") or [])
         self.assertIn("rates_to_usage", table_names_arg)
         self.assertIn("reporting_ocp_vm_summary_p", table_names_arg)
         self.assertIn("reporting_ocp_cost_breakdown_p", table_names_arg)
