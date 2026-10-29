@@ -37,6 +37,8 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from koku import middleware as MD
 from koku.cache import CacheEnum
+from koku.middleware import _extract_masu_admin_token
+from koku.middleware import _path_after_api_prefix
 from koku.middleware import capture_soft_timeout_exception
 from koku.middleware import check_masu_admin_token
 from koku.middleware import HttpResponseUnauthorizedRequest
@@ -883,6 +885,34 @@ class MasuAdminTokenGateTest(IamTestCase):
         """Exempt text inside API_PATH_PREFIX must not skip the token on admin routes."""
         self.assertTrue(requires_masu_admin_token(self._request("/api/status/v1/report_data/")))
         self.assertFalse(requires_masu_admin_token(self._request("/api/status/v1/status/")))
+
+    def test_path_after_api_prefix_edge_cases(self):
+        """Cover prefix strip branches used by exempt matching (codecov patch)."""
+        with override_settings(API_PATH_PREFIX=""):
+            self.assertEqual(_path_after_api_prefix("/livez"), "/livez")
+        with override_settings(API_PATH_PREFIX="api/cost-management"):
+            self.assertEqual(
+                _path_after_api_prefix("/api/cost-management/v1/report_data/"),
+                "/v1/report_data/",
+            )
+        with override_settings(API_PATH_PREFIX="/api/cost-management"):
+            self.assertEqual(_path_after_api_prefix("/api/cost-management"), "/")
+            self.assertEqual(
+                _path_after_api_prefix("/api/cost-management/v1/status/"),
+                "/v1/status/",
+            )
+            # Path outside the configured prefix is left unchanged.
+            self.assertEqual(_path_after_api_prefix("/livez"), "/livez")
+
+    def test_extract_masu_admin_token_edge_cases(self):
+        """Cover Bearer parsing branches (missing / non-bearer / empty value)."""
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/")))
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/", authorization="Basic abc")))
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/", authorization="Bearer ")))
+        self.assertEqual(
+            _extract_masu_admin_token(self._request("/report_data/", authorization="bearer  tok  ")),
+            "tok",
+        )
 
     @override_settings(ONPREM=False)
     @patch("koku.middleware.MASU", True)
