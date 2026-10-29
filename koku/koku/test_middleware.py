@@ -926,6 +926,12 @@ class MasuAdminTokenGateTest(IamTestCase):
         request = self._request("/report_data/", authorization="Bearer secret-token")
         self.assertIsNone(check_masu_admin_token(request))
 
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token\n")
+    def test_check_accepts_token_when_configured_has_trailing_whitespace(self):
+        """Configured MASU_ADMIN_TOKEN is stripped so k8s Secret newlines do not 401."""
+        request = self._request("/report_data/", authorization="Bearer secret-token")
+        self.assertIsNone(check_masu_admin_token(request))
+
     @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
     def test_check_rejects_missing_invalid_and_empty_config(self):
         """Missing/invalid tokens and empty configured secret fail closed."""

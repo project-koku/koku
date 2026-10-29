@@ -122,7 +122,9 @@ def check_masu_admin_token(request):
 
     Fail closed when MASU_ADMIN_TOKEN is empty/missing in on-prem Masu mode.
     """
-    configured = settings.MASU_ADMIN_TOKEN or ""
+    # Strip configured value too: k8s Secret / env mounts often add a trailing
+    # newline, while the inbound Bearer already goes through .strip().
+    configured = (settings.MASU_ADMIN_TOKEN or "").strip()
     provided = _extract_masu_admin_token(request) or ""
     # compare_digest raises ValueError on length mismatch (Py<3.12); treat as reject.
     token_ok = (

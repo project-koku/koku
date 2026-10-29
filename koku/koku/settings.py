@@ -192,7 +192,7 @@ SOURCES = ENVIRONMENT.bool("SOURCES", default=False)
 # Shared secret for on-prem Masu admin endpoints (Bearer token).
 # When ONPREM=True and MASU=True, empty/missing values fail closed (401).
 # Wired by the Operator from a Secret (see COST-8059 follow-up).
-MASU_ADMIN_TOKEN = ENVIRONMENT.get_value("MASU_ADMIN_TOKEN", default="")
+MASU_ADMIN_TOKEN = (ENVIRONMENT.get_value("MASU_ADMIN_TOKEN", default="") or "").strip()
 ROOT_URLCONF = "koku.urls"
 if MASU:
     ROOT_URLCONF = "masu.urls"
