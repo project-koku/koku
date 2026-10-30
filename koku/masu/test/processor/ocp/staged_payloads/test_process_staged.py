@@ -10,6 +10,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone as dt_timezone
 from pathlib import Path
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.conf import settings
@@ -578,3 +579,167 @@ class MaterializeReportFilesTests(MasuTestCase):
             with self.assertRaises(RuntimeError):
                 materialize_report_files(report_metas)
         self.assertFalse(work_dir.exists())
+
+
+class ExtractTarballSecurityTests(MasuTestCase):
+    """Security tests for extract_tarball_to_directory."""
+
+    def _make_tarball(self, members: list[tuple[str, int]], tmp_dir: str) -> Path:
+        """
+        Build a .tar.gz at ``tmp_dir/payload.tar.gz``.
+
+        ``members`` is a list of (name, content_size) tuples.  Each member is written with
+        ``content_size`` zero bytes of actual content so the TarInfo.size header matches
+        the real data (tarfile rejects mismatches).  The test controls the effective cap via
+        patching ``Config.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES`` rather than lying in headers.
+        """
+        import io
+        import tarfile as tarfilemod
+
+        tarball_path = Path(tmp_dir) / "payload.tar.gz"
+        with tarfilemod.open(tarball_path, "w:gz") as tar:
+            for name, content_size in members:
+                info = tarfilemod.TarInfo(name=name)
+                info.size = content_size
+                tar.addfile(info, io.BytesIO(b"\x00" * content_size))
+        return tarball_path
+
+    def test_extract_tarball_rejects_tar_bomb_when_flag_enabled(self):
+        """Declared uncompressed size above the cap raises ValueError when enforcement flag is on."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([("big.csv", 1)], tmp_dir)
+            # Override cap to 0 so any member triggers the guard.
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                patch(
+                    "masu.processor.ocp.staged_payloads.processing.is_feature_flag_enabled_by_schema",
+                    return_value=True,
+                ),
+                self.assertRaises(ValueError) as ctx,
+            ):
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 0
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 1000
+                processing.extract_tarball_to_directory("test-req", tarball_path, context)
+
+        self.assertIn("exceeds the limit", str(ctx.exception))
+
+    def test_extract_tarball_warns_but_allows_tar_bomb_when_flag_disabled(self):
+        """Payload exceeding size cap emits a warning but is extracted when enforcement flag is off."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([("big.csv", 1)], tmp_dir)
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                patch(
+                    "masu.processor.ocp.staged_payloads.processing.is_feature_flag_enabled_by_schema",
+                    return_value=False,
+                ),
+            ):
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 0
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 1000
+                # Should NOT raise — flag is off, so extraction proceeds despite exceeding limit.
+                names = processing.extract_tarball_to_directory("test-req", tarball_path, context)
+        self.assertIn("big.csv", names)
+
+    def test_extract_tarball_logs_byte_limit_warning_once_when_flag_disabled(self):
+        """Each violation kind emits at most one WARNING when enforcement is off."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([(f"part{i}.csv", 1) for i in range(5)], tmp_dir)
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                patch(
+                    "masu.processor.ocp.staged_payloads.processing.is_feature_flag_enabled_by_schema",
+                    return_value=False,
+                ),
+                patch("masu.processor.ocp.staged_payloads.processing.LOG") as mock_log,
+            ):
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 2
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 1000
+                names = processing.extract_tarball_to_directory("test-req", tarball_path, context)
+
+        self.assertEqual(len(names), 5)
+        limit_warnings = [
+            warning_call
+            for warning_call in mock_log.warning.call_args_list
+            if warning_call.args and "exceeds the limit" in str(warning_call.args[0])
+        ]
+        self.assertEqual(len(limit_warnings), 1)
+
+    def test_extract_tarball_accepts_payload_under_limit(self):
+        """Payload within the cap is extracted successfully."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([("small.csv", 1)], tmp_dir)
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                patch(
+                    "masu.processor.ocp.staged_payloads.processing.is_feature_flag_enabled_by_schema",
+                    return_value=True,
+                ),
+            ):
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 1000
+                names = processing.extract_tarball_to_directory("test-req", tarball_path, context)
+        self.assertIn("small.csv", names)
+
+    def test_extract_tarball_rejects_too_many_zero_byte_members_when_flag_enabled(self):
+        """Many zero-byte members pass the size cap but still exceed the member limit when flag is on."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([(f"empty{i}.csv", 0) for i in range(5)], tmp_dir)
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                patch(
+                    "masu.processor.ocp.staged_payloads.processing.is_feature_flag_enabled_by_schema",
+                    return_value=True,
+                ),
+                self.assertRaises(ValueError) as ctx,
+            ):
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 3
+                processing.extract_tarball_to_directory("test-req", tarball_path, context)
+
+        self.assertIn("exceeds the limit", str(ctx.exception))
+        self.assertIn("members", str(ctx.exception))
+
+    def test_extract_tarball_rejects_negative_member_size_when_flag_enabled(self):
+        """A member with a negative declared size is rejected before accumulation when flag is on.
+
+        A crafted tar header can carry a negative size field.  Without an explicit
+        check a negative-size directory entry would *reduce* total_uncompressed,
+        allowing a subsequent oversized regular file to slip past the byte-limit guard.
+        """
+        import tarfile as tarfilemod
+
+        context = {"request_id": "test-req", "schema": self.schema}
+
+        bad_member = tarfilemod.TarInfo(name="sneaky_dir")
+        bad_member.size = -1  # simulate a crafted negative-size header
+
+        mock_tar = MagicMock()
+        mock_tar.__iter__ = MagicMock(return_value=iter([bad_member]))
+        mock_tar.__enter__ = MagicMock(return_value=mock_tar)
+        mock_tar.__exit__ = MagicMock(return_value=False)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = Path(tmp_dir) / "payload.tar.gz"
+            tarball_path.touch()
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.TarFile") as mock_tarfile_cls,
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                patch(
+                    "masu.processor.ocp.staged_payloads.processing.is_feature_flag_enabled_by_schema",
+                    return_value=True,
+                ),
+                self.assertRaises(ValueError) as ctx,
+            ):
+                mock_tarfile_cls.open.return_value = mock_tar
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 1000
+                processing.extract_tarball_to_directory("test-req", tarball_path, context)
+
+        self.assertIn("negative declared size", str(ctx.exception))
+        self.assertIn("sneaky_dir", str(ctx.exception))
+        mock_tar.extractall.assert_not_called()
