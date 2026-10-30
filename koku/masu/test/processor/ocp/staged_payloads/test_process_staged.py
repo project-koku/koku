@@ -642,6 +642,31 @@ class ExtractTarballSecurityTests(MasuTestCase):
                 names = processing.extract_tarball_to_directory("test-req", tarball_path, context)
         self.assertIn("big.csv", names)
 
+    def test_extract_tarball_logs_byte_limit_warning_once_when_flag_disabled(self):
+        """Each violation kind emits at most one WARNING when enforcement is off."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([(f"part{i}.csv", 1) for i in range(5)], tmp_dir)
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                patch(
+                    "masu.processor.ocp.staged_payloads.processing.is_feature_flag_enabled_by_schema",
+                    return_value=False,
+                ),
+                patch("masu.processor.ocp.staged_payloads.processing.LOG") as mock_log,
+            ):
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 2
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 1000
+                names = processing.extract_tarball_to_directory("test-req", tarball_path, context)
+
+        self.assertEqual(len(names), 5)
+        limit_warnings = [
+            warning_call
+            for warning_call in mock_log.warning.call_args_list
+            if warning_call.args and "exceeds the limit" in str(warning_call.args[0])
+        ]
+        self.assertEqual(len(limit_warnings), 1)
+
     def test_extract_tarball_accepts_payload_under_limit(self):
         """Payload within the cap is extracted successfully."""
         context = {"request_id": "test-req", "schema": self.schema}

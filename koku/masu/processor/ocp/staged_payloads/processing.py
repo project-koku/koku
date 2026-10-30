@@ -251,12 +251,11 @@ def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]
 
     Checks declared uncompressed size (``OCP_INGRESS_MAX_UNCOMPRESSED_BYTES``) and member
     count (``OCP_INGRESS_MAX_TAR_MEMBERS``) against TarInfo headers before any data is
-    written to disk.  When a limit is exceeded a WARNING is always emitted.  Extraction is
-    only *refused* (``ValueError`` raised) when the
-
-    ``OCP_INGRESS_ENFORCE_PAYLOAD_LIMITS_FLAG`` Unleash flag is enabled for the schema;
-    otherwise the tarball is extracted as normal so that production behaviour is preserved
-    until the flag is turned on.
+    written to disk.  When a limit is exceeded a WARNING is emitted once per violation
+    kind (member count, byte total, negative size).  Extraction is only *refused*
+    (``ValueError`` raised) when the ``OCP_INGRESS_ENFORCE_PAYLOAD_LIMITS_FLAG`` Unleash
+    flag is enabled for the schema; otherwise the tarball is extracted as normal so that
+    production behaviour is preserved until the flag is turned on.
     """
     try:
         with TarFile.open(tarball_path, mode="r:gz") as mytar:
@@ -268,6 +267,15 @@ def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]
             )
             member_names: list[str] = []
             total_uncompressed = 0
+            reported_violations: set[str] = set()
+
+            def handle_limit_violation(violation_kind: str, msg: str) -> None:
+                if violation_kind not in reported_violations:
+                    reported_violations.add(violation_kind)
+                    LOG.warning(log_json(request_id, msg=msg, context=context))
+                if enforce_limits:
+                    raise ValueError(msg)
+
             for member in mytar:
                 if len(member_names) >= max_members:
                     msg = (
@@ -275,18 +283,14 @@ def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]
                         f"which exceeds the limit of {max_members}."
                         + (" Refusing extraction." if enforce_limits else " Limit not yet enforced.")
                     )
-                    LOG.warning(log_json(request_id, msg=msg, context=context))
-                    if enforce_limits:
-                        raise ValueError(msg)
+                    handle_limit_violation("max_members", msg)
                 if member.size < 0:
                     msg = (
                         f"Tarball {tarball_path.name} contains member {member.name!r} "
                         f"with a negative declared size ({member.size})."
                         + (" Refusing extraction." if enforce_limits else " Limit not yet enforced.")
                     )
-                    LOG.warning(log_json(request_id, msg=msg, context=context))
-                    if enforce_limits:
-                        raise ValueError(msg)
+                    handle_limit_violation("negative_size", msg)
                 total_uncompressed += member.size
                 if total_uncompressed > max_bytes:
                     msg = (
@@ -294,9 +298,7 @@ def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]
                         f"which exceeds the limit of {max_bytes} bytes."
                         + (" Refusing extraction." if enforce_limits else " Limit not yet enforced.")
                     )
-                    LOG.warning(log_json(request_id, msg=msg, context=context))
-                    if enforce_limits:
-                        raise ValueError(msg)
+                    handle_limit_violation("max_bytes", msg)
                 member_names.append(member.name)
             mytar.extractall(path=tarball_path.parent, filter="data")
             return member_names
