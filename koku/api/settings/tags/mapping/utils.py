@@ -91,17 +91,10 @@ def _cloud_providers_with_current_month_bills(bill_model, start_date):
     )
 
 
-def _ocp_providers_for_tag_keys(start_date, keys=None):
-    """Current-month OCP sources whose label catalog contains any of keys.
-
-    When keys is None, return every OCP source with a current-month report period.
-    """
-    if keys is None:
-        return list(
-            OCPUsageReportPeriod.objects.filter(report_period_start=start_date)
-            .values_list("provider__uuid", flat=True)
-            .distinct()
-        )
+def _ocp_providers_for_tag_keys(start_date, keys):
+    """Current-month OCP sources whose tag values contain any of keys."""
+    if not keys:
+        return []
     clusters = (
         OCPTagsValues.objects.filter(key__in=keys)
         .annotate(clusters=Func(F("cluster_ids"), function="unnest"))
@@ -198,6 +191,8 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name, *, restore
     schema_name: Str of the schema name to be used
     restore_unmapped: When True (mapping removal), always rebuild from source
         so child keys can be restored. Mapping-only apply cannot reverse a rename.
+        OCP still targets clusters that have the parent or child key in
+        OCP tag values; unrelated clusters are not rebuilt.
     """
 
     start_date = DateHelper().this_month_start
@@ -228,7 +223,15 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name, *, restore
                 )
             _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type, restore_unmapped=restore_unmapped)
         elif provider_type == Provider.PROVIDER_OCP:
-            lookup_keys = None if restore_unmapped else key_list
+            lookup_keys = key_list
+            if restore_unmapped:
+                # Mapping rewrites OCP labels to the parent key name, which may
+                # belong to another provider type. Child keys can leave OCP tag
+                # values; look up every key in this refresh so we still find
+                # the clusters that actually carried the mapping.
+                lookup_keys = list(
+                    EnabledTagKeys.objects.filter(uuid__in=list_of_uuids).values_list("key", flat=True).distinct()
+                )
             provider_uuids = _ocp_providers_for_tag_keys(start_date, lookup_keys)
             _queue_ocp_tag_mapping_refresh(schema_name, provider_uuids, restore_unmapped=restore_unmapped)
 
