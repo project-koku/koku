@@ -4,6 +4,7 @@ from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.provider.models import ProviderInfrastructureMap
+from api.settings.tags.mapping.utils import _ocp_providers_for_tag_keys
 from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from api.utils import DateHelper
 from masu.processor.tasks import APPLY_TAG_MAPPINGS_TASK
@@ -13,6 +14,7 @@ from reporting.models import AWSCostEntryBill
 from reporting.models import AWSTagsSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
+from reporting.provider.ocp.models import OCPTagsValues
 from reporting_common.models import DelayedCeleryTasks
 
 
@@ -161,6 +163,103 @@ class TestTagMappingUtils(MasuTestCase):
         self.assertEqual(set(queued), {Provider.PROVIDER_OCP, Provider.PROVIDER_AWS})
         self.assertIn(self.ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
         self.assertEqual(queued[Provider.PROVIDER_AWS], [self.aws_provider.uuid])
+
+    def _make_ocp_tag_values(self, key, cluster_id):
+        return OCPTagsValues.objects.create(
+            key=key,
+            value="unit-test",
+            cluster_ids=[cluster_id],
+            cluster_aliases=[cluster_id],
+            namespaces=["default"],
+            nodes=["node"],
+        )
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_restore_unmapped_ocp_queues_only_clusters_with_keys(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        """OCP mapping removal rebuilds clusters that have the keys, not every period."""
+        with tenant_context(self.tenant):
+            targeted_key = EnabledTagKeys.objects.create(
+                key="ocp_restore_unmapped_target",
+                enabled=True,
+                provider_type=Provider.PROVIDER_OCP,
+            )
+            self._make_ocp_tag_values(targeted_key.key, self.ocp_cluster_id)
+            aws_infra = ProviderInfrastructureMap.objects.create(
+                infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
+            )
+            azure_infra = ProviderInfrastructureMap.objects.create(
+                infrastructure_type=Provider.PROVIDER_AZURE, infrastructure_provider=self.azure_provider
+            )
+            self.ocp_provider.infrastructure = aws_infra
+            self.ocp_provider.save()
+            self.ocp_on_aws_ocp_provider.infrastructure = azure_infra
+            self.ocp_on_aws_ocp_provider.save()
+            resummarize_current_month_by_tag_keys([targeted_key.uuid], self.schema_name, restore_unmapped=True)
+
+        mock_delayed_apply.assert_not_called()
+        queued = {call.args[2]: set(call.args[1]) for call in mock_delayed_summarize.call_args_list}
+        self.assertEqual(queued[Provider.PROVIDER_OCP], {self.ocp_provider.uuid})
+        self.assertNotIn(self.ocp_on_aws_ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
+        self.assertEqual(queued.get(Provider.PROVIDER_AWS), {self.aws_provider.uuid})
+        self.assertNotIn(Provider.PROVIDER_AZURE, queued)
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_restore_unmapped_ocp_finds_cluster_by_parent_key_name(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        """After mapping, OCP tag values may only have the parent key name."""
+        with tenant_context(self.tenant):
+            ocp_child = EnabledTagKeys.objects.create(
+                key="ocp_child_gone_after_map",
+                enabled=True,
+                provider_type=Provider.PROVIDER_OCP,
+            )
+            aws_parent = EnabledTagKeys.objects.create(
+                key="aws_parent_only_in_ocp_tag_values",
+                enabled=True,
+                provider_type=Provider.PROVIDER_AWS,
+            )
+            self._make_ocp_tag_values(aws_parent.key, self.ocp_cluster_id)
+            resummarize_current_month_by_tag_keys(
+                [ocp_child.uuid, aws_parent.uuid], self.schema_name, restore_unmapped=True
+            )
+
+        mock_delayed_apply.assert_not_called()
+        queued = {call.args[2]: set(call.args[1]) for call in mock_delayed_summarize.call_args_list}
+        self.assertIn(self.ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
+        self.assertNotIn(self.ocp_on_aws_ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
+
+    def test_ocp_providers_for_tag_keys_empty_keys(self):
+        """No keys means no current-month OCP sources."""
+        with tenant_context(self.tenant):
+            start = DateHelper().this_month_start
+            for keys in ([], None):
+                with self.subTest(keys=keys):
+                    self.assertEqual(_ocp_providers_for_tag_keys(start, keys), [])
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_restore_unmapped_ocp_queues_nothing_without_matching_tag_values(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        """OCP keys that no cluster carries must not queue a full rebuild."""
+        with tenant_context(self.tenant):
+            unmatched = EnabledTagKeys.objects.create(
+                key="ocp_restore_unmapped_unmatched",
+                enabled=True,
+                provider_type=Provider.PROVIDER_OCP,
+            )
+            resummarize_current_month_by_tag_keys([unmatched.uuid], self.schema_name, restore_unmapped=True)
+
+        mock_delayed_apply.assert_not_called()
+        mock_delayed_summarize.assert_not_called()
 
     def _aws_azure_enabled_keys(self):
         aws_child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True).first()
