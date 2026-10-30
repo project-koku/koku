@@ -18,6 +18,7 @@ from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Q
+from django.db.models import TextField
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.fields.json import KT
@@ -448,9 +449,27 @@ class OCPReportQueryHandler(ReportQueryHandler):
             merged.append(row)
         return merged
 
+    def _cost_model_currency_case(self):
+        """Build a Case mapping source_uuid to its cost-model currency for CSV audit columns.
+
+        Uses request_source_to_currency_map so the Case stays report-scoped, matching
+        _monthly_source_exchange_rate_case.
+        """
+        whens = [
+            When(source_uuid=uuid, then=Value(currency, output_field=TextField()))
+            for uuid, currency in self.request_source_to_currency_map.items()
+        ]
+        return Case(*whens, default=None, output_field=TextField())
+
     @property
     def report_annotations(self):
-        """Return annotations with OCP-specific infra_exchange_rate for CSV output."""
+        """Return annotations with OCP-specific CSV currency audit columns.
+
+        Prefer infrastructure (cloud bill) currency/rate when raw_currency is present.
+        Standalone OCP rows have NULL raw_currency, so fall back to the cost-model
+        currency and its exchange_rate. Gate infra_exchange_rate on raw_currency
+        because the Case default is 1 even when raw_currency is NULL.
+        """
         annotations = dict(self._mapper.report_type_map.get("annotations", {}))
         if is_grouped_by_node(self.parameters):
             # Add instance counts to node reports without mutating the shared mapper.
@@ -459,10 +478,26 @@ class OCPReportQueryHandler(ReportQueryHandler):
         # can parallelize; drop them from the heavy annotation set.
         annotations = {k: v for k, v in annotations.items() if k not in DISTINCT_METADATA_FIELDS}
         if self.is_csv_output:
+            cost_units_key = self._mapper.cost_units_key
             annotations = {
                 **annotations,
-                "base_currency": Max(self._mapper.cost_units_key),
-                "exchange_rate": Coalesce(Max("infra_exchange_rate"), Value(1), output_field=DecimalField()),
+                "base_currency": Coalesce(
+                    Max(cost_units_key),
+                    Max(self._cost_model_currency_case()),
+                    output_field=TextField(),
+                ),
+                "exchange_rate": Coalesce(
+                    Max(
+                        Case(
+                            When(**{f"{cost_units_key}__isnull": False}, then=F("infra_exchange_rate")),
+                            default=None,
+                            output_field=DecimalField(),
+                        )
+                    ),
+                    Max("exchange_rate"),
+                    Value(1, output_field=DecimalField()),
+                    output_field=DecimalField(),
+                ),
             }
         return annotations
 
