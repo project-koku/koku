@@ -248,25 +248,36 @@ def create_cost_and_usage_report_manifest(provider_uuid, manifest: utils.Manifes
 def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]:
     """Extract tarball members into the tarball parent directory using PEP 706 data filter.
 
-    Raises ValueError when the declared total uncompressed size of all members exceeds
-    ``Config.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES`` (tar-bomb guard). The size check uses
-    TarInfo.size values reported in the archive header, which is checked before any data
-    is written to disk.
+    Raises ValueError when the archive exceeds tar-bomb guards configured on ``Config``:
+    declared total uncompressed size (``OCP_INGRESS_MAX_UNCOMPRESSED_BYTES``) or member
+    count (``OCP_INGRESS_MAX_TAR_MEMBERS``). Checks use TarInfo headers while members are
+    read and run before any data is written to disk.
     """
     try:
         with TarFile.open(tarball_path, mode="r:gz") as mytar:
-            members = mytar.getmembers()
-            total_uncompressed = sum(m.size for m in members)
             max_bytes = Config.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES
-            if total_uncompressed > max_bytes:
-                msg = (
-                    f"Tarball {tarball_path.name} declares {total_uncompressed} uncompressed bytes "
-                    f"which exceeds the limit of {max_bytes} bytes. Refusing extraction."
-                )
-                LOG.warning(log_json(request_id, msg=msg, context=context))
-                raise ValueError(msg)
+            max_members = Config.OCP_INGRESS_MAX_TAR_MEMBERS
+            member_names: list[str] = []
+            total_uncompressed = 0
+            for member in mytar:
+                if len(member_names) >= max_members:
+                    msg = (
+                        f"Tarball {tarball_path.name} declares {len(member_names) + 1} members "
+                        f"which exceeds the limit of {max_members}. Refusing extraction."
+                    )
+                    LOG.warning(log_json(request_id, msg=msg, context=context))
+                    raise ValueError(msg)
+                total_uncompressed += member.size
+                if total_uncompressed > max_bytes:
+                    msg = (
+                        f"Tarball {tarball_path.name} declares {total_uncompressed} uncompressed bytes "
+                        f"which exceeds the limit of {max_bytes} bytes. Refusing extraction."
+                    )
+                    LOG.warning(log_json(request_id, msg=msg, context=context))
+                    raise ValueError(msg)
+                member_names.append(member.name)
             mytar.extractall(path=tarball_path.parent, filter="data")
-            return [m.name for m in members]
+            return member_names
     except (ReadError, EOFError, OSError, FilterError) as error:
         msg = f"Unable to untar file {tarball_path}. Reason: {str(error)}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
@@ -274,7 +285,7 @@ def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]
 
 
 def extract_payload_contents(request_id, tarball_path, context):
-    """Extract the payload contents into a temporary location."""
+    """Extract the payload contents into a temporary location. Tests only."""
     payload_files = extract_tarball_to_directory(request_id, tarball_path, context)
     try:
         manifest_path = utils.get_manifest_member_name(payload_files)

@@ -49,9 +49,11 @@ _UNSAFE_PATH_COMPONENT_RE = re.compile(r"[/\\]|\.\.")
 
 
 def validate_safe_path_component(value: str, field_name: str = "path") -> str:
-    """Reject path separators and parent-directory references in a single path component."""
+    """Reject null bytes, path separators, and parent-directory references in a single path component."""
     if not value or value in (".", ".."):
         raise ValueError(f"Invalid {field_name}: must be a non-empty safe path component")
+    if "\x00" in value:
+        raise ValueError(f"Invalid {field_name}: null bytes are not allowed")
     if _UNSAFE_PATH_COMPONENT_RE.search(value) or os.path.basename(value) != value:
         raise ValueError(f"Invalid {field_name}: path separators are not allowed")
     return value

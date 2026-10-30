@@ -614,6 +614,7 @@ class ExtractTarballSecurityTests(MasuTestCase):
                 self.assertRaises(ValueError) as ctx,
             ):
                 mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 0
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 1000
                 processing.extract_tarball_to_directory("test-req", tarball_path, context)
 
         self.assertIn("exceeds the limit", str(ctx.exception))
@@ -625,5 +626,22 @@ class ExtractTarballSecurityTests(MasuTestCase):
             tarball_path = self._make_tarball([("small.csv", 1)], tmp_dir)
             with patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg:
                 mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 1000
                 names = processing.extract_tarball_to_directory("test-req", tarball_path, context)
         self.assertIn("small.csv", names)
+
+    def test_extract_tarball_rejects_too_many_zero_byte_members(self):
+        """Many zero-byte members pass the size cap but still exceed the member limit."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([(f"empty{i}.csv", 0) for i in range(5)], tmp_dir)
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                self.assertRaises(ValueError) as ctx,
+            ):
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
+                mock_cfg.OCP_INGRESS_MAX_TAR_MEMBERS = 3
+                processing.extract_tarball_to_directory("test-req", tarball_path, context)
+
+        self.assertIn("exceeds the limit", str(ctx.exception))
+        self.assertIn("members", str(ctx.exception))
