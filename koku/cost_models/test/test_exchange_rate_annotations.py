@@ -37,6 +37,8 @@ from api.report.ocp.view import OCPCostView
 from cost_models.models import MonthlyExchangeRate
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.test import MasuTestCase
+from reporting.provider.aws.models import AWSOrganizationalUnit
+from reporting.provider.models import TenantAPIProvider
 
 
 class AnnotationBuilderTest(TestCase):
@@ -319,19 +321,20 @@ class CloudReportExchangeRateTest(MasuTestCase):
         return AWSReportQueryHandler(self.mocked_query_params(query, AWSCostView, path=self.AWS_PATH))
 
     def _create_aws_rows(self, handler, rows):
-        """Create AWS cost summary rows from (usage_start, currency_code) pairs and return their ids."""
+        """Create AWS cost summary rows and return their ids."""
         ids = [uuid4() for _ in rows]
         with tenant_context(handler.tenant):
             handler.query_table.objects.bulk_create(
                 [
                     handler.query_table(
                         id=row_id,
-                        usage_start=usage_start,
-                        usage_end=usage_start,
+                        usage_start=row[0],
+                        usage_end=row[0],
                         source_uuid_id=self.aws_provider.uuid,
-                        currency_code=currency,
+                        currency_code=row[1],
+                        **({"organizational_unit": row[2]} if len(row) > 2 else {}),
                     )
-                    for row_id, (usage_start, currency) in zip(ids, rows)
+                    for row_id, row in zip(ids, rows)
                 ]
             )
         return ids
@@ -428,16 +431,55 @@ class CloudReportExchangeRateTest(MasuTestCase):
             self.assertEqual(handler._get_base_currencies_for_conversion(), {"EUR"})
 
     def test_aws_org_unit_conversion_inputs_ignore_per_sub_org_filter(self):
-        """Org unit requests discover currencies across the date range, whatever query_filter is current."""
+        """Org unit conversion includes child rows but excludes unrelated orgs."""
         handler = self._make_aws_handler("?group_by[org_unit_id]=R_001")
         self.assertTrue(handler._org_unit_requested)
         day = handler.start_datetime.date()
-        first_org_id, _ = self._create_aws_rows(handler, [(day, "EUR"), (day, "CAD")])
 
         with tenant_context(handler.tenant):
-            # execute_query() narrows query_filter per sub-org; conversion must still see every currency.
-            handler.query_filter = Q(id=first_org_id)
+            tenant_provider = TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid)
+            root = AWSOrganizationalUnit.objects.create(
+                org_unit_name="Root",
+                org_unit_id="R_001",
+                org_unit_path="R_001",
+                level=0,
+                provider=tenant_provider,
+            )
+            child = AWSOrganizationalUnit.objects.create(
+                org_unit_name="Child",
+                org_unit_id="OU_001",
+                org_unit_path="R_001&OU_001",
+                level=1,
+                provider=tenant_provider,
+            )
+            unrelated = AWSOrganizationalUnit.objects.create(
+                org_unit_name="Unrelated",
+                org_unit_id="R_002",
+                org_unit_path="R_002",
+                level=0,
+                provider=tenant_provider,
+            )
+            self._create_aws_rows(
+                handler,
+                [(day, "EUR", root), (day, "CAD", child), (day, "GBP", unrelated)],
+            )
+
+            # Simulate the per-child mutation that occurs in execute_query().
+            handler.query_filter = Q(organizational_unit__org_unit_path__icontains="R_001&OU_001")
             self.assertTrue({"EUR", "CAD"}.issubset(handler.raw_currencies_for_conversion))
+            self.assertNotIn("GBP", handler.raw_currencies_for_conversion)
+
+    def test_aws_org_unit_conversion_scope_applies_exclusions(self):
+        """Org unit conversion discovery excludes rows outside the caller scope."""
+        handler = self._make_aws_handler("?group_by[org_unit_id]=R_001")
+        day = handler.start_datetime.date()
+        included_id, excluded_id = self._create_aws_rows(handler, [(day, "EUR"), (day, "CAD")])
+
+        with tenant_context(handler.tenant):
+            handler._org_unit_conversion_filter = Q(id__in=[included_id, excluded_id])
+            handler._org_unit_conversion_exclusions = Q(id=excluded_id)
+            handler.query_filter = Q(id=excluded_id)
+            self.assertEqual(handler.raw_currencies_for_conversion, {"EUR"})
 
     def test_aws_monthly_rate_map_raises_on_missing_month(self):
         """A currency present in the report without full monthly coverage fails cleanly."""
