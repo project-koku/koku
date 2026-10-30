@@ -40,6 +40,7 @@ from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor import CROSS_ORG_CLUSTER_LOOKUP_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_INGRESS_ENFORCE_PAYLOAD_LIMITS_FLAG
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
@@ -248,33 +249,54 @@ def create_cost_and_usage_report_manifest(provider_uuid, manifest: utils.Manifes
 def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]:
     """Extract tarball members into the tarball parent directory using PEP 706 data filter.
 
-    Raises ValueError when the archive exceeds tar-bomb guards configured on ``Config``:
-    declared total uncompressed size (``OCP_INGRESS_MAX_UNCOMPRESSED_BYTES``) or member
-    count (``OCP_INGRESS_MAX_TAR_MEMBERS``). Checks use TarInfo headers while members are
-    read and run before any data is written to disk.
+    Checks declared uncompressed size (``OCP_INGRESS_MAX_UNCOMPRESSED_BYTES``) and member
+    count (``OCP_INGRESS_MAX_TAR_MEMBERS``) against TarInfo headers before any data is
+    written to disk.  When a limit is exceeded a WARNING is always emitted.  Extraction is
+    only *refused* (``ValueError`` raised) when the
+
+    ``OCP_INGRESS_ENFORCE_PAYLOAD_LIMITS_FLAG`` Unleash flag is enabled for the schema;
+    otherwise the tarball is extracted as normal so that production behaviour is preserved
+    until the flag is turned on.
     """
     try:
         with TarFile.open(tarball_path, mode="r:gz") as mytar:
             max_bytes = Config.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES
             max_members = Config.OCP_INGRESS_MAX_TAR_MEMBERS
+            schema = context.get("schema")
+            enforce_limits = is_feature_flag_enabled_by_schema(
+                schema, OCP_INGRESS_ENFORCE_PAYLOAD_LIMITS_FLAG, dev_fallback=True
+            )
             member_names: list[str] = []
             total_uncompressed = 0
             for member in mytar:
                 if len(member_names) >= max_members:
                     msg = (
                         f"Tarball {tarball_path.name} declares {len(member_names) + 1} members "
-                        f"which exceeds the limit of {max_members}. Refusing extraction."
+                        f"which exceeds the limit of {max_members}."
+                        + (" Refusing extraction." if enforce_limits else " Limit not yet enforced.")
                     )
                     LOG.warning(log_json(request_id, msg=msg, context=context))
-                    raise ValueError(msg)
+                    if enforce_limits:
+                        raise ValueError(msg)
+                if member.size < 0:
+                    msg = (
+                        f"Tarball {tarball_path.name} contains member {member.name!r} "
+                        f"with a negative declared size ({member.size})."
+                        + (" Refusing extraction." if enforce_limits else " Limit not yet enforced.")
+                    )
+                    LOG.warning(log_json(request_id, msg=msg, context=context))
+                    if enforce_limits:
+                        raise ValueError(msg)
                 total_uncompressed += member.size
                 if total_uncompressed > max_bytes:
                     msg = (
                         f"Tarball {tarball_path.name} declares {total_uncompressed} uncompressed bytes "
-                        f"which exceeds the limit of {max_bytes} bytes. Refusing extraction."
+                        f"which exceeds the limit of {max_bytes} bytes."
+                        + (" Refusing extraction." if enforce_limits else " Limit not yet enforced.")
                     )
                     LOG.warning(log_json(request_id, msg=msg, context=context))
-                    raise ValueError(msg)
+                    if enforce_limits:
+                        raise ValueError(msg)
                 member_names.append(member.name)
             mytar.extractall(path=tarball_path.parent, filter="data")
             return member_names
