@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from api.common import log_json
 from api.common.pagination import ListPaginator
 from api.common.permissions.ingress_access import IngressAccessPermission
+from api.common.throttling import IngressReportsPostThrottle
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Sources
 from reporting.ingress.models import IngressReports
@@ -59,6 +60,7 @@ class IngressReportsView(APIView):
     """
 
     permission_classes = [IngressAccessPermission]
+    throttle_classes = [IngressReportsPostThrottle]
 
     def get(self, request, *args, **kwargs):
         """

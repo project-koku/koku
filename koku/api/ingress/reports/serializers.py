@@ -20,7 +20,11 @@ class IngressReportsSerializer(serializers.ModelSerializer):
     uuid = serializers.UUIDField(read_only=True)
     created_timestamp = serializers.DateTimeField(read_only=True)
     completed_timestamp = serializers.DateTimeField(read_only=True)
-    reports_list = serializers.ListField()
+    reports_list = serializers.ListField(
+        child=serializers.CharField(max_length=1024),
+        min_length=1,
+        max_length=500,
+    )
     sources_id = serializers.IntegerField(required=False, allow_null=True)
     bill_year = serializers.CharField(required=True, max_length=4)
     bill_month = serializers.CharField(required=True, max_length=2)

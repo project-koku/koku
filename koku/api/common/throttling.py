@@ -237,3 +237,36 @@ class AwsTagQueryThrottle(BaseTagQueryThrottle):
         units = self._get_param_value(query_params, "time_scope_units").strip().lower()
         value_str = self._get_param_value(query_params, "time_scope_value").strip()
         return units == TIME_SCOPE_UNITS_MONTHLY and value_str in TIME_SCOPE_VALUES_MONTHLY
+
+
+class IngressReportsPostThrottle(SimpleRateThrottle):
+    """
+    Rate limit for POST requests to the ingress reports endpoint (per schema).
+
+    Applied to ``IngressReportsView``; GET requests are skipped (cache key returns None).
+    Rate is controlled by ``INGRESS_REPORTS_POST_THROTTLE_RATE`` in settings
+    (default 20/min). Ops can tune via app-interface without a code change.
+    """
+
+    scope = "ingress_reports_post"
+
+    def __init__(self):
+        """Load rate from settings so app-interface can tune without a code change."""
+        self.rate = self.get_rate()
+        self.num_requests, self.duration = self.parse_rate(self.rate)
+
+    def get_rate(self):
+        """Return the configured ingress reports POST throttle rate."""
+        return getattr(settings, "INGRESS_REPORTS_POST_THROTTLE_RATE", "20/m")
+
+    def get_cache_key(self, request, view):
+        """Return a cache key for POST requests scoped to the schema; None otherwise."""
+        if request.method != "POST":
+            return None
+        try:
+            schema_name = request.user.customer.schema_name
+        except AttributeError:
+            return None
+        cache_key = f"ingress_reports_post_throttle:{schema_name}"
+        LOG.debug("Ingress reports POST throttle check: %s", cache_key)
+        return cache_key

@@ -38,6 +38,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from koku.env import ENVIRONMENT
+from masu.config import Config
 from masu.external.kafka_msg_handler import process_messages
 
 
@@ -106,6 +107,16 @@ def ingest_ocp_payload(request):
         if not request.FILES:
             response_data["error"] = "no payload sent"
             return Response(response_data, status=HTTPStatus.BAD_REQUEST)
+        max_upload_bytes = Config.OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+        # Validate all files before uploading any, so no partial uploads occur
+        # when one file in a multi-file POST exceeds the size limit.
+        for _, file in request.FILES.items():
+            if file.size > max_upload_bytes:
+                response_data["error"] = (
+                    f"Payload {file.name!r} size {file.size} bytes "
+                    f"exceeds the maximum allowed size of {max_upload_bytes} bytes."
+                )
+                return Response(response_data, status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
         for _, file in request.FILES.items():
             payload_name = file.name
             response_data["payload-name"].append(payload_name)

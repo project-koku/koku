@@ -578,3 +578,52 @@ class MaterializeReportFilesTests(MasuTestCase):
             with self.assertRaises(RuntimeError):
                 materialize_report_files(report_metas)
         self.assertFalse(work_dir.exists())
+
+
+class ExtractTarballSecurityTests(MasuTestCase):
+    """Security tests for extract_tarball_to_directory."""
+
+    def _make_tarball(self, members: list[tuple[str, int]], tmp_dir: str) -> Path:
+        """
+        Build a .tar.gz at ``tmp_dir/payload.tar.gz``.
+
+        ``members`` is a list of (name, content_size) tuples.  Each member is written with
+        ``content_size`` zero bytes of actual content so the TarInfo.size header matches
+        the real data (tarfile rejects mismatches).  The test controls the effective cap via
+        patching ``Config.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES`` rather than lying in headers.
+        """
+        import io
+        import tarfile as tarfilemod
+
+        tarball_path = Path(tmp_dir) / "payload.tar.gz"
+        with tarfilemod.open(tarball_path, "w:gz") as tar:
+            for name, content_size in members:
+                info = tarfilemod.TarInfo(name=name)
+                info.size = content_size
+                tar.addfile(info, io.BytesIO(b"\x00" * content_size))
+        return tarball_path
+
+    def test_extract_tarball_rejects_tar_bomb(self):
+        """Declared uncompressed size above the cap raises ValueError before extractall."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([("big.csv", 1)], tmp_dir)
+            # Override cap to 0 so any member triggers the guard.
+            with (
+                patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg,
+                self.assertRaises(ValueError) as ctx,
+            ):
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 0
+                processing.extract_tarball_to_directory("test-req", tarball_path, context)
+
+        self.assertIn("exceeds the limit", str(ctx.exception))
+
+    def test_extract_tarball_accepts_payload_under_limit(self):
+        """Payload within the cap is extracted successfully."""
+        context = {"request_id": "test-req", "schema": self.schema}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = self._make_tarball([("small.csv", 1)], tmp_dir)
+            with patch("masu.processor.ocp.staged_payloads.processing.Config") as mock_cfg:
+                mock_cfg.OCP_INGRESS_MAX_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
+                names = processing.extract_tarball_to_directory("test-req", tarball_path, context)
+        self.assertIn("small.csv", names)
