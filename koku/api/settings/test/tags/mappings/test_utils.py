@@ -4,6 +4,7 @@ from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.provider.models import ProviderInfrastructureMap
+from api.settings.tags.mapping.utils import _ocp_providers_for_tag_keys
 from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from api.utils import DateHelper
 from masu.processor.tasks import APPLY_TAG_MAPPINGS_TASK
@@ -233,6 +234,32 @@ class TestTagMappingUtils(MasuTestCase):
         queued = {call.args[2]: set(call.args[1]) for call in mock_delayed_summarize.call_args_list}
         self.assertIn(self.ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
         self.assertNotIn(self.ocp_on_aws_ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
+
+    def test_ocp_providers_for_tag_keys_empty_keys(self):
+        """No keys means no current-month OCP sources."""
+        with tenant_context(self.tenant):
+            start = DateHelper().this_month_start
+            for keys in ([], None):
+                with self.subTest(keys=keys):
+                    self.assertEqual(_ocp_providers_for_tag_keys(start, keys), [])
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_restore_unmapped_ocp_queues_nothing_without_matching_tag_values(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        """OCP keys that no cluster carries must not queue a full rebuild."""
+        with tenant_context(self.tenant):
+            unmatched = EnabledTagKeys.objects.create(
+                key="ocp_restore_unmapped_unmatched",
+                enabled=True,
+                provider_type=Provider.PROVIDER_OCP,
+            )
+            resummarize_current_month_by_tag_keys([unmatched.uuid], self.schema_name, restore_unmapped=True)
+
+        mock_delayed_apply.assert_not_called()
+        mock_delayed_summarize.assert_not_called()
 
     def _aws_azure_enabled_keys(self):
         aws_child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True).first()
