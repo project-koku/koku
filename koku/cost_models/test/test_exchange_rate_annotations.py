@@ -19,12 +19,26 @@ from django_tenants.utils import tenant_context
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.utils import build_monthly_rate_annotation
 from api.currency.utils import get_monthly_exchange_rate_map
+from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
+from api.report.all.openshift.view import OCPAllCostView
+from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
+from api.report.aws.openshift.view import OCPAWSCostView
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.view import AWSCostView
+from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
+from api.report.azure.openshift.view import OCPAzureCostView
+from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.azure.view import AzureCostView
+from api.report.gcp.openshift.query_handler import OCPGCPReportQueryHandler
+from api.report.gcp.openshift.view import OCPGCPCostView
+from api.report.gcp.query_handler import GCPReportQueryHandler
+from api.report.gcp.view import GCPCostView
 from api.report.ocp.view import OCPCostView
 from cost_models.models import MonthlyExchangeRate
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.test import MasuTestCase
+from reporting.provider.aws.models import AWSOrganizationalUnit
+from reporting.provider.models import TenantAPIProvider
 
 
 class AnnotationBuilderTest(TestCase):
@@ -244,16 +258,19 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
             ann = self._make_ocp_handler().exchange_rate_annotation_dict
         self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
 
-    @patch("api.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_base_handler_flag_on_uses_subquery(self, mock_flag):
-        """Flag ON → base QueryHandler path (AWS) returns a Subquery annotation."""
+    @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_base_handler_flag_on_uses_monthly_case(self, mock_flag):
+        """Flag ON → base report handler path (AWS) returns a bounded Case, not a Subquery."""
         handler = self._make_aws_handler()
+        handler.__dict__["raw_currencies_for_conversion"] = {"USD"}
+        handler.__dict__["monthly_exchange_rate_map"] = {"USD": {date(2026, 10, 1): Decimal("0.80")}}
         ann = handler.exchange_rate_annotation_dict
         self.assertEqual(set(ann.keys()), {"exchange_rate"})
-        self.assertIsInstance(ann["exchange_rate"], Subquery)
+        self.assertIsInstance(ann["exchange_rate"], Case)
+        self.assertNotIsInstance(ann["exchange_rate"], Subquery)
         mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
 
-    @patch("api.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
+    @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=False)
     def test_base_handler_flag_off_uses_case(self, mock_flag):
         """Flag OFF → base QueryHandler path (AWS) returns a Case annotation."""
         handler = self._make_aws_handler()
@@ -293,3 +310,196 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
             currencies = handler._get_base_currencies_for_conversion()
         self.assertIsInstance(currencies, set)
         self.assertNotIn(None, currencies)
+
+
+class CloudReportExchangeRateTest(MasuTestCase):
+    """Constant-currency conversion for the non-OCP report handlers."""
+
+    AWS_PATH = "/api/cost-management/v1/reports/aws/costs/"
+
+    def _make_aws_handler(self, query="?"):
+        return AWSReportQueryHandler(self.mocked_query_params(query, AWSCostView, path=self.AWS_PATH))
+
+    def _create_aws_rows(self, handler, rows):
+        """Create AWS cost summary rows and return their ids."""
+        ids = [uuid4() for _ in rows]
+        with tenant_context(handler.tenant):
+            handler.query_table.objects.bulk_create(
+                [
+                    handler.query_table(
+                        id=row_id,
+                        usage_start=row[0],
+                        usage_end=row[0],
+                        source_uuid_id=self.aws_provider.uuid,
+                        currency_code=row[1],
+                        **({"organizational_unit": row[2]} if len(row) > 2 else {}),
+                    )
+                    for row_id, row in zip(ids, rows)
+                ]
+            )
+        return ids
+
+    def _create_rates(self, base_currency, target_currency, rates):
+        with schema_context(self.schema):
+            for month_start, rate in rates.items():
+                MonthlyExchangeRate.objects.update_or_create(
+                    effective_date=month_start,
+                    base_currency=base_currency,
+                    target_currency=target_currency,
+                    defaults={"exchange_rate": rate, "rate_type": "static"},
+                )
+
+    @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_cloud_handlers_flag_on_use_monthly_case(self, _):
+        """Every non-OCP report handler builds the bounded Case instead of a per-row Subquery."""
+        handlers = [
+            (AWSReportQueryHandler, AWSCostView, "aws/costs/"),
+            (AzureReportQueryHandler, AzureCostView, "azure/costs/"),
+            (GCPReportQueryHandler, GCPCostView, "gcp/costs/"),
+            (OCPAWSReportQueryHandler, OCPAWSCostView, "openshift/infrastructures/aws/costs/"),
+            (OCPAzureReportQueryHandler, OCPAzureCostView, "openshift/infrastructures/azure/costs/"),
+            (OCPGCPReportQueryHandler, OCPGCPCostView, "openshift/infrastructures/gcp/costs/"),
+            (OCPAllReportQueryHandler, OCPAllCostView, "openshift/infrastructures/all/costs/"),
+        ]
+        rate_map = {"USD": {date(2026, 9, 1): Decimal("0.70"), date(2026, 10, 1): Decimal("0.80")}}
+        for handler_class, view, path in handlers:
+            with self.subTest(handler=handler_class.__name__):
+                handler = handler_class(
+                    self.mocked_query_params("?", view, path=f"/api/cost-management/v1/reports/{path}")
+                )
+                handler.__dict__["raw_currencies_for_conversion"] = {"USD"}
+                handler.__dict__["monthly_exchange_rate_map"] = rate_map
+                annotation = handler.exchange_rate_annotation_dict["exchange_rate"]
+                self.assertIsInstance(annotation, Case)
+                self.assertEqual(len(annotation.cases), 2)
+
+    @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_aws_flag_on_applies_monthly_rates(self, _):
+        """Each row gets the MonthlyExchangeRate for its own month."""
+        handler = self._make_aws_handler()
+        handler.currency = "EUR"
+        handler.start_datetime = datetime(2026, 9, 1)
+        handler.end_datetime = datetime(2026, 10, 31)
+        self._create_rates("USD", "EUR", {date(2026, 9, 1): Decimal("0.70"), date(2026, 10, 1): Decimal("0.80")})
+        ids = self._create_aws_rows(handler, [(date(2026, 9, 15), "USD"), (date(2026, 10, 15), "USD")])
+
+        with tenant_context(handler.tenant):
+            handler.query_filter = Q(id__in=ids)
+            rates = list(
+                handler.query_table.objects.filter(id__in=ids)
+                .annotate(**handler.exchange_rate_annotation_dict)
+                .order_by("usage_start")
+                .values_list("exchange_rate", flat=True)
+            )
+
+        self.assertEqual(rates, [Decimal("0.70"), Decimal("0.80")])
+
+    @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_aws_delta_annotations_include_previous_period_rates(self, _):
+        """Previous-period delta rows use monthly rates instead of the identity default."""
+        handler = self._make_aws_handler()
+        handler._delta = "cost_total"
+        handler.currency = "EUR"
+        handler.start_datetime = datetime(2026, 10, 1)
+        handler.end_datetime = datetime(2026, 10, 31)
+        self._create_rates("USD", "EUR", {date(2026, 9, 1): Decimal("0.70"), date(2026, 10, 1): Decimal("0.80")})
+        previous_id, current_id = self._create_aws_rows(
+            handler, [(date(2026, 9, 25), "USD"), (date(2026, 10, 15), "USD")]
+        )
+
+        with tenant_context(handler.tenant):
+            handler.query_filter = Q(id=current_id)
+            previous_rate = (
+                handler.query_table.objects.filter(id=previous_id)
+                .annotate(**handler.exchange_rate_annotation_dict)
+                .values_list("exchange_rate", flat=True)
+                .get()
+            )
+
+        self.assertEqual(previous_rate, Decimal("0.70"))
+
+    def test_aws_conversion_inputs_follow_report_filters_and_exclusions(self):
+        """Currency discovery uses the report's filters and exclusions, not the whole table."""
+        handler = self._make_aws_handler()
+        day = handler.start_datetime.date()
+        included_id, excluded_id = self._create_aws_rows(handler, [(day, "EUR"), (day, "CAD")])
+
+        with tenant_context(handler.tenant):
+            handler.query_filter = Q(id__in=[included_id, excluded_id])
+            handler.query_exclusions = Q(id=excluded_id)
+            self.assertEqual(handler.raw_currencies_for_conversion, {"EUR"})
+            self.assertEqual(handler._get_base_currencies_for_conversion(), {"EUR"})
+
+    def test_aws_org_unit_conversion_inputs_ignore_per_sub_org_filter(self):
+        """Org unit conversion includes child rows but excludes unrelated orgs."""
+        handler = self._make_aws_handler("?group_by[org_unit_id]=R_001")
+        self.assertTrue(handler._org_unit_requested)
+        day = handler.start_datetime.date()
+
+        with tenant_context(handler.tenant):
+            tenant_provider = TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid)
+            root = AWSOrganizationalUnit.objects.create(
+                org_unit_name="Root",
+                org_unit_id="R_001",
+                org_unit_path="R_001",
+                level=0,
+                provider=tenant_provider,
+            )
+            child = AWSOrganizationalUnit.objects.create(
+                org_unit_name="Child",
+                org_unit_id="OU_001",
+                org_unit_path="R_001&OU_001",
+                level=1,
+                provider=tenant_provider,
+            )
+            unrelated = AWSOrganizationalUnit.objects.create(
+                org_unit_name="Unrelated",
+                org_unit_id="R_002",
+                org_unit_path="R_002",
+                level=0,
+                provider=tenant_provider,
+            )
+            self._create_aws_rows(
+                handler,
+                [(day, "EUR", root), (day, "CAD", child), (day, "GBP", unrelated)],
+            )
+
+            # Simulate the per-child mutation that occurs in execute_query().
+            handler.query_filter = Q(organizational_unit__org_unit_path__icontains="R_001&OU_001")
+            self.assertTrue({"EUR", "CAD"}.issubset(handler.raw_currencies_for_conversion))
+            self.assertNotIn("GBP", handler.raw_currencies_for_conversion)
+
+    def test_aws_org_unit_conversion_scope_applies_exclusions(self):
+        """Org unit conversion discovery excludes rows outside the caller scope."""
+        handler = self._make_aws_handler("?group_by[org_unit_id]=R_001")
+        day = handler.start_datetime.date()
+        included_id, excluded_id = self._create_aws_rows(handler, [(day, "EUR"), (day, "CAD")])
+
+        with tenant_context(handler.tenant):
+            handler._org_unit_conversion_filter = Q(id__in=[included_id, excluded_id])
+            handler._org_unit_conversion_exclusions = Q(id=excluded_id)
+            handler.query_filter = Q(id=excluded_id)
+            self.assertEqual(handler.raw_currencies_for_conversion, {"EUR"})
+
+    def test_aws_monthly_rate_map_raises_on_missing_month(self):
+        """A currency present in the report without full monthly coverage fails cleanly."""
+        handler = self._make_aws_handler()
+        handler.currency = "EUR"
+        # Months outside the rates seeded for the test tenant.
+        handler.start_datetime = datetime(2026, 1, 1)
+        handler.end_datetime = datetime(2026, 2, 28)
+        handler.__dict__["raw_currencies_for_conversion"] = {"GBP"}
+        self._create_rates("GBP", "EUR", {date(2026, 1, 1): Decimal("1.17")})
+
+        with tenant_context(handler.tenant), self.assertRaises(ExchangeRateNotFound):
+            handler.monthly_exchange_rate_map
+
+    @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch("api.report.queries.get_monthly_exchange_rate_map", return_value={})
+    def test_rate_map_loaded_once_per_request(self, mock_rate_map, _):
+        """The annotation and the response coverage check share one rate lookup."""
+        handler = self._make_aws_handler()
+        handler.__dict__["raw_currencies_for_conversion"] = set()
+        handler.exchange_rate_annotation_dict
+        handler._initialize_response_output(handler.parameters)
+        mock_rate_map.assert_called_once()

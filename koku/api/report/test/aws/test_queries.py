@@ -2505,6 +2505,22 @@ class AWSReportQueryTest(IamTestCase):
             with self.subTest(org=org):
                 check_accounts_subous_totals(org)
 
+    def test_execute_query_with_org_unit_group_by_constant_currency(self):
+        """Org unit queries return the same totals with constant currency on and off."""
+
+        def org_unit_totals(org_unit, flag_enabled):
+            with (
+                patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=flag_enabled),
+                tenant_context(self.tenant),
+            ):
+                url = f"?group_by[org_unit_id]={org_unit}"
+                handler = AWSReportQueryHandler(self.mocked_query_params(url, AWSCostView, "costs"))
+                return handler.execute_query().get("total")
+
+        for org in self.ou_to_account_subou_map.keys():
+            with self.subTest(org=org):
+                self.assertEqual(org_unit_totals(org, True), org_unit_totals(org, False))
+
     @skip("Fix after currency support goes in")
     def test_execute_query_with_multiple_or_org_unit_group_by(self):
         """Test that when data has multiple grouped by org_unit_id, the totals add up correctly."""
