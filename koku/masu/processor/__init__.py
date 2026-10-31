@@ -44,8 +44,6 @@ OCP_TAG_MAPPING_DIAGNOSTICS_FLAG = "cost-management.backend.ocp_tag_mapping_diag
 OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG = "cost-management.backend.ocp_tag_mapping_materialized_candidates"
 OCP_TAG_MAPPING_PRE_ANALYZE_FLAG = "cost-management.backend.ocp_tag_mapping_pre_analyze"
 OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG = "cost-management.backend.ocp_tag_mapping_statement_timeout"
-PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
-TAG_KEYS_REPORT_PERIOD_IDS_FLAG = "cost-management.backend.tag_keys_report_period_ids"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 
 
