@@ -5,6 +5,7 @@
 """Custom Koku Middleware."""
 import binascii
 import faulthandler
+import hmac
 import logging
 import os
 import signal
@@ -67,6 +68,82 @@ def is_no_auth(request):
     no_auth_list = ["/status", "openapi.json", "application_types", "source_types"]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth or MASU or SOURCES
+
+
+# Paths that stay open without MASU_ADMIN_TOKEN when the on-prem gate is active.
+# /livez and /readyz are listed defensively; probes usually hit the gunicorn probe
+# server, not Django. /status remains for liveness-style Masu health checks.
+_MASU_ADMIN_TOKEN_EXEMPT_PATHS = ("/status", "openapi.json", "/livez", "/readyz")
+
+
+def _extract_masu_admin_token(request):
+    """Return the Bearer token from Authorization, or None."""
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    if not auth_header:
+        return None
+    scheme, _, value = auth_header.partition(" ")
+    if scheme.lower() != "bearer" or not value:
+        return None
+    return value.strip()
+
+
+def _path_after_api_prefix(path):
+    """Strip API_PATH_PREFIX so exempt matching ignores the configured prefix.
+
+    Prevents a prefix that contains an exempt substring (e.g. ``/api/status``)
+    from bypassing the token gate on every Masu route.
+    """
+    prefix = (settings.API_PATH_PREFIX or "").rstrip("/")
+    if not prefix:
+        return path
+    if not prefix.startswith("/"):
+        prefix = f"/{prefix}"
+    if path == prefix:
+        return "/"
+    if path.startswith(f"{prefix}/"):
+        return path[len(prefix) :]
+    return path
+
+
+def requires_masu_admin_token(request):
+    """Return True when this Masu request must present MASU_ADMIN_TOKEN.
+
+    Gate applies only when MASU=True and ONPREM=True. SaaS keeps relying on
+    network isolation. /status (and probe/doc paths) stay exempt.
+    """
+    if not (MASU and settings.ONPREM):
+        return False
+    route_path = _path_after_api_prefix(request.path)
+    return not any(exempt in route_path for exempt in _MASU_ADMIN_TOKEN_EXEMPT_PATHS)
+
+
+def check_masu_admin_token(request):
+    """Validate the shared secret; return 401 response or None if OK.
+
+    Fail closed when MASU_ADMIN_TOKEN is empty/missing in on-prem Masu mode.
+    """
+    # Strip configured value too: k8s Secret / env mounts often add a trailing
+    # newline, while the inbound Bearer already goes through .strip().
+    configured = (settings.MASU_ADMIN_TOKEN or "").strip()
+    provided = _extract_masu_admin_token(request) or ""
+    # compare_digest raises ValueError on length mismatch (Py<3.12); treat as reject.
+    token_ok = (
+        bool(configured)
+        and bool(provided)
+        and len(provided) == len(configured)
+        and hmac.compare_digest(provided, configured)
+    )
+    if not token_ok:
+        LOG.warning(
+            log_json(
+                msg="Masu admin token rejected",
+                path=request.path,
+                has_token=bool(provided),
+                token_configured=bool(configured),
+            )
+        )
+        return HttpResponseUnauthorizedRequest()
+    return None
 
 
 def is_no_entitled(request):
@@ -303,6 +380,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             request (object): The request object
         """
         connection.set_schema_to_public()
+
+        if requires_masu_admin_token(request):
+            unauthorized = check_masu_admin_token(request)
+            if unauthorized is not None:
+                return unauthorized
 
         if is_no_auth(request):
             request.user = User("", "")
