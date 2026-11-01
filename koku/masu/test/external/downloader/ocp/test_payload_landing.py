@@ -37,6 +37,7 @@ from masu.external.downloader.ocp.payload_landing import REGISTER_INGRESS_STAGIN
 from masu.external.downloader.ocp.payload_landing import release_for_retry
 from masu.external.downloader.ocp.payload_landing import stage_ingress_s3_inbox
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RECONCILE_BATCH
+from masu.external.downloader.ocp.payload_landing.keys import _inbox_tar_key
 from masu.external.downloader.ocp.payload_landing.keys import _pending_marker_key
 from masu.external.downloader.ocp.payload_landing.keys import _pending_marker_prefix
 from masu.external.downloader.ocp.payload_landing.keys import _receipt_key
@@ -900,3 +901,28 @@ class ListPendingMarkersTests(SimpleTestCase):
         ):
             self.assertIsNone(_list_pending_markers(5))
         mock_warning.assert_called_once()
+
+
+class InboxTarKeySecurityTests(SimpleTestCase):
+    """Security tests for _inbox_tar_key path-component sanitization."""
+
+    def test_cluster_id_path_traversal_raises(self):
+        """cluster_id containing path separators is rejected by validate_safe_path_component."""
+        with self.assertRaises(ValueError):
+            _inbox_tar_key(org_id="1234567", cluster_id="../../evil", request_id="req-abc")
+
+    def test_cluster_id_absolute_path_raises(self):
+        """An absolute path in cluster_id is rejected."""
+        with self.assertRaises(ValueError):
+            _inbox_tar_key(org_id="1234567", cluster_id="/etc/passwd", request_id="req-abc")
+
+    def test_org_id_path_traversal_raises(self):
+        """org_id containing path separators is rejected by validate_safe_path_component."""
+        with self.assertRaises(ValueError):
+            _inbox_tar_key(org_id="../admin", cluster_id="cluster-1", request_id="req-abc")
+
+    def test_safe_cluster_id_produces_expected_key(self):
+        """Valid org_id and cluster_id produce the correct S3 key."""
+        key = _inbox_tar_key(org_id="1234567", cluster_id="cluster-1", request_id="req!@#abc")
+        # request_id non-alphanum chars stripped; org_id and cluster_id preserved as-is.
+        self.assertTrue(key.startswith("data/ingress_staging/1234567/cluster-1/"), key)

@@ -225,6 +225,9 @@ CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
 OCP_REPORT_THROTTLE_RATE = ENVIRONMENT.get_value("OCP_REPORT_THROTTLE_RATE", default="10000/m")
 OCP_REPORT_THROTTLE_TIGHT_RATE = ENVIRONMENT.get_value("OCP_REPORT_THROTTLE_TIGHT_RATE", default="500/m")
 
+# Ingress reports POST throttle (req/min per schema). Tunable via app-interface / clowdapp.
+INGRESS_REPORTS_POST_THROTTLE_RATE = ENVIRONMENT.get_value("INGRESS_REPORTS_POST_THROTTLE_RATE", default="20/m")
+
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
