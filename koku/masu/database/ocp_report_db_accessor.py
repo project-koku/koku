@@ -34,6 +34,7 @@ from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
 from cost_models.sql_parameters import BaseCostModelParams
+from koku.advisory_locks import provider_session_lock
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.reportdb_accessor import get_report_db_accessor
 from koku.trino_database import TrinoStatementExecError
@@ -916,15 +917,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         lock brackets the already-autocommitted calls with separate LOCK/UNLOCK
         statements on the same session instead, so retry-on-deadlock semantics
         for every statement in between are completely unchanged.
+
+        sync_rate_table takes the same per-provider key as a transaction-level
+        lock (koku.advisory_locks) before deleting stale rates.
         """
-        lock_key = str(provider_uuid)
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [lock_key])
-        try:
+        with provider_session_lock(provider_uuid):
             yield
-        finally:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT pg_advisory_unlock(hashtext(%s))", [lock_key])
 
     def populate_distributed_cost_sql(
         self,

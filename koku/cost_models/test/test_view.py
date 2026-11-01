@@ -10,7 +10,9 @@ from decimal import Decimal
 from unittest.mock import patch
 from uuid import uuid4
 
+import psycopg2
 from django.core.cache import caches
+from django.db import connection
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
@@ -24,6 +26,7 @@ from cost_models.models import CostModelAudit
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.models import Rate
 from cost_models.price_list_manager import PriceListManager
 from cost_models.serializers import CostModelSerializer
 from koku.cache import CacheEnum
@@ -266,6 +269,33 @@ class CostModelViewTests(IamTestCase):
         rates = response.data.get("rates", [])
         self.assertEqual(rates[0].get("tiered_rates", [])[0].get("value"), new_value)
         self.assertEqual(rates[0].get("metric", {}).get("name"), self.ocp_metric)
+
+    @patch("cost_models.rate_sync.RATE_SYNC_LOCK_TIMEOUT_MS", 200)
+    @patch("cost_models.rate_sync.is_rate_sync_provider_lock_enabled", return_value=True)
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
+    def test_update_cost_model_conflict_while_source_is_recalculating(self, *_):
+        """Removing a rate returns 409 and changes nothing while an RTU writer holds the source's lock."""
+        params = connection.settings_dict
+        writer = psycopg2.connect(
+            dbname=params["NAME"],
+            user=params["USER"],
+            password=params["PASSWORD"],
+            host=params["HOST"],
+            port=params["PORT"],
+        )
+        try:
+            with writer.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [str(self.provider.uuid)])
+            url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
+            response = APIClient().put(url, {**self.fake_data, "rates": []}, format="json", **self.headers)
+        finally:
+            writer.close()
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data["errors"][0]["status"], status.HTTP_409_CONFLICT)
+        with tenant_context(self.tenant):
+            price_list = PriceListCostModelMap.objects.get(cost_model_id=self.fake_data_cost_model_uuid).price_list
+            self.assertEqual(Rate.objects.filter(price_list=price_list).count(), 1)
 
     def test_update_cost_model_allows_duplicate(self):
         """Test that we update fails with metric type duplication."""

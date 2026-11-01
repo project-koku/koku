@@ -45,6 +45,7 @@ OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG = "cost-management.backend.ocp_tag_
 OCP_TAG_MAPPING_PRE_ANALYZE_FLAG = "cost-management.backend.ocp_tag_mapping_pre_analyze"
 OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG = "cost-management.backend.ocp_tag_mapping_statement_timeout"
 PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
+RATE_SYNC_PROVIDER_LOCK_FLAG = "cost-management.backend.rate_sync_provider_lock"
 TAG_KEYS_REPORT_PERIOD_IDS_FLAG = "cost-management.backend.tag_keys_report_period_ids"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 
@@ -108,6 +109,11 @@ def is_ocp_on_cloud_summary_disabled(schema):  # pragma: no cover
         LOG.info(log_json(msg="OCP-on-Cloud summary processing disabled", context=context))
 
     return res
+
+
+def is_rate_sync_provider_lock_enabled(schema):  # pragma: no cover
+    """Lock providers against RTU writers while sync_rate_table deletes stale rates (COST-8113)."""
+    return is_feature_flag_enabled_by_schema(schema, RATE_SYNC_PROVIDER_LOCK_FLAG, dev_fallback=True)
 
 
 def is_cost_model_writes_disabled(schema):  # pragma: no cover

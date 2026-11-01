@@ -9,11 +9,37 @@ import uuid
 from decimal import Decimal
 from decimal import InvalidOperation
 
+from django.db import connection
+from django.db import transaction
+from rest_framework import status
+from rest_framework.exceptions import APIException
+
 from api.metrics.constants import COST_MODEL_METRIC_MAP
 from api.metrics.constants import UNLEASH_METRICS_GPU
+from cost_models.models import CostModelMap
+from cost_models.models import PriceListCostModelMap
 from cost_models.models import Rate
+from koku.advisory_locks import AdvisoryLockTimeout
+from koku.advisory_locks import lock_providers_for_transaction
+from masu.processor import is_rate_sync_provider_lock_enabled
 
 LOG = logging.getLogger(__name__)
+
+# How long a rate change waits for RTU writers before giving up. API requests have
+# about 30 s end to end (3scale), and distribution runs can hold a provider's lock
+# for minutes, so waiting longer than a few seconds only ties up a Gunicorn worker.
+RATE_SYNC_LOCK_TIMEOUT_MS = 5000
+
+
+class RateSyncLockTimeout(APIException):
+    """Rates cannot be removed right now because costs for an affected source are being recalculated."""
+
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = (
+        "Costs for a source that uses this price list are being recalculated. Wait a few minutes and try again."
+    )
+    default_code = "rate_sync_locked"
+
 
 _FULL_METRIC_MAP = {**COST_MODEL_METRIC_MAP, **UNLEASH_METRICS_GPU}
 
@@ -182,8 +208,44 @@ def sync_rate_table(price_list, rates_data):
     price_list.rates with the enriched copy.
 
     Returns the enriched rates_data list.
+
+    Deleting a Rate cascades into rates_to_usage for every provider on every
+    cost model attached to the price list. Before deleting, this takes each of
+    those providers' advisory lock (the one RTU writers hold) as a
+    transaction-level lock, so the delete cannot interleave with a writer and
+    the locks last until the caller's outermost transaction commits.
+    Raises RateSyncLockTimeout (HTTP 409) if a writer holds a lock for longer
+    than RATE_SYNC_LOCK_TIMEOUT_MS.
     """
     LOG.info(f"Syncing {len(rates_data)} rates to Rate table for PriceList {price_list.uuid}")
+    with transaction.atomic():
+        return _sync_rate_table(price_list, rates_data)
+
+
+def _provider_uuids_for_price_list(price_list):
+    """Return every provider whose rates_to_usage rows can reference this price list's rates."""
+    cost_model_ids = PriceListCostModelMap.objects.filter(price_list=price_list).values("cost_model_id")
+    return list(
+        CostModelMap.objects.filter(cost_model_id__in=cost_model_ids)
+        .values_list("provider_uuid", flat=True)
+        .distinct()
+    )
+
+
+def _lock_providers_for_rate_delete(price_list):
+    """Lock every provider that the stale-rate delete cascades into, or raise RateSyncLockTimeout."""
+    if not is_rate_sync_provider_lock_enabled(connection.schema_name):
+        return
+    provider_uuids = _provider_uuids_for_price_list(price_list)
+    try:
+        lock_providers_for_transaction(provider_uuids, RATE_SYNC_LOCK_TIMEOUT_MS)
+    except AdvisoryLockTimeout as error:
+        LOG.warning(f"Not deleting stale rates of PriceList {price_list.uuid}: {error}")
+        raise RateSyncLockTimeout() from error
+
+
+def _sync_rate_table(price_list, rates_data):
+    """Body of sync_rate_table; runs inside its transaction."""
     existing_by_uuid = {r.uuid: r for r in Rate.objects.filter(price_list=price_list)}
     existing_by_name = {r.custom_name: r for r in existing_by_uuid.values()}
     all_existing_names = set(existing_by_name.keys())
@@ -194,6 +256,7 @@ def sync_rate_table(price_list, rates_data):
 
     to_delete_uuids = [uid for uid in existing_by_uuid if uid not in incoming_ids]
     if to_delete_uuids:
+        _lock_providers_for_rate_delete(price_list)
         deleted_count, _ = Rate.objects.filter(price_list=price_list, uuid__in=to_delete_uuids).delete()
         LOG.info(f"Deleted {deleted_count} stale Rate rows from PriceList {price_list.uuid}")
 
