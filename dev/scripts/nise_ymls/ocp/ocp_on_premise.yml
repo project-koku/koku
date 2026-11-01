@@ -226,6 +226,21 @@ generators:
                     pod_name: pod_name7
                     labels: label_environment:Production|label_app:CMSapp|label_version:Production|label_storageclass:gold
                     capacity_gig: 20
+            openshift-gpu-demo:
+              namespace_labels: team:platform
+              pods:
+                - pod:
+                  pod_name: platform_gpu_demo
+                  cpu_request: 1
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 8
+                  pod_seconds: 1800
+                  labels: label_application:PlatformGPU|label_stage:Production|label_group:Platform
+                  gpus:
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
             Paris:
               pods:
                 - pod:

@@ -14,6 +14,8 @@ from api.models import Provider
 from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
+from koku.cache import build_enabled_currency_codes_key
+from koku.cache import delete_value_from_cache
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
@@ -56,41 +58,47 @@ def enable_cloud_bill_currencies(schema_name, provider, start_date, end_date):
     model, field = source
     with schema_context(schema_name):
         enabled = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        created_any = False
         qs = model.objects.filter(
             source_uuid=provider.uuid,
             usage_start__gte=start_date,
             usage_start__lte=end_date,
         )
 
-        for code in qs.values_list(field, flat=True).distinct():
-            if not code:
-                continue
-            code = code.upper()
-            if code in enabled:
-                continue
-            if not is_valid_iso_currency(code):
-                LOG.warning(
+        try:
+            for code in qs.values_list(field, flat=True).distinct():
+                if not code:
+                    continue
+                code = code.upper()
+                if code in enabled:
+                    continue
+                if not is_valid_iso_currency(code):
+                    LOG.warning(
+                        log_json(
+                            msg="Skipping enable for invalid cloud bill currency code",
+                            currency=code,
+                            schema=schema_name,
+                            provider_uuid=str(provider.uuid),
+                        )
+                    )
+                    continue
+                _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
+                enabled.add(code)
+                if not created:
+                    continue
+                created_any = True
+                populate_dynamic_monthly_rates(code=code)
+                LOG.info(
                     log_json(
-                        msg="Skipping enable for invalid cloud bill currency code",
+                        msg="Cloud bill base currency enabled",
                         currency=code,
                         schema=schema_name,
                         provider_uuid=str(provider.uuid),
                     )
                 )
-                continue
-            _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
-            enabled.add(code)
-            if not created:
-                continue
-            populate_dynamic_monthly_rates(code=code)
-            LOG.info(
-                log_json(
-                    msg="Cloud bill base currency enabled",
-                    currency=code,
-                    schema=schema_name,
-                    provider_uuid=str(provider.uuid),
-                )
-            )
+        finally:
+            if created_any:
+                delete_value_from_cache(build_enabled_currency_codes_key(schema_name))
 
 
 class ReportSummaryUpdaterError(Exception):

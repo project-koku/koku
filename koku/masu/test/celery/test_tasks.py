@@ -19,6 +19,7 @@ from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
+from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -521,6 +522,7 @@ class TestCeleryTasks(MasuTestCase):
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="EUR")
@@ -548,6 +550,7 @@ class TestCeleryTasks(MasuTestCase):
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="EUR")
@@ -577,6 +580,7 @@ class TestCeleryTasks(MasuTestCase):
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
 
@@ -592,6 +596,8 @@ class TestCeleryTasks(MasuTestCase):
         """Test that empty EnabledCurrency table causes early return."""
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             populate_dynamic_monthly_rates()
 
@@ -629,3 +635,34 @@ class TestCeleryTasks(MasuTestCase):
                     effective_date=current_month, base_currency="USD", target_currency="CAD"
                 ).exists()
             )
+
+
+class TestPrecreatePartitionTasks(MasuTestCase):
+    """Scheduled pre-creation of next month's partitions."""
+
+    @patch("masu.celery.tasks.precreate_schema_partitions.delay")
+    def test_precreate_upcoming_partitions_queues_tenant_schemas(self, mock_delay):
+        """Every tenant schema except public and the template gets next month queued."""
+        with patch("masu.celery.tasks.DateHelper") as mock_dh:
+            mock_dh.return_value.this_month_start = datetime(2031, 12, 1)
+            tasks.precreate_upcoming_partitions()
+
+        queued = {c.args[0]: c.args[1] for c in mock_delay.call_args_list}
+        self.assertIn(self.schema, queued)
+        self.assertNotIn("public", queued)
+        self.assertNotIn("template0", queued)
+        self.assertEqual(set(queued.values()), {"2032-01-01"})
+
+    @patch("masu.celery.tasks.precreate_monthly_partitions")
+    @patch("masu.celery.tasks.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_precreate_schema_partitions_flag_off(self, _mock_flag, mock_precreate):
+        """With the flag off nothing is created."""
+        tasks.precreate_schema_partitions(self.schema, "2032-01-01")
+        mock_precreate.assert_not_called()
+
+    @patch("masu.celery.tasks.precreate_monthly_partitions", return_value={"created": 2})
+    @patch("masu.celery.tasks.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_precreate_schema_partitions_flag_on(self, _mock_flag, mock_precreate):
+        """With the flag on the schema's partitions for the month are created."""
+        tasks.precreate_schema_partitions(self.schema, "2032-01-01")
+        mock_precreate.assert_called_once_with(self.schema, "2032-01-01")

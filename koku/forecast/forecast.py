@@ -13,7 +13,6 @@ from functools import cached_property
 from functools import reduce
 
 import numpy as np
-import statsmodels.api as sm
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Case
@@ -28,13 +27,11 @@ from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
-from statsmodels.sandbox.regression.predstd import wls_prediction_std
-from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import build_monthly_rate_annotation
-from api.currency.utils import validate_exchange_rate_coverage
+from api.currency.utils import get_monthly_exchange_rate_map
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -171,7 +168,9 @@ class Forecast:
         When constant currency is enabled, uses per-month Subquery from
         MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary via Case/When.
         """
-        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+        if is_feature_flag_enabled_by_schema(
+            self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+        ):
             exchange_rate_annotation = build_monthly_rate_annotation(
                 OuterRef(self.provider_map.cost_units_key), self.currency
             )
@@ -201,7 +200,9 @@ class Forecast:
         cost_predictions = {}
         with tenant_context(self.params.tenant):
             if (
-                is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
+                is_feature_flag_enabled_by_schema(
+                    self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+                )
                 and self.currency
             ):
                 base_currencies = set(
@@ -212,7 +213,7 @@ class Forecast:
                     .values_list(self.provider_map.cost_units_key, flat=True)
                     .distinct()
                 ) - {None}
-                validate_exchange_rate_coverage(
+                get_monthly_exchange_rate_map(
                     base_currencies,
                     self.currency,
                     self.query_range[0].date(),
@@ -430,6 +431,7 @@ class Forecast:
                 (float) R-squared value
                 (list) P-values
         """
+        sm = _statsmodels_api()
         x = sm.add_constant(x)
         to_predict = sm.add_constant(to_predict)
         model = sm.OLS(y, x)
@@ -478,6 +480,20 @@ class Forecast:
             filters.add(q_filter)
 
 
+# statsmodels (with scipy) costs ~150 MB to import. Django's URL checks import this module
+# in every process, Celery workers included, so import it only when a forecast runs.
+def _statsmodels_api():
+    import statsmodels.api
+
+    return statsmodels.api
+
+
+def wls_prediction_std(*args, **kwargs):
+    from statsmodels.sandbox.regression.predstd import wls_prediction_std as _wls_prediction_std
+
+    return _wls_prediction_std(*args, **kwargs)
+
+
 class LinearForecastResult:
     """Container class for linear forecast results.
 
@@ -493,6 +509,8 @@ class LinearForecastResult:
         """
         self._exog = exog
         self._regression_result = regression_result
+        from statsmodels.tools.sm_exceptions import ValueWarning
+
         self._std_err, self._conf_lower, self._conf_upper = wls_prediction_std(regression_result, exog=exog)
 
         try:
@@ -517,7 +535,7 @@ class LinearForecastResult:
         prediction = []
         try:
             if self._exog is not None:
-                prediction = self._regression_result.predict(sm.add_constant(self._exog))
+                prediction = self._regression_result.predict(_statsmodels_api().add_constant(self._exog))
             else:
                 prediction = self._regression_result.predict()
         except ValueError as exc:
@@ -653,7 +671,9 @@ class OCPForecast(Forecast):
         When constant currency is enabled, uses OCP-specific dual annotations.
         Falls back to ExchangeRateDictionary via Case/When when the flag is off.
         """
-        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+        if is_feature_flag_enabled_by_schema(
+            self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+        ):
             cost_model_currency = Subquery(
                 CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
                     "currency"

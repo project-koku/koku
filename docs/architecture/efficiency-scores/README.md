@@ -14,7 +14,7 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 
 | Topic | Where |
 |-------|--------|
-| Multi-tenancy (tenant vs public, `tenant_context` / `schema_context`) | [`.cursor/rules/multi-tenancy.mdc`](../../../.cursor/rules/multi-tenancy.mdc), [`AGENTS.md`](../../../AGENTS.md) |
+| Multi-tenancy (tenant vs public, `tenant_context` / `schema_context`) | [`docs/agent/multi-tenancy.md`](../../agent/multi-tenancy.md), [`AGENTS.md`](../../../AGENTS.md) |
 | Report API pattern (serializer → query handler → provider map → ORM) | [`api-serializers-provider-maps.md`](../api-serializers-provider-maps.md) |
 | OCP daily line item columns (usage vs request hours) | [`csv-processing-ocp.md`](../csv-processing-ocp.md) |
 | Formulas, edge cases, response shape | [formulas-and-data-contract.md](./formulas-and-data-contract.md) |

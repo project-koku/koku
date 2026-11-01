@@ -339,6 +339,35 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 
 ---
 
+### `masu.celery.tasks.precreate_upcoming_partitions`
+
+**Module**: `koku/masu/celery/tasks.py`
+
+**Queue**: `DEFAULT`
+
+**Description**: Scheduled task that queues creation of next month's partitions for all tenant schemas, so the first of the month does not need partition DDL on the processing path.
+
+**Workflow**:
+1. Retrieves all tenant schemas (excluding `public` and the template schema)
+2. Queues `precreate_schema_partitions` for each schema with next month's start date
+
+---
+
+### `masu.celery.tasks.precreate_schema_partitions`
+
+**Module**: `koku/masu/celery/tasks.py`
+
+**Queue**: `DEFAULT`
+
+**Description**: Creates the partitions for one month in one schema via `koku.pg_partition.precreate_monthly_partitions`. Gated by the `cost-management.backend.precreate_partitions` flag.
+
+**Workflow**:
+1. For each range-partitioned table with a default partition, skips the month if its partition already exists
+2. Skips the month if the default partition already holds rows for it (left to the on-demand path, which moves the rows)
+3. Creates the partition with a session `lock_timeout` (5 s); creating a partition needs an `ACCESS EXCLUSIVE` lock on the parent, so a busy table is skipped instead of making every later statement wait, and a later run retries it
+
+---
+
 ### `masu.processor.tasks.remove_stale_tenants`
 
 **Module**: `koku/masu/processor/tasks.py`
@@ -692,6 +721,16 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 ---
 
+### Partition Pre-creation
+
+**Task**: `masu.celery.tasks.precreate_upcoming_partitions`
+
+**Schedule**: Every 8 hours (05:30, 13:30, 21:30 UTC) from `PRECREATE_PARTITIONS_START_DAY` through month end. The default is 15 (`30 5,13,21 15-31 * *`); the setting accepts 1–28 so every month has at least one run. Set it on the scheduler deployment to start earlier in an environment.
+
+**Enabled**: Per schema via `cost-management.backend.precreate_partitions`
+
+---
+
 ### Source Deletion
 
 **Task**: `sources.tasks.delete_source_beat`
@@ -744,7 +783,7 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Enabled**: When `CURRENCY_URL` is a non-empty value (configured via environment / app-interface)
 
-**Description**: Fetches latest currency exchange rates from the configured API and upserts monthly dynamic rates per tenant. When `CURRENCY_URL` is unset/empty (typical on-prem / airgapped), the beat is not registered so the worker does not attempt outbound requests.
+**Description**: Fetches latest currency exchange rates from the configured API and upserts monthly dynamic rates per tenant. When `CURRENCY_URL` is unset/empty (typical on-prem / airgapped), the beat is not registered so the worker does not attempt outbound requests. Newly cloned tenant schemas are filled from the existing shared snapshot at schema creation and do not wait for this beat.
 
 ---
 
@@ -767,6 +806,30 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 **Always Enabled**: Yes
 
 **Description**: Processes delayed/deferred Celery tasks.
+
+---
+
+### Ingress Staging Reconciler
+
+**Task**: `masu.external.downloader.ocp.payload_landing.reconcile_ingress_staging`
+
+**Schedule**: Every minute
+
+**Queue**: `ocp` (default beat routing; consumed by `worker-ocp`)
+
+**Description**: Lists `ingress_staging/pending/` and registers up to 1000 S3 inbox markers into staging rows before it enqueues work. A marker is deleted only after the upsert succeeds. It then enqueues staged HCCM ingress rows that the listener's eager handoff did not finish. It does not claim rows. A successful publish sets `reconciled_at`; that `request_id` is not published again until the two-hour lease passes. Pending rows younger than one minute are left for the in-flight task. The worker task `masu.processor.ocp.staged_payloads.process_staged.process_staged_ingress_payload` claims the row and extracts the tarball on the customer OCP queue (`ocp`, `ocp_xl`, or `ocp_penalty`). Line items run as `process_staged_ingress_reports` on that same queue family. See [`reconcile.py`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) and [`process_staged.py`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py).
+
+---
+
+### Ingress Staging Retention
+
+**Task**: `masu.external.downloader.ocp.payload_landing.expire_ingress_staging`
+
+**Schedule**: Hourly at minute 0
+
+**Queue**: `ocp` (default beat routing; consumed by `worker-ocp`)
+
+**Description**: Deletes `processed` staging rows whose `stored_at` is older than seven days, and deletes the matching tarball and `by_request` receipt. `failed` rows and their objects are kept. Each run loops in batches of 100 until the expired backlog is gone or a 55-minute time budget elapses.
 
 ---
 
@@ -872,7 +935,7 @@ Tag-mapping resummarize continues to use `delayed_summarize_current_month`
 1. If `CURRENCY_URL` is empty, skips the API fetch (logs and continues without dynamic discovery)
 2. Otherwise fetches exchange rates from the external API
 3. Updates `ExchangeRates` model for valid currencies and rebuilds the exchange rate cache
-4. Upserts `MonthlyExchangeRate` dynamic rows per tenant (and may invalidate report view cache)
+4. Upserts `MonthlyExchangeRate` dynamic rows per tenant (and may invalidate report view cache). A newly cloned schema is filled the same way when `Tenant.create_schema` commits, so it does not wait for this beat.
 
 ---
 
@@ -965,7 +1028,7 @@ Koku uses multiple queue types to organize task processing:
    - `XL` - Extra-large provider refreshes
    - `PRIORITY` - High-priority refreshes
 6. **OCPQueue**:
-   - `DEFAULT` - OpenShift-specific processing
+   - `DEFAULT` - OpenShift-specific processing (includes HCCM ingress staging register, reconcile, extract, and line items when the staging listener flag is on)
    - `XL` - Extra-large OCP providers
    - `PRIORITY` - High-priority OCP processing
 7. **PriorityQueue**:
@@ -1049,6 +1112,7 @@ Large customers are rate-limited to prevent resource exhaustion:
 
 - **Max tasks per worker**: Configured via `MAX_CELERY_TASKS_PER_WORKER` (default: 10)
 - **Worker alive timeout**: Configured via `WORKER_PROC_ALIVE_TIMEOUT` (default: 4 seconds)
+- **Probe liveness heartbeat**: Configured via `PROBE_LIVENESS_HEARTBEAT_SECONDS` (default: 60). Worker `/livez` fails if the Celery parent heartbeat is older than this. Long-running child tasks stay live while the parent still ticks. Listener `/livez` is separate (consumer thread alive/dead, not this timer).
 - **Broker retry**: Max 4 retries with exponential backoff (max 3 seconds)
 
 ---
@@ -1141,6 +1205,7 @@ Key environment variables affecting task behavior:
 - `DELAYED_TASK_POLLING_MINUTES` - Interval for delayed task checking
 - `MAX_CELERY_TASKS_PER_WORKER` - Worker recycling threshold
 - `WORKER_PROC_ALIVE_TIMEOUT` - Worker startup timeout
+- `PROBE_LIVENESS_HEARTBEAT_SECONDS` - Seconds of stale Celery parent heartbeat before worker `/livez` fails (default 60)
 - `MAX_UPDATE_RETRIES` - Maximum retry attempts for updates
 - `MAX_SOURCE_DELETE_RETRIES` - Maximum retry attempts for source deletion
 - `XL_REPORT_COUNT` - Threshold for marking provider as XL

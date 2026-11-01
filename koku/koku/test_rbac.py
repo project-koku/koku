@@ -10,6 +10,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.conf import settings
+from django.test import override_settings
 from django.test import TestCase
 from prometheus_client import REGISTRY
 from requests.exceptions import ConnectionError
@@ -17,6 +18,7 @@ from rest_framework import status
 
 from koku.rbac import _apply_access
 from koku.rbac import _get_operation
+from koku.rbac import _normalize_sources_acls
 from koku.rbac import _process_acls
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
@@ -127,6 +129,16 @@ def mocked_get_operation(access_item, res_type):
     raise ValueError("Invalid wildcard for invalid res type.")
 
 
+def mocked_requests_get_200_by_application(*args, **kwargs):
+    """Return different ACLs depending on the ?application= filter in the URL."""
+    url = args[0]
+    if "application=sources" in url:
+        data = [{"permission": "sources:*:*", "resourceDefinitions": []}]
+    else:
+        data = [LIMITED_AWS_ACCESS]
+    return MockResponse({"links": {"next": None}, "data": data}, status.HTTP_200_OK)
+
+
 class RbacServiceTest(TestCase):
     """Test RbacService object."""
 
@@ -134,7 +146,7 @@ class RbacServiceTest(TestCase):
     def test_non_200_error_json(self, mock_get):
         """Test handling of request with non-200 response and json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
@@ -143,7 +155,7 @@ class RbacServiceTest(TestCase):
     def test_500_error_json(self, mock_get):
         """Test handling of request with 500 response and json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         with self.assertRaises(RbacConnectionError):
             rbac._request_user_access(url, headers={})
 
@@ -151,7 +163,7 @@ class RbacServiceTest(TestCase):
     def test_non_200_error_text(self, mock_get):
         """Test handling of request with non-200 response and non-json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
@@ -160,7 +172,7 @@ class RbacServiceTest(TestCase):
     def test_non_200_error_except(self, mock_get):
         """Test handling of request with non-200 response and non-json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         logging.disable(logging.NOTSET)
         with self.assertLogs(logger="koku.rbac", level=logging.WARNING):
             access = rbac._request_user_access(url, headers={})
@@ -171,7 +183,7 @@ class RbacServiceTest(TestCase):
     def test_200_text(self, mock_get):
         """Test handling of request with 200 response and non-json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
@@ -180,7 +192,7 @@ class RbacServiceTest(TestCase):
     def test_200_exception(self, mock_get):
         """Test handling of request with 200 response and raises a json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
@@ -189,7 +201,7 @@ class RbacServiceTest(TestCase):
     def test_200_all_results(self, mock_get):
         """Test handling of request with 200 response with no next link."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [LIMITED_AWS_ACCESS])
         mock_get.assert_called()
@@ -198,7 +210,7 @@ class RbacServiceTest(TestCase):
     def test_200_results_next(self, mock_get):
         """Test handling of request with 200 response with next link."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [LIMITED_AWS_ACCESS, LIMITED_AWS_ACCESS])
         mock_get.assert_called()
@@ -208,7 +220,7 @@ class RbacServiceTest(TestCase):
         """Test handling of request with ConnectionError."""
         before = REGISTRY.get_sample_value("rbac_connection_errors_total")
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         with self.assertRaises(RbacConnectionError):
             rbac._request_user_access(url, headers={})
         after = REGISTRY.get_sample_value("rbac_connection_errors_total")
@@ -414,6 +426,70 @@ class RbacServiceTest(TestCase):
         expected = create_expected_access({"aws.account": {"read": ["123456"]}})
         self.assertEqual(access, expected)
         mock_get.assert_called()
+
+    def test_normalize_sources_acls(self):
+        """Test that sources-app permissions are collapsed onto the `sources` resource type."""
+        acls = [
+            {"permission": "sources:*:*", "resourceDefinitions": []},
+            {"permission": "sources:source:read", "resourceDefinitions": []},
+            {"permission": "cost-management:aws.account:read"},
+            {"permission": "malformed"},
+        ]
+        result = _normalize_sources_acls(acls)
+        self.assertEqual(result[0]["permission"], "sources:sources:*")
+        self.assertEqual(result[1]["permission"], "sources:sources:read")
+        self.assertEqual(result[2]["permission"], "cost-management:aws.account:read")
+        self.assertEqual(result[3]["permission"], "malformed")
+        # input list is not mutated
+        self.assertEqual(acls[0]["permission"], "sources:*:*")
+
+    @override_settings(ONPREM=False)
+    @patch("koku.rbac.requests.get", side_effect=mocked_requests_get_200_by_application)
+    def test_get_access_for_user_saas_skips_sources(self, mock_get):
+        """Off-prem, only the cost-management application is queried (no sources merge)."""
+        rbac = RbacService()
+        mock_user = Mock()
+        mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
+        access = rbac.get_access_for_user(mock_user)
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(access["aws.account"], {"read": ["123456"]})
+
+    @override_settings(ONPREM=True)
+    @patch.dict("koku.rbac.RESOURCE_TYPES", {"sources": ["read", "write"]})
+    @patch("koku.rbac.requests.get", side_effect=mocked_requests_get_200_by_application)
+    def test_get_access_for_user_onprem_merges_sources(self, mock_get):
+        """On-prem, the sources application is queried and merged onto the `sources` type."""
+        rbac = RbacService()
+        mock_user = Mock()
+        mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
+        access = rbac.get_access_for_user(mock_user)
+        expected = create_expected_access(
+            {
+                "aws.account": {"read": ["123456"]},
+                "sources": {"read": ["*"], "write": ["*"]},
+            }
+        )
+        self.assertEqual(access, expected)
+        self.assertEqual(mock_get.call_count, 2)
+
+    @override_settings(ONPREM=True)
+    @patch.dict("koku.rbac.RESOURCE_TYPES", {"sources": ["read", "write"]})
+    @patch("koku.rbac.requests.get")
+    def test_get_access_for_user_onprem_sources_failure(self, mock_get):
+        """On-prem, a Sources ACL lookup failure does not discard cost-management access."""
+
+        def side_effect(url, **kwargs):
+            if "application=sources" in url:
+                raise ConnectionError("sources service unavailable")
+            return mocked_requests_get_200_by_application(url, **kwargs)
+
+        mock_get.side_effect = side_effect
+        rbac = RbacService()
+        mock_user = Mock()
+        mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
+        access = rbac.get_access_for_user(mock_user)
+        # Cost-management access should still be returned
+        self.assertEqual(access["aws.account"], {"read": ["123456"]})
 
     @patch.dict(os.environ, {"RBAC_CACHE_TTL": "5"})
     def test_get_cache_ttl(self):

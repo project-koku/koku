@@ -535,6 +535,13 @@ GPU distribution requires **full-month data**, so it cannot run incrementally li
 
 **Endpoint:** `GET /api/cost-management/v1/reports/openshift/gpu/`
 
+**Supported Filters:**
+- `filter[category]` - OpenShift cost category, such as `Platform`
+- `filter[gpu_vendor]` - GPU vendor, such as `nvidia`
+- `filter[gpu_model]` - GPU model, such as `H100`
+- `filter[gpu_mode]` - GPU mode, `dedicated` or `MIG`
+- `filter[mig_profile]` - MIG profile, such as `1g.10gb`
+
 **New Fields:**
 - `gpu_mode`: `"dedicated"` or `"MIG"`
 - `mig_enabled_uuids`: Array of MIG-enabled GPU UUIDs

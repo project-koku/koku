@@ -34,6 +34,9 @@ from common.queues import PriorityQueue
 from common.queues import RefreshQueue
 from common.queues import SummaryQueue
 from koku import celery_app
+from koku.cache import invalidate_cache_for_tenant_and_cache_key
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.cache import TAG_MAPPING_PREFIX
 from koku.middleware import KokuTenantMiddleware
 from koku.trino_database import TrinoQueryNotFoundError
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -75,6 +78,7 @@ LOG = logging.getLogger(__name__)
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
+APPLY_TAG_MAPPINGS_TASK = "masu.processor.tasks.apply_tag_mappings"
 
 
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
@@ -223,6 +227,28 @@ def delayed_summarize_current_month(schema_name: str, provider_uuids: list, prov
         )
         if is_celery_task_delay_disabled(schema_name):
             id.delete()
+
+
+def delayed_apply_tag_mappings(schema_name: str, provider_uuids: list):
+    """Delay applying tag mappings for the current month without a full re-summary."""
+    queue = get_customer_queue(schema_name, SummaryQueue)
+    start_date = str(to_date(DateHelper().this_month_start))
+    end_date = str(to_date(DateHelper().today))
+
+    for provider_uuid in provider_uuids:
+        row = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=APPLY_TAG_MAPPINGS_TASK,
+            task_args=[schema_name],
+            task_kwargs={
+                "provider_uuid": str(provider_uuid),
+                "start_date": start_date,
+                "end_date": end_date,
+            },
+            provider_uuid=provider_uuid,
+            queue_name=queue,
+        )
+        if is_celery_task_delay_disabled(schema_name):
+            row.delete()
 
 
 def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_date, queue_name, tracing_id=None):
@@ -584,6 +610,110 @@ def summarize_reports(  # noqa: C901
                     tracing_id=tracing_id,
                     manifest_list=manifest_list,
                 ).apply_async(queue=queue_name or fallback_queue)
+
+
+def _bump_mapping_apply_freshness(schema, provider):
+    """Stamp sources whose summarized data changed and drop cached cost/tag reports.
+
+    Mapping-only apply skips ReportSummaryUpdater, which is what normally
+    invalidates view cache. Linked cloud/OCP sources are stamped too because
+    include_linked_ocp_on_cloud remaps their project tables.
+    Do not touch ocp_on_cloud_updated_datetime; that marks matching, not a remap.
+    """
+    providers = [provider]
+    if provider.type == Provider.PROVIDER_OCP:
+        if provider.infrastructure:
+            if infra := Provider.objects.filter(uuid=provider.infrastructure.infrastructure_provider_id).first():
+                providers.append(infra)
+    else:
+        providers.extend(Provider.objects.filter(infrastructure__infrastructure_provider_id=provider.uuid))
+
+    for stamped in providers:
+        stamped.set_data_updated_timestamp()
+
+    source_types = {p.type for p in providers}
+    for source_type in source_types:
+        invalidate_view_cache_for_tenant_and_source_type(schema, source_type)
+    invalidate_cache_for_tenant_and_cache_key(schema, TAG_MAPPING_PREFIX)
+
+
+def _queue_cost_model_refresh_after_mapping(schema, provider, start_date, end_date, tracing_id=None):
+    """Recalculate OCP cost-model costs after daily-summary labels are remapped.
+
+    Tag-based rates match pod_labels/volume_labels. Cloud mapping does not remap
+    those OCP rows, so only an OCP source queues this follow-up.
+    """
+    if provider.type != Provider.PROVIDER_OCP:
+        return
+    cost_model_queue = get_customer_queue(schema, CostModelQueue)
+    update_cost_model_costs.s(
+        schema,
+        str(provider.uuid),
+        start_date=str(start_date),
+        end_date=str(end_date),
+        tracing_id=tracing_id,
+    ).apply_async(queue=cost_model_queue)
+
+
+@celery_app.task(name=APPLY_TAG_MAPPINGS_TASK, queue=SummaryQueue.DEFAULT)
+def apply_tag_mappings(
+    schema,
+    provider_uuid,
+    start_date,
+    end_date=None,
+    tracing_id=None,
+    queue_name=None,
+    synchronous=False,
+):
+    """Apply tag mappings to already-summarized rows for one provider and month."""
+    start_date = to_date(start_date)
+    end_date = to_date(end_date) if end_date is not None else to_date(DateHelper().today)
+    context = {
+        "schema": schema,
+        "provider_uuid": provider_uuid,
+        "start_date": start_date,
+        "end_date": end_date,
+    }
+    if is_summary_processing_disabled(schema) or is_source_disabled(provider_uuid):
+        LOG.info(log_json(tracing_id, msg="skipping tag mapping apply; processing disabled", context=context))
+        return
+
+    task_name = APPLY_TAG_MAPPINGS_TASK
+    cache_args = [schema, str(provider_uuid), str(start_date)]
+    fallback_queue = get_customer_queue(schema, SummaryQueue)
+    if not synchronous:
+        worker_cache = WorkerCache()
+        timeout = settings.WORKER_CACHE_TIMEOUT
+        if fallback_queue != SummaryQueue.DEFAULT:
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            LOG.info(log_json(tracing_id, msg=f"Task {task_name} already running for {cache_args}. Requeuing."))
+            apply_tag_mappings.s(
+                schema,
+                provider_uuid,
+                start_date=str(start_date),
+                end_date=str(end_date),
+                tracing_id=tracing_id,
+                queue_name=queue_name,
+                synchronous=synchronous,
+            ).apply_async(queue=queue_name or fallback_queue)
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
+
+    try:
+        provider = Provider.objects.select_related("infrastructure").filter(uuid=provider_uuid).first()
+        if not provider:
+            LOG.warning(log_json(tracing_id, msg="provider not found; skipping tag mapping apply", context=context))
+            return
+        LOG.info(log_json(tracing_id, msg="applying tag mappings", context=context))
+        from masu.processor.tag_mapping import apply_tag_mappings as apply_tag_mappings_for_provider
+
+        apply_tag_mappings_for_provider(schema, provider, start_date, end_date, include_linked_ocp_on_cloud=True)
+        _bump_mapping_apply_freshness(schema, provider)
+        _queue_cost_model_refresh_after_mapping(schema, provider, start_date, end_date, tracing_id=tracing_id)
+    finally:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
 
 
 @celery_app.task(name=UPDATE_SUMMARY_TABLES_TASK, queue=SummaryQueue.DEFAULT)  # noqa: C901

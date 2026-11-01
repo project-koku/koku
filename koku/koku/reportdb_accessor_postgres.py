@@ -127,12 +127,23 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
     def get_delete_by_day_sql(
         self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str
     ):
-        """Generate PostgreSQL DELETE SQL for partitions by day."""
+        """Generate PostgreSQL DELETE SQL for partitions by day.
+
+        Month/day values may be zero-padded (new writes) or unpadded (legacy).
+        Note: OCP Hive day deletes are SaaS/Trino-only; this mirrors the dual-format
+        predicate for accessor parity.
+        """
+        day_values = f"'{str(int(day))}', '{str(day).zfill(2)}'"
+        if str(int(day)) == str(day).zfill(2):
+            day_values = f"'{str(day).zfill(2)}'"
+        month_values = f"'{str(int(month))}', '{str(month).zfill(2)}'"
+        if str(int(month)) == str(month).zfill(2):
+            month_values = f"'{str(month).zfill(2)}'"
         return f"""DELETE FROM "{schema_name}".{table_name}
 WHERE {source_column} = '{source}'
 AND year = '{year}'
-AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-AND day = '{day}'"""
+AND month IN ({month_values})
+AND day IN ({day_values})"""
 
     def get_delete_by_source_sql(self, schema_name: str, table_name: str, partition_column: str, provider_uuid: str):
         """Generate PostgreSQL DELETE SQL for partitions by source."""
@@ -237,12 +248,18 @@ WHERE ocp.source = '{source_uuid}'
         self, schema_name: str, table_name: str, cloud_source: str, ocp_source: str, year: str, month: str, day: str
     ):
         """Generate PostgreSQL DELETE SQL for OCP-on-cloud partitions by day."""
+        day_values = f"'{str(int(day))}', '{str(day).zfill(2)}'"
+        if str(int(day)) == str(day).zfill(2):
+            day_values = f"'{str(day).zfill(2)}'"
+        month_values = f"'{str(int(month))}', '{str(month).zfill(2)}'"
+        if str(int(month)) == str(month).zfill(2):
+            month_values = f"'{str(month).zfill(2)}'"
         return f"""DELETE FROM "{schema_name}".{table_name}
 WHERE source = '{cloud_source}'
 AND ocp_source = '{ocp_source}'
 AND year = '{year}'
-AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-AND day = '{day}'"""
+AND month IN ({month_values})
+AND day IN ({day_values})"""
 
     def get_bind_param_style(self):
         """Return the parameter binding style for PostgreSQL."""

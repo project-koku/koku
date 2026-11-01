@@ -937,7 +937,9 @@ class OCPReportViewTest(IamTestCase):
                 .annotate(project_count=Count("namespace"))
                 .all()
             )
-            project_of_interest = projects[0].get("namespace")
+            # The project filter is a substring match. Pick the longest fixture
+            # name so it cannot also match a different project such as koku-prod.
+            project_of_interest = max((project["namespace"] for project in projects if project["namespace"]), key=len)
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()

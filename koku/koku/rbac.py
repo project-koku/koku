@@ -19,10 +19,6 @@ from koku.env import ENVIRONMENT
 
 LOG = logging.getLogger(__name__)
 RBAC_CONNECTION_ERROR_COUNTER = Counter("rbac_connection_errors", "Number of RBAC ConnectionErros.")
-PROTOCOL = "protocol"
-HOST = "host"
-PORT = "port"
-PATH = "path"
 _RESOURCE_TYPE_LIST = [
     ("aws.account", ["read"]),
     ("aws.organizational_unit", ["read"]),
@@ -66,6 +62,26 @@ def _extract_resource_definitions(resource_definitions):
                 value = value.split(",")
             result.extend(value)
     return result
+
+
+def _normalize_sources_acls(acls):
+    """Collapse "sources" application permissions onto the koku `sources` resource type.
+
+    RBAC returns sources permissions as ``sources:<resource>:<operation>`` -- e.g.
+    ``sources:*:*`` for the "Sources administrator" role. On-prem, RESOURCE_TYPES
+    has a single flat ``sources`` entry, and ``_extract_permission_data`` keys off
+    the middle segment, so ``sources:*:*`` would otherwise land under the ``*``
+    wildcard and get expanded across every resource type. Rewrite the middle
+    segment to ``sources`` so the permission maps to that single bucket.
+    """
+    normalized = []
+    for acl in acls:
+        acl = dict(acl)
+        parts = acl.get("permission", "").split(":")
+        if len(parts) == 3 and parts[0] == "sources":
+            acl["permission"] = f"sources:sources:{parts[2]}"
+        normalized.append(acl)
+    return normalized
 
 
 def _process_acls(acls):
@@ -175,21 +191,9 @@ class RbacService:
 
     def __init__(self):
         """Establish RBAC connection information."""
-        rbac_conn_info = self._get_rbac_service()
-        self.protocol = rbac_conn_info.get(PROTOCOL)
-        self.host = rbac_conn_info.get(HOST)
-        self.port = rbac_conn_info.get(PORT)
-        self.path = rbac_conn_info.get(PATH)
+        self.base_url = CONFIGURATOR.get_endpoint_url("rbac", "service", "http://localhost:8111")
+        self.path = ENVIRONMENT.get_value("RBAC_SERVICE_PATH", default="/r/insights/platform/rbac/v1/access/")
         self.cache_ttl = ENVIRONMENT.int("RBAC_CACHE_TTL", default=30)
-
-    def _get_rbac_service(self):
-        """Get RBAC service host and port info from environment."""
-        return {
-            PROTOCOL: ENVIRONMENT.get_value("RBAC_SERVICE_PROTOCOL", default="http"),
-            HOST: CONFIGURATOR.get_endpoint_host("rbac", "service", "localhost"),
-            PORT: CONFIGURATOR.get_endpoint_port("rbac", "service", "8111"),
-            PATH: ENVIRONMENT.get_value("RBAC_SERVICE_PATH", default="/r/insights/platform/rbac/v1/access/"),
-        }
 
     def _request_user_access(self, url, headers):  # noqa: C901
         """Send request to RBAC service and handle pagination case."""
@@ -229,17 +233,28 @@ class RbacService:
         next_link = data.get("links", {}).get("next")
         access = data.get("data", [])
         if next_link:
-            next_url = f"{self.protocol}://{self.host}:{self.port}{next_link}"
+            next_url = f"{self.base_url}{next_link}"
             access += self._request_user_access(next_url, headers)
         return access
 
     def get_access_for_user(self, user):
         """Obtain access information for user."""
-        url = "{}://{}:{}{}?application=cost-management&limit=100".format(
-            self.protocol, self.host, self.port, self.path
-        )
+        base_url = f"{self.base_url}{self.path}"
         headers = {"x-rh-identity": user.identity_header.get("encoded")}
-        acls = self._request_user_access(url, headers)
+        acls = self._request_user_access(f"{base_url}?application=cost-management&limit=100", headers)
+
+        if settings.ONPREM:
+            # The "Sources administrator" role (sources:*:*) lives in the "sources"
+            # RBAC application, which the cost-management filter above excludes.
+            # Fetch it separately so the user-access API can report a `sources`
+            # capability that gates the on-prem Settings > Integrations tab.
+            try:
+                sources_acls = self._request_user_access(f"{base_url}?application=sources&limit=100", headers)
+            except RbacConnectionError:
+                LOG.warning("Sources ACL lookup failed; continuing with cost-management access only.")
+                sources_acls = []
+            acls = list(acls) + _normalize_sources_acls(sources_acls)
+
         if isinstance(acls, list) and len(acls) == 0:
             return None
 

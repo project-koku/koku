@@ -66,6 +66,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
@@ -113,6 +115,20 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
+        - name: REQUEST_SOFT_TIMEOUT
+          value: ${REQUEST_SOFT_TIMEOUT}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: TIMEOUT
+          value: ${KOKU_READS_GUNICORN_TIMEOUT}
+        - name: DATABASE_STATEMENT_TIMEOUT_MS
+          value: ${KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${KOKU_READS_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
+        - name: OCP_REPORT_THROTTLE_RATE
+          value: ${OCP_REPORT_THROTTLE_RATE}
+        - name: OCP_REPORT_THROTTLE_TIGHT_RATE
+          value: ${OCP_REPORT_THROTTLE_TIGHT_RATE}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -253,6 +269,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
@@ -300,6 +318,14 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
+        - name: REQUEST_SOFT_TIMEOUT
+          value: ${REQUEST_SOFT_TIMEOUT}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: OCP_REPORT_THROTTLE_RATE
+          value: ${OCP_REPORT_THROTTLE_RATE}
+        - name: OCP_REPORT_THROTTLE_TIGHT_RATE
+          value: ${OCP_REPORT_THROTTLE_TIGHT_RATE}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -470,6 +496,12 @@ objects:
           value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
+        - name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+          value: ${KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+          value: ${OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+          value: ${OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -492,6 +524,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: KOKU_LOG_LEVEL
@@ -826,6 +860,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -864,6 +900,8 @@ objects:
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_SCHEDULE
           value: ${SOURCE_STATUS_SCHEDULE}
+        - name: PRECREATE_PARTITIONS_START_DAY
+          value: ${PRECREATE_PARTITIONS_START_DAY}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
           value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
         - name: REMOVE_EXPIRED_REPORT_UTC_TIME
@@ -1000,6 +1038,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
@@ -1161,6 +1201,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: KOKU_LOG_LEVEL
@@ -1305,6 +1347,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -1339,6 +1383,8 @@ objects:
           value: ${WORKER_CELERY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1493,6 +1539,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -1527,6 +1575,8 @@ objects:
           value: ${WORKER_COST_MODEL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1686,6 +1736,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -1720,6 +1772,8 @@ objects:
           value: ${WORKER_COST_MODEL_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1879,6 +1933,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -1913,6 +1969,8 @@ objects:
           value: ${WORKER_COST_MODEL_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2072,6 +2130,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -2108,6 +2168,8 @@ objects:
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2269,6 +2331,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -2305,6 +2369,8 @@ objects:
           value: ${WORKER_DOWNLOAD_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2466,6 +2532,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -2502,6 +2570,8 @@ objects:
           value: ${WORKER_DOWNLOAD_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2663,6 +2733,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -2675,10 +2747,20 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
+        - name: DISABLE_ROS_MSG
+          value: ${DISABLE_ROS_MSG}
+        - name: KAFKA_CONNECT
+          value: ${KAFKA_CONNECT}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -2697,6 +2779,8 @@ objects:
           value: ${WORKER_OCP_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2858,6 +2942,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -2870,10 +2956,20 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
+        - name: DISABLE_ROS_MSG
+          value: ${DISABLE_ROS_MSG}
+        - name: KAFKA_CONNECT
+          value: ${KAFKA_CONNECT}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -2892,6 +2988,8 @@ objects:
           value: ${WORKER_OCP_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3053,6 +3151,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -3065,10 +3165,20 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
+        - name: DISABLE_ROS_MSG
+          value: ${DISABLE_ROS_MSG}
+        - name: KAFKA_CONNECT
+          value: ${KAFKA_CONNECT}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -3087,6 +3197,8 @@ objects:
           value: ${WORKER_OCP_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3236,6 +3348,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -3272,6 +3386,8 @@ objects:
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3426,6 +3542,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -3462,6 +3580,8 @@ objects:
           value: ${WORKER_PRIORITY_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3616,6 +3736,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -3652,6 +3774,8 @@ objects:
           value: ${WORKER_PRIORITY_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3806,6 +3930,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -3840,6 +3966,8 @@ objects:
           value: ${WORKER_REFRESH_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3988,6 +4116,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -4022,6 +4152,8 @@ objects:
           value: ${WORKER_REFRESH_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4170,6 +4302,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -4204,6 +4338,8 @@ objects:
           value: ${WORKER_REFRESH_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4305,6 +4441,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -4364,6 +4509,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -4380,6 +4527,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4398,6 +4547,8 @@ objects:
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4476,7 +4627,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -4502,6 +4653,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -4561,6 +4721,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -4577,6 +4739,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4595,6 +4759,8 @@ objects:
           value: ${WORKER_SUMMARY_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4673,7 +4839,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY_XL}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY_XL}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_XL_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -4699,6 +4865,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_PENALTY_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -4758,6 +4933,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
@@ -4774,6 +4951,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4792,6 +4971,8 @@ objects:
           value: ${WORKER_SUMMARY_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4870,7 +5051,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY_PENALTY}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY_PENALTY}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_PENALTY_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -4943,6 +5124,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: ENABLE_HCS_DEBUG
@@ -4979,6 +5162,8 @@ objects:
           value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -5127,6 +5312,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: ENABLE_SUBS_DEBUG
@@ -5165,6 +5352,8 @@ objects:
           value: ${WORKER_SUBS_EXTRACTION_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -5303,6 +5492,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: ENABLE_SUBS_DEBUG
@@ -5341,6 +5532,8 @@ objects:
           value: ${WORKER_SUBS_TRANSMISSION_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -5784,6 +5977,27 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- description: Seconds before a sync request is aborted and reported with request
+    context
+  displayName: Soft request timeout
+  name: REQUEST_SOFT_TIMEOUT
+  value: "90"
+- description: Seconds before a stuck sync request's Python stacks are written to
+    stderr
+  displayName: Faulthandler request timeout
+  name: REQUEST_FAULTHANDLER_TIMEOUT
+  value: "95"
+- description: Global per-schema rate limit for OCP report API GETs (DRF SimpleRateThrottle
+    format, e.g. 10000/m). Keep high by default so UI, IQE, and on-prem are not blocked;
+    tighten via Unleash + OCP_REPORT_THROTTLE_TIGHT_RATE.
+  displayName: OCP report throttle rate
+  name: OCP_REPORT_THROTTLE_RATE
+  value: 10000/m
+- description: Stricter per-schema OCP report rate when cost-management.backend.rate-limit-ocp-report-queries
+    is enabled for the schema (e.g. 500/m)
+  displayName: OCP report tighten throttle rate
+  name: OCP_REPORT_THROTTLE_TIGHT_RATE
+  value: 500/m
 - displayName: Celery log level
   name: CELERY_LOG_LEVEL
   value: INFO
@@ -5839,6 +6053,11 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
+- description: Maximum duration in milliseconds for an enabled OCP tag-mapping UPDATE
+    (default 8 hours)
+  displayName: OCP tag-mapping statement timeout
+  name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+  value: "28800000"
 - description: Number of days to expand the data validation
   displayName: Data validation
   name: VALIDATION_RANGE
@@ -5864,6 +6083,11 @@ parameters:
   displayName: Worker Proc Alive Timeout
   name: WORKER_PROC_ALIVE_TIMEOUT
   value: "4"
+- description: Seconds of stale Celery parent heartbeat before worker /livez fails
+    (default 60). Long-running tasks stay live while the parent still ticks.
+  displayName: Probe liveness heartbeat seconds
+  name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+  value: "60"
 - description: Demo account JSON
   displayName: Demo account JSON
   name: DEMO_ACCOUNTS
@@ -5878,6 +6102,10 @@ parameters:
   displayName: Report download schedule
   name: REPORT_DOWNLOAD_SCHEDULE
   value: 0 * * * *
+- description: First day to pre-create next month's partitions (1-28)
+  displayName: Partition pre-creation start day
+  name: PRECREATE_PARTITIONS_START_DAY
+  value: "15"
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -5940,6 +6168,19 @@ parameters:
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
+- description: Emit Kafka listener diagnostics before the 18-minute poll interval;
+    diagnostic-only.
+  displayName: Kafka listener watchdog timeout in seconds
+  name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+  value: "900"
+- description: Wall-clock limit for streaming an OCP ingress tarball on the listener.
+  displayName: OCP ingress download timeout in seconds
+  name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+  value: "900"
+- description: Maximum OCP ingress tarball size in bytes before download is aborted.
+  displayName: OCP ingress download max payload bytes
+  name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+  value: "5368709120"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
@@ -6034,6 +6275,24 @@ parameters:
   name: KOKU_READ_ONLY_DB
   required: true
   value: cost-db-ro
+- description: Seconds before Gunicorn kills a reads API worker stuck in a request
+    (3scale gives up at ~30 s)
+  displayName: Reads API Gunicorn worker timeout
+  name: KOKU_READS_GUNICORN_TIMEOUT
+  required: true
+  value: "35"
+- description: PostgreSQL statement_timeout (ms) for reads API connections; 0 keeps
+    the server default
+  displayName: Reads API statement timeout
+  name: KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS
+  required: true
+  value: "30000"
+- description: PostgreSQL client_connection_check_interval (ms) so queries of dropped
+    reads API clients are cancelled; 0 disables
+  displayName: Reads API client connection check interval
+  name: KOKU_READS_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+  required: true
+  value: "5000"
 - displayName: Minimum replicas
   name: KOKU_WRITES_REPLICAS
   required: true
@@ -6825,6 +7084,23 @@ parameters:
   name: WORKER_SUMMARY_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_TRIGGER_THRESHOLD
   required: true
@@ -6868,6 +7144,23 @@ parameters:
   name: WORKER_SUMMARY_XL_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_XL_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_XL_TRIGGER_THRESHOLD
   required: true
@@ -6911,6 +7204,23 @@ parameters:
   name: WORKER_SUMMARY_PENALTY_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_PENALTY_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_PENALTY_TRIGGER_THRESHOLD
   required: true

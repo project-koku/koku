@@ -14,7 +14,7 @@ constant currency. Base path unless noted:
 | Method | Path | Audience | Purpose |
 |--------|------|----------|---------|
 | `GET` | `/currency/` | End user | Enabled currencies for the target-currency dropdown |
-| `GET` | `/settings/currency/` | Admin | All ISO currencies with enablement, dynamic availability, nested static rates |
+| `GET` | `/settings/currency/` | Admin | Current tender ISO currencies with enablement, dynamic availability, nested static rates; CSV export of flat static rates via `Accept: text/csv` |
 | `POST` | `/settings/currency/enabled/{code}/` | Admin | Enable a currency |
 | `DELETE` | `/settings/currency/enabled/{code}/` | Admin | Disable a currency |
 | `POST` | `/settings/currency/static-rates/` | Price list admin | Create a static exchange rate |
@@ -27,7 +27,8 @@ flag on, they convert using per-month rates and may return `400` when coverage
 is incomplete (see [Report and forecast behavior](#report-and-forecast-behavior)).
 
 There is **no** dedicated `GET` collection for static rates; list them via
-`GET /settings/currency/` (`static_rates` nested under each base currency).
+`GET /settings/currency/` (`static_rates` nested under each base currency), or
+export them as a flat CSV with `Accept: text/csv` on the same endpoint.
 
 ---
 
@@ -66,7 +67,9 @@ ISO 4217 registry at response time.
 
 ## `GET /settings/currency/`
 
-Administrator currency catalog for Settings UI.
+Administrator currency catalog for Settings UI. Lists **current tender** ISO
+4217 currencies (babel territory data). Already-enabled inactive/withdrawn
+codes remain in the list so they can be disabled.
 
 **Permission:** settings access.
 
@@ -74,9 +77,10 @@ Administrator currency catalog for Settings UI.
 
 | Param | Description |
 |-------|-------------|
-| `filter[enabled]` | `true` / `1` → only enabled; `false` / `0` → only disabled; omit → enabled first, then disabled |
-| `filter[currency]` | Case-insensitive substring match on currency `code` (e.g. `US` matches `USD`). Accepts comma-separated values or repeated params for multiple search terms (OR). Non-matching values return an empty list |
-| `limit` / `offset` | Standard list pagination |
+| `filter[enabled]` | **JSON:** `true` / `1` → only enabled; `false` / `0` → only disabled current-tender; omit → active tender ∪ enabled. **CSV:** keep rates whose **base** currency is enabled (`true`/`1`) or disabled (`false`/`0`); omit → all static rates |
+| `filter[currency]` | Case-insensitive substring match (comma-separated / repeated params = OR). **JSON:** matches the currency catalog `code` (base). **CSV:** matches a rate if the term appears in **base or target** currency (e.g. `EUR` includes USD→EUR). Non-matching values return an empty list |
+| `order_by[code]` | **JSON:** `asc` (default) or `desc` — sort catalog by ISO currency code. **CSV:** unused (rates are ordered by base, target, start_date) |
+| `limit` / `offset` | Standard list pagination (**JSON only**; CSV ignores pagination) |
 
 ### Response item
 
@@ -88,6 +92,7 @@ Administrator currency catalog for Settings UI.
   "description": "USD ($) - US Dollar",
   "enabled": true,
   "has_dynamic_rate": true,
+  "active_rate_type": "static",
   "static_rates": [
     {
       "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -95,10 +100,11 @@ Administrator currency catalog for Settings UI.
       "base_currency": "USD",
       "target_currency": "EUR",
       "exchange_rate": 0.87,
-      "start_date": "2026-04-01",
-      "end_date": "2026-06-30",
-      "created_timestamp": "2026-04-02T10:30:00Z",
-      "updated_timestamp": "2026-04-02T10:30:00Z"
+      "start_date": "2026-10-01",
+      "end_date": "2026-12-31",
+      "status": "active",
+      "created_timestamp": "2026-10-02T10:30:00Z",
+      "updated_timestamp": "2026-10-02T10:30:00Z"
     }
   ]
 }
@@ -108,29 +114,92 @@ Administrator currency catalog for Settings UI.
 `DecimalField` precision; typical clients parse JSON numbers as IEEE 754
 doubles (~15–17 significant digits).
 
+**Units / direction:** `exchange_rate` is a **base → target** multiplier —
+units of `target_currency` per 1 unit of `base_currency`. Example:
+`base_currency=AED`, `target_currency=EUR`, `exchange_rate=0.92` means
+**1 AED = 0.92 EUR** (conversion: `amount_in_base × exchange_rate →
+amount_in_target`). For UI formatting, use `target_currency` as the units
+(display `0.92 EUR`). There is no separate `exchange_rate_units` field;
+that would always equal `target_currency`.
+
 | Field | Meaning |
 |-------|---------|
 | `enabled` | Currency is enabled for the tenant |
 | `has_dynamic_rate` | A dynamic (market) rate exists for this currency code |
-| `static_rates` | Static rates where this currency is the **base** |
+| `active_rate_type` | Rate in force **this UTC month**: `static`, `dynamic`, or `none` |
+| `static_rates` | Static rates where this currency is the **base**. Expired rates remain in the list. |
+
+`active_rate_type` is computed (not stored):
+
+| Value | When |
+|-------|------|
+| `static` | Enabled, and at least one static rate for this base overlaps the current UTC month (wins over dynamic) |
+| `dynamic` | Enabled, no current-month static, and `has_dynamic_rate` is true |
+| `none` | Disabled, or enabled with neither a current-month static nor a dynamic rate |
+
+Each nested static rate includes a computed **`status`** relative to the
+**current UTC month** (not the client clock). This is distinct from
+currency-level `active_rate_type` — do not replace one with the other.
+
+| `status` | Meaning |
+|----------|---------|
+| `expired` | `end_date` is before the first day of the current UTC month |
+| `active` | Validity window includes the current UTC month |
+| `upcoming` | `start_date` is on or after the first day of next month |
+
+`status` is for UI labels (Active / Expired / Upcoming). Past-month windows are
+not blocked by date rules (COST-8378). Edit/delete availability is **not** per
+rate in this payload — the UI should gate mutate actions via user-access
+(`cost_model.write: ["*"]`, or enhanced org admin). `base_currency` remains
+immutable on PUT.
+
+CSV export does **not** include `active_rate_type` or `status`.
+
+### CSV export (`Accept: text/csv`)
+
+Same path; response is a **flat, unpaginated** CSV of static exchange rates
+(not the ISO currency catalog). Nested `static_rates` arrays are expanded into
+one row per rate. Columns (stable order): `base_currency`, `target_currency`,
+`exchange_rate`, `start_date`, `end_date`, `uuid`, `name`. Empty exports still
+include the header row.
+
+Filter params are reused but **do not mean the same thing as in JSON**:
+
+| Param | JSON | CSV |
+|-------|------|-----|
+| `filter[currency]` | Match catalog `code` (base currency only) | Match rate **base or target** |
+| `filter[enabled]` | Include/exclude currency catalog rows by enablement | Keep rates whose **base** is enabled/disabled |
+| `order_by[code]` | Sort catalog `asc`/`desc` (default `asc`) | Unused |
+| `limit` / `offset` | Paginate catalog | Ignored (full matching set) |
+
+Example: `filter[currency]=EUR` returns the EUR catalog entry in JSON, but in CSV
+includes rates such as USD→EUR. Tenant enablement flags are not CSV columns.
+
+JSON behavior for `Accept: application/json` is unchanged. Implementation:
+[`CurrencySettingsView`](../../../koku/api/settings/currency_views.py).
 
 ---
 
 ## `POST /settings/currency/enabled/{code}/`
 
-Enable an ISO 4217 currency for the tenant.
+Enable a **current tender** ISO 4217 currency for the tenant.
 
 **Permission:** settings access.
 
 - `{code}` is normalized to uppercase.
-- Invalid ISO codes → `400`.
-- Idempotent: enabling an already-enabled currency returns `200`.
+- Inactive / non-tender / invalid ISO codes (e.g. `XXX`, withdrawn `FRF`) → `400`
+  (including when that code is already enabled — active-tender validation runs
+  before `get_or_create`).
+- Idempotent for **current tender** codes only: enabling an already-enabled
+  current-tender currency returns `200`.
 
 **Success:** `200` with empty body.
 
-**Side effects (product behavior):** current-month dynamic monthly rates for
-pairs involving this currency are populated when market data is available;
-report caches for the tenant are invalidated.
+**Side effects (product behavior):** covering `StaticExchangeRate` definitions
+for this currency are rematerialized into current-month STATIC monthly rates
+(so a disable → re-enable cycle restores still-valid overrides). Remaining
+enabled pairs then receive current-month dynamic monthly rates when market
+data is available. Report caches for the tenant are invalidated.
 
 ---
 
@@ -198,6 +267,9 @@ removed (past months stay finalized).
 }
 ```
 
+`exchange_rate` must be the **base → target** multiplier (target per 1 base).
+Same semantics as on `GET /settings/currency/` (see units note above).
+
 #### Validation rules
 
 | Rule | Error if violated |
@@ -208,7 +280,6 @@ removed (past months stay finalized).
 | `start_date` is the 1st of a month | `400` |
 | `end_date` is the last day of a month | `400` |
 | `end_date >= start_date` | `400` |
-| `start_date` not in a past month (for new rates / non-finalized updates) | `400` |
 | No overlapping window for the same directional pair | `400` |
 
 Note: `base_currency` and `target_currency` do not need to be enabled at the
@@ -233,6 +304,8 @@ currency for end users.
 
 `name` is read-only: `"{base_currency}-{target_currency}"`.
 `exchange_rate` in responses is a JSON number (see settings list note above).
+Create/update responses include the same computed `status` field as the nested
+list (omitted above).
 
 ### `PUT /settings/currency/static-rates/{uuid}/`
 
@@ -240,20 +313,23 @@ Same body shape as create. Update rules:
 
 - **`base_currency` cannot be changed** on any update (delete and recreate
   instead).
-- When the rate already includes **finalized** months:
-  - `target_currency` cannot change
-  - `start_date` cannot change (shrink `end_date`, then create a new rate for
-    the remaining period)
-  - `end_date` cannot shrink earlier than the last day of the previous month
-- Fully finalized rates (entire window before the current month) cannot be
-  updated — create a new rate starting in the current month instead.
+- Past-month windows are allowed: target, start/end dates, and rate may change.
+  STATIC `MonthlyExchangeRate` rows are rewritten for each affected month from
+  retention through the current month. When a static override is removed or its
+  window shrinks, the current month may be restored from
+  `ExchangeRateDictionary`; missing past months are filled with the next later
+  MER rate for the pair (same rule as the daily backfill). Today's market rate
+  is not written into closed months.
 
 ### `DELETE /settings/currency/static-rates/{uuid}/`
 
 | Outcome | Status |
 |---------|--------|
 | Deleted | `204` |
-| Entire window is finalized | `400` — cannot delete; create a new rate instead |
+
+Past-month rates may be deleted. STATIC monthly overrides in the window are
+removed; current-month dynamic is restored from ERD when possible, and past
+gaps use next-later MER backfill.
 
 ---
 
@@ -329,8 +405,8 @@ Internal inspection of stored monthly rates.
 ```
 
 `rate_type` is `static` or `dynamic`. `exchange_rate` is a JSON number
-(same representation as Settings static-rate responses). Unknown schema or
-bad dates → `400`.
+(same representation and base → target units semantics as Settings
+static-rate responses). Unknown schema or bad dates → `400`.
 
 ---
 
@@ -340,8 +416,11 @@ bad dates → `400`.
 |---------|-----|
 | Target currency dropdown | `GET /currency/` |
 | Settings currency table | `GET /settings/currency/` |
+| Active rate (this month) | If `enabled` is false, show Not enabled. Otherwise use `active_rate_type`: Static / Dynamic / None |
 | Enable / disable toggle | `POST` / `DELETE` …`/enabled/{code}/` |
 | Static rate form create/edit/delete | `POST` / `PUT` / `DELETE` …`/static-rates/…` |
+| Active / expired / upcoming labels | `status` on each nested static rate (server UTC month) |
+| Edit / delete availability | User-access cost-model write (or enhanced org admin); not per-rate fields |
 | Show dynamic availability | `has_dynamic_rate` on settings list |
 | Missing conversion | Surface report/forecast `400` `currency` error text |
 | Empty dropdown | No enabled currencies → hide picker or show “No exchange rates available” |

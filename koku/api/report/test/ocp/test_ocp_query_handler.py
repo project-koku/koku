@@ -15,9 +15,12 @@ from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
 from dateutil.relativedelta import relativedelta
+from django.db import connection
 from django.db.models import Max
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.expressions import OrderBy
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
@@ -31,6 +34,7 @@ from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
+from api.report.ocp.view import OCPGpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.ocp.view import OCPVolumeView
@@ -58,6 +62,16 @@ def _calculate_subtotals(data, cost, infra, sup):
                     else:
                         cost, infra, sup = _calculate_subtotals(item, cost, infra, sup)
             return (cost, infra, sup)
+
+
+def _q_contains_lookup(q_object, lookup, value):
+    """Return True when a composed Q tree contains the requested lookup."""
+    for child in q_object.children:
+        if isinstance(child, tuple) and child == (lookup, value):
+            return True
+        if isinstance(child, Q) and _q_contains_lookup(child, lookup, value):
+            return True
+    return False
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -101,6 +115,42 @@ class OCPReportQueryHandlerTest(IamTestCase):
             filters = self.this_month_filter
         return self.get_totals(handler, filters)
 
+    @staticmethod
+    def _capacity_summary_selects(captured_queries):
+        return [
+            query
+            for query in captured_queries
+            if query["sql"].lstrip().startswith("SELECT")
+            and (
+                "reporting_ocpusagelineitem_daily_summary" in query["sql"]
+                or "reporting_ocp_pod_summary_by_node_p" in query["sql"]
+            )
+        ]
+
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_cluster_capacity_uses_one_cpu_summary_scan(self, _mock_feature_flag):
+        """Eligible cluster CPU capacity combines count and capacity aggregates."""
+        handler = OCPReportQueryHandler(self.mocked_query_params("?", OCPCpuView))
+
+        with CaptureQueriesContext(connection) as captured:
+            handler.get_capacity([{"row": 1}])
+
+        self.assertEqual(len(self._capacity_summary_selects(captured)), 1)
+
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_cluster_capacity_ignores_node_and_volume_reports(self, _mock_feature_flag):
+        """The cluster-only optimization leaves node and volume reports on their paths."""
+        query_params = (
+            ("node CPU", "capacity", self.mocked_query_params("?group_by[node]=*", OCPCpuView)),
+            ("volume", "capacity_count", self.mocked_query_params("?", OCPVolumeView)),
+        )
+
+        for report_type, capacity_key, params in query_params:
+            with self.subTest(report_type=report_type):
+                query_data, total_capacity = OCPReportQueryHandler(params).get_capacity([{"row": 1}])
+                self.assertIn(capacity_key, total_capacity)
+                self.assertIn(capacity_key, query_data[0])
+
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
         url = "?"
@@ -133,6 +183,27 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(query_data.get("total"))
                 total = query_data.get("total")
                 self.assertIsNotNone(total.get(order_by))
+
+    def test_gpu_category_filter_applies_to_query_filter(self):
+        """GPU filter[category] is translated into a cost category query predicate."""
+        query_params = self.mocked_query_params("?filter[category]=Platform", OCPGpuView)
+        handler = OCPReportQueryHandler(query_params)
+
+        self.assertTrue(
+            _q_contains_lookup(handler.query_filter, "cost_category__name__icontains", "Platform"),
+            handler.query_filter,
+        )
+
+    def test_gpu_category_filter_returns_success(self):
+        """GPU filter[category] returns a successful response instead of a validation error."""
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[category]": "Platform"}
+        client = APIClient()
+        response = client.get(f"{url}?{urlencode(params)}", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("category", response.data["meta"]["filter"])
+        self.assertEqual(response.data["meta"]["filter"]["category"], ["Platform"])
 
     def test_storage_class_order_bys(self):
         """Test that we can order by the pvc values."""
@@ -959,7 +1030,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_ocp_cpu_query_group_by_cluster(self):
         """Test that group by cluster includes cluster and cluster_alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3&group_by[cluster]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, OCPCpuView)
+        query_params = self.mocked_query_params(url, OCPCpuView, path="/api/cost-management/v1/reports/openshift/cpu/")
         handler = OCPReportQueryHandler(query_params)
 
         query_data = handler.execute_query()

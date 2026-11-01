@@ -1,0 +1,70 @@
+---
+paths:
+  - "**/*.sql"
+---
+
+
+# SQL templates
+
+## Sync between trino_sql and self_hosted_sql
+
+Any template that exists in BOTH `trino_sql/` and `self_hosted_sql/` must
+stay in sync. The SQL dialects differ (Trino vs PostgreSQL) — port changes,
+don't copy.
+
+To find the shared templates:
+
+```bash
+comm -12 \
+  <(cd koku/masu/database/trino_sql && find . -name '*.sql' | sort) \
+  <(cd koku/masu/database/self_hosted_sql && find . -name '*.sql' | sort)
+```
+
+Files only in `trino_sql/` are cloud-provider-specific (aws/, azure/, gcp/)
+and OCP-cloud matched-tags. On-prem does not process cloud billing data.
+
+### Third directory: masu/database/sql/
+
+PostgreSQL templates used by DB accessors on both SaaS and on-prem.
+NOT a mirror of trino_sql — but when changing cost model behavior, check
+all three directories for related templates.
+
+## Key Differences
+
+| Feature | PostgreSQL (self_hosted) | Trino |
+|---------|--------------------------|-------|
+| Schema prefix | `{{schema \| sqlsafe}}.` | `postgres.{{schema \| sqlsafe}}.` or `hive.{{schema \| sqlsafe}}.` |
+| UUID generation | `uuid_generate_v4()` | `uuid()` |
+| JSON build | `jsonb_build_object(k1, v1, k2, v2)` | `cast(map(ARRAY[keys], ARRAY[values]) as json)` |
+| JSON extract | `col::jsonb->>'key'` | `json_extract_scalar(col, '$.key')` |
+| Regex replace | `regexp_replace(col, pattern, repl, 'g')` | `regexp_replace(col, pattern, repl)` |
+| Date column | `gpu.usage_start` | `date(gpu.interval_start)` |
+| End statement | `RETURNING 1;` | `;` (no RETURNING) |
+
+## Jinja2 Template Variables
+
+Always use `| sqlsafe` filter for identifiers:
+```sql
+-- ✅ GOOD
+{{schema | sqlsafe}}.table_name
+'{{tag_key | sqlsafe}}'
+
+-- ❌ BAD (SQL injection risk)
+{{schema}}.table_name
+```
+
+## Common Template Parameters
+
+- `schema` - Customer schema name
+- `source_uuid` - Provider UUID
+- `start_date`, `end_date` - Date range
+- `year`, `month` - Partition keys
+- `rate`, `value_rates`, `default_rate` - Cost model rates
+- `amortized_denominator` - Days in month for rate calculation
+
+## Rate Calculation Pattern
+
+Use consistent decimal precision for money calculations:
+```sql
+CAST({{rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))
+```

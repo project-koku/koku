@@ -1,0 +1,8 @@
+# Architecture Documentation
+
+- **Link to code**, do not paste large blocks that go stale
+  - Relative links: `[function_name](../../path/to/file.py#L123-L145)`
+  - Pseudocode is OK for concepts/flow
+- Update when changing: pipelines, APIs/serializers, Kafka, Celery behavior, cost models, schema/queries
+- Entry point / catalog: [`docs/architecture/README.md`](../architecture/README.md)
+- Task routing for which doc to load: [`AGENTS.md`](../../AGENTS.md)

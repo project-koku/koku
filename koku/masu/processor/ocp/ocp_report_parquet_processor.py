@@ -272,7 +272,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
 
         # Write to the parent table - PostgreSQL routes to correct partition based on usage_start
         with get_report_db_accessor().connect() as connection:
-            engine = create_engine("postgresql://", creator=lambda: connection.getConnection())
+            engine = create_engine("postgresql+psycopg2://", creator=lambda: connection.getConnection())
             data_frame.to_sql(name=table_name, con=engine, schema=self._schema_name, if_exists="append", index=False)
 
         LOG.info(

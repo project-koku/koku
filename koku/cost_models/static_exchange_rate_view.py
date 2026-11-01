@@ -6,11 +6,9 @@
 import logging
 
 from django.db import transaction
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -81,20 +79,20 @@ class StaticExchangeRateDetailView(APIView):
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
         instance = self._get_object(kwargs["uuid"])
-
-        today = timezone.now().date()
-        current_month_start = today.replace(day=1)
-        if instance.start_date < current_month_start:
-            raise ValidationError("Rates with finalized months cannot be deleted.")
-
-        replace_static_to_dynamic_monthly_rates(
-            instance.base_currency,
-            instance.target_currency,
-            instance.start_date,
-            instance.end_date,
-        )
+        base_currency = instance.base_currency
+        target_currency = instance.target_currency
+        start_date = instance.start_date
+        end_date = instance.end_date
         pair_name = instance.name
+        # Delete the definition first so populate_dynamic_monthly_rates does not
+        # rematerialize the STATIC MER rows we are about to restore as dynamic.
         instance.delete()
+        replace_static_to_dynamic_monthly_rates(
+            base_currency,
+            target_currency,
+            start_date,
+            end_date,
+        )
         schema_name = request.user.customer.schema_name
         transaction.on_commit(lambda: invalidate_view_cache_for_tenant_and_all_source_types(schema_name))
         LOG.info(
