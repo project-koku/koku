@@ -63,6 +63,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
 
+    @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.apply_tag_mappings")
     @patch("masu.util.common.trino_db.connect")
     @patch(
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_gcp_topology_information_tables"  # noqa: E501
@@ -70,13 +71,12 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
-    @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_tags_summary_table")
     @patch(
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.fetch_invoice_month_dates")
     def test_update_daily_summary_tables(
-        self, mock_month, mock_trino, mock_tag_update, mock_delete, mock_topo, mock_connect
+        self, mock_month, mock_trino, mock_delete, mock_topo, mock_connect, mock_apply_tag_mappings
     ):
         """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
@@ -91,7 +91,6 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         with GCPReportDBAccessor(self.schema) as accessor:
             with schema_context(self.schema):
                 bills = accessor.bills_for_provider_uuid(self.gcp_provider.uuid, start)
-                bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
         with CostModelDBAccessor(
@@ -107,7 +106,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_trino.assert_called_with(
             expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value, invoice_month
         )
-        mock_tag_update.assert_called_with(bill_ids, start, end)
+        mock_apply_tag_mappings.assert_called_once_with(self.schema, self.gcp_provider, start, end)
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)

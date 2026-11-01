@@ -10,9 +10,10 @@ WITH cte_tag_key_mapping AS (
         enabledtagkeys.enabled
         AND enabledtagkeys.provider_type = 'OCP'
 ),
-cte_labels_to_update as (
+cte_labels_to_update as {% if materialize_tag_mapping_candidates %}MATERIALIZED {% endif %}(
     SELECT
         lids.uuid as uuid,
+        lids.usage_start as usage_start,
         'pod_labels' AS label_type,
         lids.pod_labels AS labels,
         EXISTS(
@@ -30,9 +31,16 @@ cte_labels_to_update as (
         {% if report_period_ids %}
             AND lids.report_period_id IN {{ report_period_ids | inclause }}
         {% endif %}
+        {% if infrastructure_only %}
+            AND lids.infrastructure_raw_cost IS NOT NULL
+            AND lids.infrastructure_raw_cost != 0
+        {% else %}
+            AND (lids.infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0)
+        {% endif %}
     UNION ALL
     SELECT
         lids.uuid as uuid,
+        lids.usage_start as usage_start,
         'volume_labels' AS label_type,
         lids.volume_labels AS labels,
         EXISTS(
@@ -50,10 +58,17 @@ cte_labels_to_update as (
         {% if report_period_ids %}
             AND lids.report_period_id IN {{ report_period_ids | inclause }}
         {% endif %}
+        {% if infrastructure_only %}
+            AND lids.infrastructure_raw_cost IS NOT NULL
+            AND lids.infrastructure_raw_cost != 0
+        {% else %}
+            AND (lids.infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0)
+        {% endif %}
 ),
 cte_update_labels as (
     SELECT
         uuid,
+        usage_start,
         label_type,
         CASE
             WHEN parent_and_child_present
@@ -85,5 +100,6 @@ SET
     all_labels = update_data.updated_labels
 FROM cte_update_labels AS update_data
 WHERE lids.uuid = update_data.uuid
+AND lids.usage_start = update_data.usage_start
 AND lids.usage_start >= DATE({{start_date}})
 AND lids.usage_start <= DATE({{end_date}});

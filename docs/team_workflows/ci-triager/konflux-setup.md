@@ -1,6 +1,6 @@
 # Konflux Access Setup
 
-Run these steps inside a **manual Ambient Code session** (open the `koku` workspace in the Ambient Code UI and start a session). All commands below execute in the session's terminal — not on your local machine.
+Run these steps inside a **manual workspace session** (open the `koku` workspace and start a session). All commands below execute in the session's terminal — not on your local machine.
 
 > **Before you start:** Make sure `KONFLUX_TOKEN` is already set in **Workspace Settings → Custom Environment Variables**. The steps below use it directly from the environment — no manual file paste needed.
 

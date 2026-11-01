@@ -5,7 +5,7 @@
 """Tests for the per-tenant Kafka retention gate."""
 from unittest.mock import patch
 
-import masu.external.kafka_msg_handler as msg_handler
+from masu.processor.ocp.staged_payloads import processing
 from masu.test import MasuTestCase
 from masu.test.external.test_kafka_msg_handler import write_tarball_to_tmpdir
 
@@ -23,18 +23,18 @@ class KafkaRetentionGateTest(MasuTestCase):
 
         self.ocp_source = baker.make("Sources", provider=self.ocp_provider, org_id=self.org_id)
 
-    def test_kafka_handler_imports_get_data_retention_months(self):
-        """Verify the kafka msg handler imports the per-tenant helper."""
-        from masu.external import kafka_msg_handler
+    def test_processing_imports_get_data_retention_months(self):
+        """Verify payload processing imports the per-tenant retention helper."""
+        from masu.processor.ocp.staged_payloads import processing
 
         self.assertTrue(
-            hasattr(kafka_msg_handler, "get_data_retention_months"),
-            "kafka_msg_handler should import get_data_retention_months",
+            hasattr(processing, "get_data_retention_months"),
+            "processing should import get_data_retention_months",
         )
 
-    @patch("masu.external.kafka_msg_handler.record_report_status", returns=None)
-    @patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1)
-    @patch("masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id")
+    @patch("masu.processor.ocp.staged_payloads.processing.record_report_status", returns=None)
+    @patch("masu.processor.ocp.staged_payloads.processing.create_cost_and_usage_report_manifest", return_value=1)
+    @patch("masu.processor.ocp.staged_payloads.processing.utils.get_source_and_provider_from_cluster_id")
     def test_extract_payload_calls_get_data_retention_months(self, mock_source, *_):
         """extract_payload reads per-tenant retention via get_data_retention_months."""
         from masu.config import Config
@@ -42,10 +42,10 @@ class KafkaRetentionGateTest(MasuTestCase):
         mock_source.return_value = self.ocp_source
         tarball_path = write_tarball_to_tmpdir(self.retention_tarball_file, self)
         with patch(
-            "masu.external.kafka_msg_handler.get_data_retention_months",
+            "masu.processor.ocp.staged_payloads.processing.get_data_retention_months",
             return_value=Config.MASU_RETAIN_NUM_MONTHS,
         ) as mock_retention:
-            msg_handler.extract_payload(
+            processing.extract_payload(
                 tarball_path,
                 "test_request_id",
                 "fake_identity",
@@ -55,18 +55,18 @@ class KafkaRetentionGateTest(MasuTestCase):
             call_schema = mock_retention.call_args[0][0]
             self.assertEqual(call_schema, self.schema_name)
 
-    @patch("masu.external.kafka_msg_handler.record_report_status", returns=None)
-    @patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1)
-    @patch("masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id")
+    @patch("masu.processor.ocp.staged_payloads.processing.record_report_status", returns=None)
+    @patch("masu.processor.ocp.staged_payloads.processing.create_cost_and_usage_report_manifest", return_value=1)
+    @patch("masu.processor.ocp.staged_payloads.processing.utils.get_source_and_provider_from_cluster_id")
     def test_extract_payload_uses_config_fallback_when_helper_returns_none(self, mock_source, *_):
         """When get_data_retention_months returns None, Kafka gate falls back to Config."""
         mock_source.return_value = self.ocp_source
         tarball_path = write_tarball_to_tmpdir(self.retention_tarball_file, self)
         with patch(
-            "masu.external.kafka_msg_handler.get_data_retention_months",
+            "masu.processor.ocp.staged_payloads.processing.get_data_retention_months",
             return_value=None,
         ) as mock_retention:
-            msg_handler.extract_payload(
+            processing.extract_payload(
                 tarball_path,
                 "test_request_id",
                 "fake_identity",

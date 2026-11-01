@@ -29,7 +29,6 @@ from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
-from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
 from reporting.models import TenantAPIProvider
@@ -270,7 +269,7 @@ class SourcesViewTests(IamTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
 
-    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    @patch("sources.api.view.bulk_source_details", return_value={})
     def test_source_list_zerror(self, _):
         """Test provider_linked is False in list when Provider does not exist."""
         cache.clear()
@@ -284,11 +283,8 @@ class SourcesViewTests(IamTestCase):
         self.assertIsNone(body.get("data")[0]["created_timestamp"])
         self.assertIsNotNone(body.get("data")[0]["updated_timestamp"])
 
-    @patch("sources.api.view.ProviderManager")
-    def test_source_list_provider_success(self, mock_provider_manager):
+    def test_source_list_provider_success(self):
         """Test provider_linked is True in list when Provider exists."""
-        provider_manager = ProviderManager(self.azure_provider.uuid)
-        mock_provider_manager.return_value = provider_manager
         url = reverse("sources-list")
         response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
         body = response.json()
@@ -820,10 +816,27 @@ class SourcesViewRbacTests(IamTestCase):
             offset=9901,
             source_type=Provider.PROVIDER_OCP,
             name="RBAC Test OCP Source",
-            authentication={"credentials": {"cluster_id": "rbac-test-cluster"}},
+            authentication={"credentials": {"cluster_id": "cluster-a"}},
             source_uuid=self.ocp_provider.uuid,
         )
         self.ocp_source.save()
+
+        # A second source, on a different cluster, to prove a resource-scoped
+        # reader cannot reach any source (there is no per-source filtering).
+        self.ocp_provider_b = Provider(name="RBAC Test OCP B", type=Provider.PROVIDER_OCP, customer=customer_obj)
+        self.ocp_provider_b.save()
+        self.ocp_source_b = Sources(
+            source_id=9902,
+            auth_header=self.admin_request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=9902,
+            source_type=Provider.PROVIDER_OCP,
+            name="RBAC Test OCP Source B",
+            authentication={"credentials": {"cluster_id": "cluster-b"}},
+            source_uuid=self.ocp_provider_b.uuid,
+        )
+        self.ocp_source_b.save()
 
         mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
         SourcesViewSet.url = mock_url
@@ -850,6 +863,49 @@ class SourcesViewRbacTests(IamTestCase):
         url = reverse("sources-list")
         response = self.client.get(url, content_type="application/json")
         self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_list_with_provider_read_access(self):
+        """A provider viewer (e.g. Cost OpenShift Viewer) can list sources for the cost UI."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_create_with_provider_read_access_returns_403(self):
+        """Provider read access does not permit creating a source."""
+        url = reverse("sources-list")
+        payload = {
+            "name": "Forbidden Source",
+            "source_type": Provider.PROVIDER_OCP,
+            "authentication": {"credentials": {"cluster_id": "forbidden-cluster"}},
+        }
+        response = self.client.post(url, json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["cluster-a"]}})
+    def test_scoped_provider_reader_cannot_reach_any_source(self):
+        """A reader scoped to cluster-a gets 403 on list/retrieve/stats -- including its own source.
+
+        The on-prem sources endpoint does no per-source filtering, so a scoped
+        provider read must not open it at all (that would expose every source's
+        authentication and billing metadata, cluster-b included).
+        """
+        cache.clear()
+        list_resp = self.client.get(reverse("sources-list"), content_type="application/json")
+        self.assertEqual(list_resp.status_code, 403)
+
+        for source in (self.ocp_source, self.ocp_source_b):
+            with self.subTest(source=source.name):
+                detail = self.client.get(
+                    reverse("sources-detail", kwargs={"pk": source.source_id}), content_type="application/json"
+                )
+                self.assertEqual(detail.status_code, 403)
+                stats = self.client.get(
+                    reverse("sources-stats", kwargs={"pk": source.source_id}), content_type="application/json"
+                )
+                self.assertEqual(stats.status_code, 403)
 
     @RbacPermissions({})
     def test_retrieve_without_sources_access_returns_403(self):

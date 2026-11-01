@@ -4,9 +4,11 @@
 #
 """Custom Koku Middleware."""
 import binascii
+import faulthandler
 import logging
 import os
 import signal
+import sys
 import threading
 import time
 from http import HTTPStatus
@@ -21,11 +23,13 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
 from django_tenants.middleware import TenantMainMiddleware
+from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 
 from api.common import log_json
@@ -115,6 +119,19 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
         try:
             Tenant.objects.get(schema_name=schema_name)
         except Tenant.DoesNotExist:
+            paginator = EmptyResultsSetPagination([], request)
+            return paginator.get_paginated_response()
+
+        # Tenant row exists but the PostgreSQL schema may not have been created
+        # yet — transient state during async first-source initialization.
+        # Only intercept ProgrammingError (missing-relation) to avoid masking
+        # unrelated exceptions such as request timeouts.
+        if isinstance(exception, ProgrammingError) and not schema_exists(schema_name):
+            LOG.info(
+                "Tenant schema '%s' found in DB but PG schema not yet created "
+                "(async init window). Returning empty response.",
+                schema_name,
+            )
             paginator = EmptyResultsSetPagination([], request)
             return paginator.get_paginated_response()
 
@@ -470,6 +487,24 @@ def sentry_before_send(event, hint):
     return event
 
 
+def capture_soft_timeout_exception(exception):
+    """Report a soft timeout to Sentry without serializing frame locals.
+
+    Soft-timeout handling already spent the request budget. Evaluating
+    ``repr()`` on frame locals (the SDK default) can re-run expensive work
+    such as Django QuerySets and push the worker into Gunicorn's hard timeout.
+    """
+    import sentry_sdk
+    from sentry_sdk.utils import event_from_exception
+
+    client = sentry_sdk.get_client()
+    event, hint = event_from_exception(
+        exception,
+        client_options={**client.options, "include_local_variables": False},
+    )
+    sentry_sdk.capture_event(event, hint=hint)
+
+
 def _parse_soft_timeout(default=90):
     raw = os.environ.get("REQUEST_SOFT_TIMEOUT")
     if raw is None:
@@ -480,16 +515,29 @@ def _parse_soft_timeout(default=90):
         return default
 
 
+def _parse_faulthandler_timeout(default=95):
+    raw = os.environ.get("REQUEST_FAULTHANDLER_TIMEOUT")
+    if raw is None:
+        return default
+    try:
+        timeout = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return timeout if timeout > 0 else default
+
+
 class RequestTimeoutMiddleware(MiddlewareMixin):
     """Abort requests that exceed a soft timeout, before gunicorn kills the worker.
 
     Uses SIGALRM to raise RequestTimeoutError with full request context,
     replacing the uninformative SystemExit:1 that gunicorn's SIGABRT produces.
-    Only active in the main thread (sync workers); with threaded workers,
-    gunicorn's hard timeout remains the fallback.
+    The faulthandler watchdog records every thread's Python stack shortly before
+    gunicorn's hard timeout. Both timeouts are process-wide, so they are active
+    only for sync workers (the main thread).
     """
 
     SOFT_TIMEOUT = _parse_soft_timeout()
+    FAULTHANDLER_TIMEOUT = _parse_faulthandler_timeout()
 
     def process_request(self, request):
         if threading.current_thread() is not threading.main_thread():
@@ -503,11 +551,33 @@ class RequestTimeoutMiddleware(MiddlewareMixin):
 
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(self.SOFT_TIMEOUT)
+        faulthandler.dump_traceback_later(
+            self.FAULTHANDLER_TIMEOUT,
+            repeat=False,
+            file=sys.stderr,
+            exit=False,
+        )
 
     def process_response(self, request, response):
         if threading.current_thread() is threading.main_thread():
             signal.alarm(0)
+            faulthandler.cancel_dump_traceback_later()
         return response
+
+    def process_exception(self, request, exception):
+        """Report a soft timeout and return before the upstream proxy deadline."""
+        if not isinstance(exception, RequestTimeoutError):
+            return None
+
+        try:
+            capture_soft_timeout_exception(exception)
+        except Exception:
+            LOG.warning("Unable to send request-timeout stack trace to Sentry.", exc_info=True)
+
+        return JsonResponse(
+            {"errors": [{"detail": "Request timed out.", "status": HTTPStatus.GATEWAY_TIMEOUT}]},
+            status=HTTPStatus.GATEWAY_TIMEOUT,
+        )
 
 
 class DisableCSRF(MiddlewareMixin):

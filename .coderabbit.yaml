@@ -147,12 +147,13 @@ knowledge_base:
     enabled: true
   code_guidelines:
     enabled: true
-    # AGENTS.md / CLAUDE.md / .cursorrules / .cursor/rules auto-detected.
-    # Add architecture docs that should influence reviews:
+    # Docs that should influence reviews:
     filePatterns:
       - files: "docs/architecture/**/*.md"
         applyTo: "koku/**/*.{py,sql}"
-      - files: "CLAUDE.md"
+      - files: "AGENTS.md"
+        applyTo: "koku/**/*"
+      - files: "docs/agent/**/*.md"
         applyTo: "koku/**/*"
   learnings:
     # Dynamic memory from review interactions (👍/👎, “don’t flag X”, resolved comments).

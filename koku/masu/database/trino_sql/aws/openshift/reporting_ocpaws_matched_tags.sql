@@ -38,7 +38,7 @@ cte_unnested_ocp_tags AS (
             OR any_match(etk.key_array, x->strpos(ocp.volume_labels, x) != 0)
     WHERE source IN {{ocp_source_uuids | inclause}}
         AND year = {{year}}
-        AND lpad(month, 2, '0') = {{month}}
+        AND month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND day IN {{days | inclause}}
 )
 SELECT '{"' || key || '": "' || value || '"}' as tag

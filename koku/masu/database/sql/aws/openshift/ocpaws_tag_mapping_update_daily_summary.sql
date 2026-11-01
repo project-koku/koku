@@ -14,9 +14,10 @@ WITH cte_tag_key_mapping AS (
             OR enabledtagkeys.provider_type = 'OCP'
         )
 ),
-cte_update_tag_keys as (
+cte_update_tag_keys as {% if materialize_tag_mapping_candidates %}MATERIALIZED {% endif %}(
     SELECT
         lids.uuid as uuid,
+        lids.usage_start as usage_start,
         -- mapping as mapping, --uncomment to compare
         -- lids.tags as origianl_tags,
         -- lids.pod_labels as original_pod_labels,
@@ -61,5 +62,6 @@ UPDATE {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
 SET tags = update_data.update_tags
 FROM cte_update_tag_keys as update_data
 WHERE lids.uuid = update_data.uuid
+AND lids.usage_start = update_data.usage_start
 AND lids.usage_start >= DATE({{start_date}})
 AND lids.usage_start <= DATE({{end_date}});

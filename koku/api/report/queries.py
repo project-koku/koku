@@ -21,9 +21,11 @@ from urllib.parse import quote
 import ciso8601
 import numpy as np
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
+from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
@@ -39,7 +41,8 @@ from django.db.models.functions import RowNumber
 from django_tenants.utils import tenant_context
 from pandas.api.types import CategoricalDtype
 
-from api.currency.utils import validate_exchange_rate_coverage
+from api.currency.utils import build_exchange_rate_case
+from api.currency.utils import get_monthly_exchange_rate_map
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -239,6 +242,22 @@ class ReportQueryHandler(QueryHandler):
     def is_openshift(self):
         """Determine if we are working with an OpenShift API."""
         return "openshift" in self.parameters.request.path
+
+    @property
+    def _distinct_arrays_split_enabled(self):
+        """Whether clusters/source_uuid are computed via separate parallel-safe queries.
+
+        Base handlers keep the legacy inline ARRAY_AGG; OCP overrides this to gate
+        the split behind a feature flag.
+        """
+        return False
+
+    def _rank_metadata_annotations(self):
+        """ArrayAgg annotations for the ranked query's clusters/source_uuid metadata."""
+        annotations = {"source_uuid": ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True)}
+        if self.is_openshift:
+            annotations["clusters"] = ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True)
+        return annotations
 
     @property
     def is_aws(self):
@@ -1066,30 +1085,105 @@ class ReportQueryHandler(QueryHandler):
 
         if self.currency:
             output["currency"] = self.currency
-            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
                 with tenant_context(self.tenant):
-                    validate_exchange_rate_coverage(
-                        self._get_base_currencies_for_conversion(),
-                        self.currency,
-                        self.start_datetime.date(),
-                        self.end_datetime.date(),
-                    )
+                    # Raises ExchangeRateNotFound on missing coverage; cached, so no extra query
+                    # when the exchange-rate annotation already built it.
+                    self.monthly_exchange_rate_map
 
         return output
 
+    def _apply_conversion_query_hints(self, queryset):
+        """Hook for subclasses to add index hints to conversion-input queries."""
+        return queryset
+
+    @cached_property
+    def conversion_queryset(self):
+        """Return report-scoped rows used to discover conversion inputs."""
+        query = self._apply_conversion_query_hints(self.query_table.objects.filter(self.query_filter))
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
+        return query
+
+    @cached_property
+    def include_previous_period_for_conversion(self):
+        """Whether exchange-rate annotations must also cover previous-period delta rows."""
+        return bool(self._delta and "__" not in self._delta)
+
+    @cached_property
+    def previous_conversion_queryset(self):
+        """Return previous-period rows used by normal delta calculations."""
+        if not self.include_previous_period_for_conversion:
+            return self.query_table.objects.none()
+        query = self.query_table.objects.filter(self._get_filter(delta=True))
+        return self._apply_conversion_query_hints(query)
+
+    def _conversion_queryset_values(self, field_name):
+        """Return distinct field values from current and, when needed, previous-period rows."""
+        values = set(self.conversion_queryset.values_list(field_name, flat=True).distinct())
+        if self.include_previous_period_for_conversion:
+            values |= set(self.previous_conversion_queryset.values_list(field_name, flat=True).distinct())
+        return values - {None}
+
+    @cached_property
+    def raw_currencies_for_conversion(self):
+        """Return raw bill currencies present in the report-scoped rows."""
+        return self._conversion_queryset_values(self._mapper.cost_units_key)
+
     def _get_base_currencies_for_conversion(self):
-        """Return the set of base currencies present in the query range.
+        """Return the set of base currencies present in the report-scoped rows.
 
         Subclasses (e.g. OCP) can override to include additional currency sources.
         """
-        return set(
-            self.query_table.objects.filter(
-                usage_start__gte=self.start_datetime.date(),
-                usage_start__lte=self.end_datetime.date(),
+        return self.raw_currencies_for_conversion
+
+    @cached_property
+    def monthly_exchange_rate_map(self):
+        """Return monthly rates for every base currency needed by this request."""
+        start_datetime = self.start_datetime
+        if self.include_previous_period_for_conversion:
+            start_datetime = start_datetime - self._get_date_delta()
+        return get_monthly_exchange_rate_map(
+            self._get_base_currencies_for_conversion(),
+            self.currency,
+            start_datetime.date(),
+            self.end_datetime.date(),
+        )
+
+    def _monthly_exchange_rate_case(self, field_name, base_currencies):
+        """Build a bounded Case expression for monthly rates on a currency field."""
+        whens = []
+        for base_currency in base_currencies:
+            for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
+                whens.append(
+                    When(
+                        **{
+                            field_name: base_currency,
+                            "usage_start__gte": month_start,
+                            "usage_start__lt": month_start + relativedelta(months=1),
+                            "then": Value(rate),
+                        }
+                    )
+                )
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation.
+
+        When constant currency is enabled, uses a bounded Case/When over the monthly
+        rates prefetched for this request. Otherwise uses ExchangeRateDictionary.
+        """
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
+            exchange_rate_annotation = self._monthly_exchange_rate_case(
+                self._mapper.cost_units_key, self.raw_currencies_for_conversion
             )
-            .values_list(self._mapper.cost_units_key, flat=True)
-            .distinct()
-        ) - {None}
+        else:
+            exchange_rate_annotation = build_exchange_rate_case(
+                self._mapper.cost_units_key, self.currency, self.exchange_rates
+            )
+
+        return {"exchange_rate": exchange_rate_annotation}
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
@@ -1380,17 +1474,28 @@ class ReportQueryHandler(QueryHandler):
         for grouped_col in rank_group_by:
             rank_annotations.pop(grouped_col, None)
 
+        if self._distinct_arrays_split_enabled and not rank_annotations:
+            # A ranked query must aggregate to produce one row per
+            # rank_group_by tuple. Ordering by a rank group field removes it
+            # from rank_annotations, so use an internal aggregate to retain
+            # SQL grouping. _ranked_list drops rank fields from the response.
+            rank_annotations["rank_group_count"] = Count("pk")
+
+        rank_metadata_annotations = self._rank_metadata_annotations()
         ranks = (
             query.annotate(**self.annotations)
             .annotate(**extra_rank_group_annotations)
             .values(*rank_group_by)
             .annotate(**rank_annotations)
-            .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
+        # When the split is enabled the DISTINCT array aggregates are computed in a
+        # separate query (below) so this ranked aggregation can parallelize.
+        if not self._distinct_arrays_split_enabled:
+            ranks = ranks.annotate(source_uuid=rank_metadata_annotations["source_uuid"])
         if self.is_aws and "account" in self._get_group_by():
             ranks = ranks.annotate(**{"account_alias": F("account_alias__account_alias")})
-        if self.is_openshift:
-            ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
+        if self.is_openshift and not self._distinct_arrays_split_enabled:
+            ranks = ranks.annotate(clusters=rank_metadata_annotations["clusters"])
 
         # The Window annotation MUST happen after aggregations in Django 4.2 or later.
         # https://forum.djangoproject.com/t/django-4-2-behavior-change-when-using-arrayagg-on-unnested-arrayfield-postgresql-specific/21547
@@ -1404,9 +1509,29 @@ class ReportQueryHandler(QueryHandler):
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks, set(rank_annotations), rank_group_by=rank_group_by)
 
-    def _ranked_list(self, data_list, ranks, rank_fields=None, rank_group_by=None):  # noqa C901
+        # When the split is enabled, compute clusters/source_uuid in a separate
+        # DISTINCT aggregation (no currency math / window) so the ranked query
+        # above can parallelize.  Grouped identically to the ranks.
+        rank_metadata_rows = None
+        if self._distinct_arrays_split_enabled and rank_metadata_annotations:
+            rank_metadata_rows = list(
+                query.annotate(**self.annotations)
+                .annotate(**extra_rank_group_annotations)
+                .values(*rank_group_by)
+                .annotate(**rank_metadata_annotations)
+            )
+        return self._ranked_list(
+            data,
+            distinct_ranks,
+            set(rank_annotations),
+            rank_group_by=rank_group_by,
+            rank_metadata_rows=rank_metadata_rows,
+        )
+
+    def _ranked_list(  # noqa C901
+        self, data_list, ranks, rank_fields=None, rank_group_by=None, rank_metadata_rows=None
+    ):
         """Get list of ranked items less than top.
 
         Args:
@@ -1443,6 +1568,15 @@ class ReportQueryHandler(QueryHandler):
         rank_data_frame = rank_data_frame.drop(
             columns=["cost_total", "cost_total_distributed", "usage"], errors="ignore"
         )
+        if rank_metadata_rows:
+            # Merge in clusters/source_uuid from the separate (parallel-safe)
+            # metadata query, keyed on the rank group columns.
+            metadata_frame = pd.DataFrame(rank_metadata_rows)
+            metadata_keys = [
+                col for col in rank_group_by if col in metadata_frame.columns and col in rank_data_frame.columns
+            ]
+            if metadata_keys:
+                rank_data_frame = rank_data_frame.merge(metadata_frame, on=metadata_keys, how="left")
 
         # Determine what to get values for in our rank data frame
         if self.is_aws and "account" in group_by:
@@ -1594,7 +1728,7 @@ class ReportQueryHandler(QueryHandler):
         date_delta = self._get_date_delta()
         # Added deltas for each grouping
         # e.g. date, account, region, availability zone, et cetera
-        delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
+        delta_field = self._get_delta_field()
         delta_annotation = {self._delta: delta_field}
 
         previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
@@ -1607,6 +1741,10 @@ class ReportQueryHandler(QueryHandler):
             previous_dict[json_dumps(key)] = row[self._delta]
 
         return previous_dict
+
+    def _get_delta_field(self):
+        """Return the aggregate expression used for previous-period deltas."""
+        return self._mapper._report_type_map.get("delta_key").get(self._delta)
 
     def _get_previous_totals_filter(self, filter_dates):
         """Filter previous time range to exlude days from the current range.
@@ -1636,6 +1774,19 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
+    def _get_previous_query(self, delta_filter):
+        """Return the previous-period queryset used for row and total deltas."""
+        return self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
+
+    def _get_previous_rows_query(self, previous_query, query_data):
+        """Return the query used for per-row previous-period delta values.
+
+        Providers can narrow this queryset when doing so preserves all returned
+        row deltas. The full ``previous_query`` remains the source for the
+        response-level delta total.
+        """
+        return previous_query
+
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
 
@@ -1649,8 +1800,9 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        previous_query = self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
-        previous_dict = self._create_previous_totals(previous_query, delta_group_by)
+        previous_query = self._get_previous_query(delta_filter)
+        previous_rows_query = self._get_previous_rows_query(previous_query, query_data)
+        previous_dict = self._create_previous_totals(previous_rows_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)
             previous_total = previous_dict.get(json_dumps(key)) or 0
@@ -1668,7 +1820,7 @@ class ReportQueryHandler(QueryHandler):
                 current_total_sum = Decimal(query_sum.get("cost", {}).get("total").get("value") or 0)
             else:
                 current_total_sum = Decimal(query_sum.get("cost") or 0)
-        delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
+        delta_field = self._get_delta_field()
         prev_total_sum = previous_query.aggregate(value=delta_field)
         if self.resolution == "daily":
             dates = [entry.get("date") for entry in query_data]

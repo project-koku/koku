@@ -38,7 +38,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_category_id,
     all_labels
 )
-WITH cte_node_cost as (
+WITH cte_node_cost AS MATERIALIZED (
     -- get the total cpu/mem usage of a node
     SELECT
         usage_start,

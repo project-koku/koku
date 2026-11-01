@@ -685,6 +685,7 @@ class OCPGpuFilterSerializerTest(TestCase):
             "project": ["project1"],
             "gpu_vendor": ["nvidia"],
             "gpu_model": ["Tesla T4"],
+            "category": ["Platform"],
         }
         serializer = OCPGpuFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())

@@ -30,10 +30,13 @@ class MockUnleashClient:
     """Mock Unleash Client for ONPREM mode."""
 
     ONPREM_FLAG_DEFAULTS = {
+        "cost-management.backend.aws_empty_split_finalization": True,
         "cost-management.backend.ocp_gpu_cost_model": True,
         "cost-management.backend.disable-ingress-rate-limit": True,
         "cost-management.backend.override_customer_group_by_limit": False,
         "cost-management.backend.constant-currency": False,
+        # No Hive rolling-deploy race on-prem; keep partition writes aligned with SaaS.
+        "cost-management.backend.ocp_hive_zero_pad_partitions": True,
     }
 
     def __init__(self, app_name, environment, instance_id, **kwargs):
@@ -48,6 +51,12 @@ class MockUnleashClient:
 
     def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None, **kwargs):
         """Return fallback value for feature flags."""
+        # ONPREM IQE test setting for constant-currency feature flag
+        # Set to True to enable constant-currency in ONPREM IQE test runs
+        # Set to False to disable (current setting)
+        if settings.IQE_TEST_RUN and feature_name == "cost-management.backend.constant-currency":
+            return True
+
         if feature_name in self.ONPREM_FLAG_DEFAULTS:
             return self.ONPREM_FLAG_DEFAULTS[feature_name]
 

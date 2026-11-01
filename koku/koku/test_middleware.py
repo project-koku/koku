@@ -7,6 +7,7 @@ import base64
 import copy
 import json
 import logging
+import sys
 import threading
 import time
 from unittest.mock import MagicMock
@@ -16,9 +17,12 @@ from unittest.mock import patch
 from cachetools import TTLCache
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 from django.db.utils import IntegrityError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import JsonResponse
+from django.test.utils import CaptureQueriesContext
 from django.test.utils import override_settings
 from django.urls import reverse
 from faker import Faker
@@ -33,6 +37,7 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from koku import middleware as MD
 from koku.cache import CacheEnum
+from koku.middleware import capture_soft_timeout_exception
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
@@ -40,6 +45,7 @@ from koku.middleware import KokuTenantSchemaExistsMiddleware
 from koku.middleware import RequestTimeoutError
 from koku.middleware import RequestTimeoutMiddleware
 from koku.middleware import RequestTimingMiddleware
+from koku.middleware import sentry_before_send
 from koku.test_rbac import mocked_requests_get_500_text
 
 
@@ -52,6 +58,20 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
 
     def test_process_exception_not_empty_response(self):
         """Assert that an exception raised for a valid tenant does not return emtpy result set."""
+        mock_request = self.request_context["request"]
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
+        self.assertIsNone(result)
+
+    @patch("koku.middleware.schema_exists", return_value=False)
+    def test_process_exception_schema_not_yet_created(self, _mock_schema_exists):
+        """Assert empty result set when Tenant exists but PG schema is not yet created."""
+        mock_request = self.request_context["request"]
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, ProgrammingError())
+        self.assertIsInstance(result, JsonResponse)
+
+    @patch("koku.middleware.schema_exists", return_value=False)
+    def test_process_exception_non_programming_error_not_intercepted(self, _mock_schema_exists):
+        """Assert that non-ProgrammingError exceptions are not intercepted when PG schema is missing."""
         mock_request = self.request_context["request"]
         result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
         self.assertIsNone(result)
@@ -596,28 +616,38 @@ class RequestTimeoutMiddlewareTest(IamTestCase):
         self.middleware = RequestTimeoutMiddleware(Mock())
 
     @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
     @patch("koku.middleware.signal.alarm")
     @patch("koku.middleware.signal.signal")
-    def test_process_request_sets_alarm(self, mock_signal, mock_alarm, mock_thread):
+    def test_process_request_sets_timeouts(self, mock_signal, mock_alarm, mock_faulthandler, mock_thread):
         mock_thread.return_value = threading.main_thread()
         request = Mock(method="GET", path="/api/v1/reports/aws/costs/")
         self.middleware.process_request(request)
         mock_signal.assert_called_once()
         mock_alarm.assert_called_once_with(RequestTimeoutMiddleware.SOFT_TIMEOUT)
+        mock_faulthandler.assert_called_once_with(
+            RequestTimeoutMiddleware.FAULTHANDLER_TIMEOUT,
+            repeat=False,
+            file=sys.stderr,
+            exit=False,
+        )
 
     @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.cancel_dump_traceback_later")
     @patch("koku.middleware.signal.alarm")
-    def test_process_response_cancels_alarm(self, mock_alarm, mock_thread):
+    def test_process_response_cancels_timeouts(self, mock_alarm, mock_faulthandler, mock_thread):
         mock_thread.return_value = threading.main_thread()
         request = Mock()
         response = Mock(status_code=200)
         result = self.middleware.process_response(request, response)
         mock_alarm.assert_called_once_with(0)
+        mock_faulthandler.assert_called_once_with()
         self.assertEqual(result, response)
 
     @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
     @patch("koku.middleware.signal.alarm")
-    def test_timeout_raises_request_timeout_error(self, mock_alarm, mock_thread):
+    def test_timeout_raises_request_timeout_error(self, mock_alarm, mock_faulthandler, mock_thread):
         mock_thread.return_value = threading.main_thread()
         request = Mock(method="GET", path="/api/v1/reports/openshift/costs/", start_time=time.time() - 85)
         with patch("koku.middleware.signal.signal") as mock_signal:
@@ -629,8 +659,9 @@ class RequestTimeoutMiddlewareTest(IamTestCase):
         self.assertIn("/api/v1/reports/openshift/costs/", str(ctx.exception))
 
     @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
     @patch("koku.middleware.signal.alarm")
-    def test_timeout_handler_without_start_time(self, mock_alarm, mock_thread):
+    def test_timeout_handler_without_start_time(self, mock_alarm, mock_faulthandler, mock_thread):
         mock_thread.return_value = threading.main_thread()
         request = Mock(method="POST", path="/api/v1/cost-models/", spec=["method", "path"])
         with patch("koku.middleware.signal.signal") as mock_signal:
@@ -641,17 +672,120 @@ class RequestTimeoutMiddlewareTest(IamTestCase):
         self.assertIn("POST", str(ctx.exception))
         self.assertIn("/api/v1/cost-models/", str(ctx.exception))
 
+    def test_process_exception_reports_soft_timeout_and_returns_gateway_timeout(self):
+        request = Mock()
+        timeout = RequestTimeoutError("Request exceeded 28s")
+
+        with patch("koku.middleware.capture_soft_timeout_exception") as mock_capture:
+            response = self.middleware.process_exception(request, timeout)
+
+        mock_capture.assert_called_once_with(timeout)
+        self.assertEqual(response.status_code, 504)
+        self.assertJSONEqual(response.content, {"errors": [{"detail": "Request timed out.", "status": 504}]})
+
+    def test_process_exception_returns_gateway_timeout_when_sentry_capture_fails(self):
+        timeout = RequestTimeoutError("Request exceeded 28s")
+
+        with patch(
+            "koku.middleware.capture_soft_timeout_exception",
+            side_effect=RuntimeError("Sentry unavailable"),
+        ), self.assertLogs("koku.middleware", "WARNING"):
+            response = self.middleware.process_exception(Mock(), timeout)
+
+        self.assertEqual(response.status_code, 504)
+
+    def test_process_exception_ignores_other_exceptions(self):
+        self.assertIsNone(self.middleware.process_exception(Mock(), ValueError("not a timeout")))
+
+    def test_capture_soft_timeout_event_has_frames_without_vars(self):
+        def raise_timeout():
+            local_value = {"keep": "me"}
+            raise RequestTimeoutError(f"Request exceeded 28s ({id(local_value)})")
+
+        try:
+            raise_timeout()
+        except RequestTimeoutError as timeout:
+            with patch("sentry_sdk.capture_event") as mock_capture:
+                capture_soft_timeout_exception(timeout)
+
+        event = mock_capture.call_args.args[0]
+        frames = event["exception"]["values"][0]["stacktrace"]["frames"]
+        self.assertTrue(frames)
+        for frame in frames:
+            self.assertNotIn("vars", frame)
+
+    def test_capture_soft_timeout_does_not_evaluate_dangerous_repr(self):
+        class SqlOnRepr:
+            def __repr__(self):
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                return "sql-on-repr"
+
+        def raise_timeout():
+            dangerous = SqlOnRepr()
+            raise RequestTimeoutError(f"Request exceeded 28s ({id(dangerous)})")
+
+        try:
+            raise_timeout()
+        except RequestTimeoutError as timeout:
+            with patch("sentry_sdk.capture_event"), CaptureQueriesContext(connection) as ctx:
+                capture_soft_timeout_exception(timeout)
+
+        self.assertEqual(len(ctx), 0)
+
+    def test_capture_soft_timeout_passes_exc_info_hint_for_before_send(self):
+        def raise_timeout():
+            raise RequestTimeoutError("Request exceeded 28s")
+
+        try:
+            raise_timeout()
+        except RequestTimeoutError as timeout:
+            with patch("sentry_sdk.capture_event") as mock_capture:
+                capture_soft_timeout_exception(timeout)
+
+        hint = mock_capture.call_args.kwargs["hint"]
+        self.assertIn("exc_info", hint)
+        self.assertIs(hint["exc_info"][0], RequestTimeoutError)
+        tagged = sentry_before_send({}, hint)
+        self.assertEqual(tagged["tags"]["timeout"], "soft")
+
+    def test_capture_soft_timeout_disables_local_variables_in_client_options(self):
+        timeout = RequestTimeoutError("Request exceeded 28s")
+        mock_client = Mock()
+        mock_client.options = {"include_local_variables": True, "max_value_length": 1024}
+
+        with patch("sentry_sdk.get_client", return_value=mock_client), patch(
+            "sentry_sdk.utils.event_from_exception", return_value=({}, {})
+        ) as mock_efe, patch("sentry_sdk.capture_event"):
+            capture_soft_timeout_exception(timeout)
+
+        client_options = mock_efe.call_args.kwargs["client_options"]
+        self.assertFalse(client_options["include_local_variables"])
+        self.assertEqual(client_options["max_value_length"], 1024)
+
     @patch("koku.middleware.signal.alarm")
     @patch("koku.middleware.signal.signal")
-    def test_skips_alarm_in_non_main_thread(self, mock_signal, mock_alarm):
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
+    def test_skips_timeouts_in_non_main_thread(self, mock_faulthandler, mock_signal, mock_alarm):
         with patch("koku.middleware.threading.current_thread", return_value=threading.Thread()):
             request = Mock(method="GET", path="/api/v1/reports/aws/costs/")
             self.middleware.process_request(request)
         mock_signal.assert_not_called()
         mock_alarm.assert_not_called()
+        mock_faulthandler.assert_not_called()
 
     def test_soft_timeout_default(self):
         self.assertEqual(RequestTimeoutMiddleware.SOFT_TIMEOUT, 90)
+
+    def test_faulthandler_timeout_default(self):
+        self.assertEqual(RequestTimeoutMiddleware.FAULTHANDLER_TIMEOUT, 95)
+
+    def test_faulthandler_timeout_uses_default_for_invalid_value(self):
+        for value in ("0", "-1", "invalid"):
+            with self.subTest(value=value), patch.dict(
+                "koku.middleware.os.environ", {"REQUEST_FAULTHANDLER_TIMEOUT": value}
+            ):
+                self.assertEqual(MD._parse_faulthandler_timeout(), 95)
 
 
 class SentryBeforeSendTest(IamTestCase):

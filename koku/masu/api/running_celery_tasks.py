@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for running_celery_tasks endpoint."""
+import json
 import logging
 
 import redis
@@ -111,16 +112,55 @@ def clear_celery_queues(request):
 
 
 @never_cache
-@api_view(http_method_names=["GET"])
+@api_view(http_method_names=["GET", "DELETE"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def celery_queue_tasks(request):
-    """Get the task info of queued celery tasks."""
+    """Get queued Celery task info, or remove one queued task by ID."""
     params = request.query_params
     queue = params.get("queue", None)
     if queue and queue not in QUEUES:
         errmsg = "Must provide a valid queue to search."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == "DELETE":
+        task_id = params.get("task_id", None)
+        if not queue or not task_id:
+            errmsg = "Must provide both queue and task_id."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+        r = redis.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=settings.REDIS_DB,
+            username=settings.REDIS_USERNAME,
+            password=settings.REDIS_PASSWORD,
+            ssl=settings.REDIS_SSL,
+            **settings.REDIS_CONNECTION_POOL_KWARGS,
+        )
+        for message in r.lrange(queue, 0, -1):
+            try:
+                task_message = json.loads(message)
+            except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+                continue
+
+            if not isinstance(task_message, dict):
+                continue
+            headers = task_message.get("headers")
+            if not isinstance(headers, dict) or headers.get("id") != task_id:
+                continue
+
+            # LREM searches for this exact message in the current list order.
+            # count=1 leaves any duplicate queue entries in place.
+            removed = r.lrem(queue, 1, message)
+            if not removed:
+                return Response({"Error": "Task not found in queue."}, status=status.HTTP_404_NOT_FOUND)
+
+            LOG.info("Removed one queued Celery task from %s queue (task_id=%s)", queue, task_id)
+            return Response({"queue": queue, "task_id": task_id, "removed": True})
+
+        return Response({"Error": "Task not found in queue."}, status=status.HTTP_404_NOT_FOUND)
+
     task = params.get("task", None)
     tasks_list = get_celery_queue_items(queue_name=queue, task_name=task)
     return Response({"queued_tasks": tasks_list})

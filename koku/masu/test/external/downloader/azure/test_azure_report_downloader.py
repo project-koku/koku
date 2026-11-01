@@ -31,8 +31,6 @@ from masu.util import common as utils
 from masu.util.azure.common import AzureBlobExtension
 from reporting_common.models import CostUsageReportManifest
 
-DATA_DIR = Config.TMP_DIR
-
 
 class MockAzureService:
     """Mock an azure service."""
@@ -193,7 +191,7 @@ class AzureReportDownloaderTest(MasuTestCase):
     def tearDown(self):
         """Remove created test data."""
         super().tearDown()
-        shutil.rmtree(DATA_DIR, ignore_errors=True)
+        shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", return_value=MockAzureService())
     def test_get_azure_client(self, _):

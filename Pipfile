@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-app-common-python = ">=0.2.3"
+app-common-python = ">=0.3.0"
 azure-identity = "*"
 azure-mgmt-costmanagement = ">=3.0.0"
 azure-mgmt-storage = ">=20.1.0"
@@ -54,6 +54,7 @@ scipy = ">=1.16"
 boto3 = "*"
 sqlalchemy = ">=2.0.0"
 platformdirs = ">=4.3.6"  # floor set to satisfy tox's transitive dep (via fcache/unleashclient)
+pyjwt = ">=2.14.0"  # floor: reject public JWK containers as HMAC secrets (fixed in 2.14.0)
 babel = "*"
 
 [dev-packages]

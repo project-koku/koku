@@ -15,8 +15,10 @@ from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPAWSTagsSummary
 from reporting.models import OCPAzureTagsSummary
+from reporting.models import OCPGCPTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSTagsValues
 from reporting.provider.azure.openshift.models import OCPAzureTagsValues
+from reporting.provider.gcp.openshift.models import OCPGCPTagsValues
 
 
 class OCPAllTagQueryHandler(TagQueryHandler):
@@ -33,6 +35,14 @@ class OCPAllTagQueryHandler(TagQueryHandler):
                 "account_alias__account_alias": Value(0, output_field=DecimalField()),
             },
         },
+        {
+            "db_table": OCPGCPTagsSummary,
+            "db_column_period": "cost_entry_bill__billing_period",
+            "annotations": {
+                "usage_account_id": F("account_id"),
+                "account_alias__account_alias": Value("", output_field=TextField()),
+            },
+        },
     ]
     TAGS_VALUES_SOURCE = [
         {"db_table": OCPAzureTagsValues, "fields": ["key"]},
@@ -44,6 +54,7 @@ class OCPAllTagQueryHandler(TagQueryHandler):
                 "account_aliases": Value("", output_field=TextField()),
             },
         },
+        {"db_table": OCPGCPTagsValues, "fields": ["key"]},
     ]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account", "cluster"]
 

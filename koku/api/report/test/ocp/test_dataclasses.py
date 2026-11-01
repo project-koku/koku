@@ -3,9 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the dataclasses."""
+from datetime import timedelta
+from decimal import Decimal
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
+from uuid import uuid4
 
+from django.db import connection
+from django.db.models import Q
+from django.test.utils import CaptureQueriesContext
 from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -19,6 +25,7 @@ from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPVolumeView
 from api.utils import DateHelper
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 def build_query(handler):
@@ -102,17 +109,21 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     )
 
                     for date, total_count_by_date in cluster_capacity.count_by_date.items():
-                        expected_total_count_by_date = 0
-                        node_counts = {}
-                        for node_info in (
-                            cluster_capacity_vals.filter(usage_start=date).values("node", "capacity_count").distinct()
-                        ):
-                            node = node_info["node"]
-                            node_capacity = node_info["capacity_count"]
-                            node_counts[node] = (
-                                max(node_counts[node], node_capacity) if node in node_counts else node_capacity
-                            )
-                            expected_total_count_by_date += node_counts[node]
+                        expected_total_count_by_date = Decimal(0)
+                        for cluster in cluster_capacity.count_by_date_cluster.get(date, {}):
+                            node_counts = {}
+                            for node_info in cluster_capacity_vals.filter(cluster=cluster, usage_start=date).values(
+                                "node", "capacity_count"
+                            ):
+                                node = node_info["node"]
+                                node_capacity = node_info["capacity_count"]
+                                max_node_cap = (
+                                    node_counts[node]
+                                    if node in node_counts and node_counts[node] > node_capacity
+                                    else node_capacity
+                                )
+                                node_counts[node] = max_node_cap
+                            expected_total_count_by_date += sum(node_counts.values())
                         self.assertEqual(expected_total_count_by_date, total_count_by_date)
 
     def test_get_cluster_capacity_count_by_cluster(self):
@@ -189,17 +200,19 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     for date, clusters in cluster_capacity.count_by_date_cluster.items():
                         for cluster, total_cluster_capacity in clusters.items():
 
-                            expected_total_cluster_capacity = 0
                             node_counts = {}
                             for node_info in cluster_capacity_vals.filter(cluster=cluster, usage_start=date).values(
                                 "node", "capacity_count"
                             ):
                                 node = node_info["node"]
                                 node_capacity = node_info["capacity_count"]
-                                node_counts[node] = (
-                                    max(node_counts[node], node_capacity) if node in node_counts else node_capacity
+                                max_node_cap = (
+                                    node_counts[node]
+                                    if node in node_counts and node_counts[node] > node_capacity
+                                    else node_capacity
                                 )
-                                expected_total_cluster_capacity += node_counts[node]
+                                node_counts[node] = max_node_cap
+                            expected_total_cluster_capacity = sum(node_counts.values())
                             self.assertEqual(total_cluster_capacity, expected_total_cluster_capacity)
 
     def test_capacity_aggregations(self):
@@ -247,6 +260,176 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     for cluster, _expected_cluster_capacity in expected_cluster_capacity.items():
                         self.assertEqual(cluster_capacity.capacity_by_cluster.get(cluster), _expected_cluster_capacity)
                     self.assertEqual(expected_total_capacity, cluster_capacity.capacity_total)
+
+
+class ClusterCapacitySingleScanTest(IamTestCase):
+    """Executable specification for the flagged CPU/memory capacity optimization."""
+
+    shared_alias = "shared-capacity-alias"
+    first_cluster = "capacity-cluster-one"
+    second_cluster = "capacity-cluster-two"
+
+    def setUp(self):
+        """Create repeated node values across two days and equal display aliases."""
+        super().setUp()
+        first_day = DateHelper().this_month_start.date()
+        second_day = first_day + timedelta(days=1)
+        rows = (
+            (first_day, self.first_cluster, "node-one", 4, 100),
+            (first_day, self.first_cluster, "node-one", 4, 100),
+            (first_day, self.first_cluster, "node-two", 8, 100),
+            (first_day, self.second_cluster, "node-three", 3, 25),
+            (second_day, self.first_cluster, "node-one", 4, 120),
+            (second_day, self.first_cluster, "node-two", 8, 120),
+            (second_day, self.second_cluster, "node-three", 3, 40),
+        )
+        with tenant_context(self.tenant):
+            for usage_start, cluster_id, node, node_capacity, cluster_capacity in rows:
+                OCPUsageLineItemDailySummary.objects.create(
+                    uuid=uuid4(),
+                    usage_start=usage_start,
+                    usage_end=usage_start,
+                    data_source="Pod",
+                    cluster_id=cluster_id,
+                    cluster_alias=self.shared_alias,
+                    node=node,
+                    node_capacity_cpu_cores=Decimal(node_capacity),
+                    node_capacity_memory_gigabytes=Decimal(node_capacity),
+                    cluster_capacity_cpu_core_hours=Decimal(cluster_capacity),
+                    cluster_capacity_memory_gigabyte_hours=Decimal(cluster_capacity),
+                )
+
+    def _capacity_query(self):
+        return OCPUsageLineItemDailySummary.objects.filter(data_source="Pod").filter(
+            Q(cluster_id__in=(self.first_cluster, self.second_cluster)) | Q(cluster_id__isnull=True)
+        )
+
+    def _report_type_map(self, report_type):
+        return OCPProviderMap(Provider.PROVIDER_OCP, report_type, self.schema_name)._report_type_map
+
+    @staticmethod
+    def _summary_selects(captured_queries):
+        return [
+            query
+            for query in captured_queries
+            if query["sql"].lstrip().startswith("SELECT")
+            and "reporting_ocpusagelineitem_daily_summary" in query["sql"]
+        ]
+
+    def test_single_scan_matches_legacy_for_cpu_and_memory(self):
+        """Flagged capacity preserves daily/monthly values while issuing one query."""
+        self.assertIn("use_single_scan", ClusterCapacity.__dataclass_fields__)
+        with tenant_context(self.tenant):
+            OCPUsageLineItemDailySummary.objects.create(
+                uuid=uuid4(),
+                usage_start=DateHelper().this_month_start.date(),
+                usage_end=DateHelper().this_month_start.date(),
+                data_source="Pod",
+                cluster_id=self.first_cluster,
+                cluster_alias=self.shared_alias,
+                node=None,
+                node_capacity_cpu_cores=Decimal(0),
+                node_capacity_memory_gigabytes=Decimal(0),
+                cluster_capacity_cpu_core_hours=Decimal(130),
+                cluster_capacity_memory_gigabyte_hours=Decimal(130),
+            )
+            OCPUsageLineItemDailySummary.objects.create(
+                uuid=uuid4(),
+                usage_start=DateHelper().this_month_start.date(),
+                usage_end=DateHelper().this_month_start.date(),
+                data_source="Pod",
+                cluster_id=None,
+                cluster_alias=None,
+                node=None,
+                node_capacity_cpu_cores=Decimal(0),
+                node_capacity_memory_gigabytes=Decimal(0),
+                cluster_capacity_cpu_core_hours=Decimal(999),
+                cluster_capacity_memory_gigabyte_hours=Decimal(999),
+            )
+        for report_type in ("cpu", "memory"):
+            for resolution in ("daily", "monthly"):
+                with self.subTest(report_type=report_type, resolution=resolution), tenant_context(self.tenant):
+                    report_type_map = self._report_type_map(report_type)
+                    legacy = ClusterCapacity(report_type_map, self._capacity_query(), resolution)
+                    legacy.populate_dataclass()
+
+                    with CaptureQueriesContext(connection) as captured:
+                        optimized = ClusterCapacity(
+                            report_type_map, self._capacity_query(), resolution, use_single_scan=True
+                        )
+                        optimized.populate_dataclass()
+
+                    self.assertEqual(optimized.capacity_total, legacy.capacity_total)
+                    self.assertEqual(optimized.capacity_by_date, legacy.capacity_by_date)
+                    self.assertEqual(optimized.capacity_by_cluster, legacy.capacity_by_cluster)
+                    self.assertEqual(optimized.capacity_by_date_cluster, legacy.capacity_by_date_cluster)
+                    self.assertEqual(optimized.count_total, legacy.count_total)
+                    self.assertEqual(optimized.count_by_date, legacy.count_by_date)
+                    self.assertEqual(optimized.count_by_cluster, legacy.count_by_cluster)
+                    self.assertEqual(optimized.count_by_date_cluster, legacy.count_by_date_cluster)
+                    self.assertEqual(len(self._summary_selects(captured)), 1)
+
+    def test_single_scan_deduplicates_capacity_before_monthly_conversion(self):
+        """Equal aliases from distinct IDs retain each day's capacity total."""
+        self.assertIn("use_single_scan", ClusterCapacity.__dataclass_fields__)
+        with tenant_context(self.tenant):
+            capacity = ClusterCapacity(
+                self._report_type_map("cpu"), self._capacity_query(), "monthly", use_single_scan=True
+            )
+            capacity.populate_dataclass()
+
+        self.assertEqual(capacity.capacity_by_cluster[self.shared_alias], Decimal(285))
+        self.assertEqual(capacity.capacity_total, Decimal(285))
+
+    def test_single_scan_ignores_null_capacity_after_numeric_capacity(self):
+        """A NULL aggregate must not overwrite or compare against a numeric capacity."""
+        report_type_map = self._report_type_map("memory")
+        cap_key = next(iter(report_type_map["capacity_aggregate"]["cluster"]))
+        usage_start = DateHelper().this_month_start.date()
+        cluster_id = self.first_cluster
+        cluster_alias = self.shared_alias
+
+        class CombinedDataQuery:
+            def values(self, *args):
+                return self
+
+            def annotate(self, **kwargs):
+                return [
+                    {
+                        "usage_start": usage_start,
+                        "node": "numeric-capacity-node",
+                        "cluster_id": cluster_id,
+                        "cluster": cluster_alias,
+                        "capacity_count": Decimal(4),
+                        cap_key: Decimal(100),
+                    },
+                    {
+                        "usage_start": usage_start,
+                        "node": "null-capacity-node",
+                        "cluster_id": cluster_id,
+                        "cluster": cluster_alias,
+                        "capacity_count": Decimal(8),
+                        cap_key: None,
+                    },
+                ]
+
+        capacity = ClusterCapacity(report_type_map, CombinedDataQuery(), "daily", use_single_scan=True)
+        capacity.populate_dataclass()
+
+        self.assertEqual(capacity.capacity_total, Decimal(100))
+        self.assertEqual(capacity.capacity_by_cluster[self.shared_alias], Decimal(100))
+
+    def test_single_scan_is_inactive_without_both_cluster_annotations(self):
+        """Volumes retain their existing one-query count-only path."""
+        self.assertIn("use_single_scan", ClusterCapacity.__dataclass_fields__)
+        with tenant_context(self.tenant), CaptureQueriesContext(connection) as captured:
+            capacity = ClusterCapacity(
+                self._report_type_map("volume"), self._capacity_query(), "daily", use_single_scan=True
+            )
+            capacity.populate_dataclass()
+
+        self.assertFalse(capacity._single_scan_enabled)
+        self.assertEqual(len(self._summary_selects(captured)), 1)
 
 
 class NodeCapacityDataclassTest(IamTestCase):
@@ -306,3 +489,22 @@ class NodeCapacityDataclassTest(IamTestCase):
                         result_value = node_capacity.capacity_by_date_node.get(usage_start, {}).get(node)
                         self.assertEqual(result_value, expected_capacity)
                     self.assertEqual(expected_total_capacity, node_capacity.capacity_total)
+
+
+class CapacityReprTest(IamTestCase):
+    """Rendering a capacity dataclass must not evaluate its QuerySet."""
+
+    def test_repr_does_not_execute_query(self):
+        """repr() is called by Sentry when it serializes frame locals on a request timeout."""
+        with tenant_context(self.tenant):
+            query = OCPUsageLineItemDailySummary.objects.all()
+            report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, "cpu", self.schema_name)._report_type_map
+            for capacity in (
+                ClusterCapacity(report_type_map, query, "daily"),
+                NodeCapacity(report_type_map, query, "daily"),
+            ):
+                with self.subTest(dataclass=type(capacity).__name__):
+                    with CaptureQueriesContext(connection) as captured:
+                        rendered = repr(capacity)
+                    self.assertEqual(len(captured), 0)
+                    self.assertNotIn("query=", rendered)

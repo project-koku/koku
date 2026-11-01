@@ -6,6 +6,7 @@
 import copy
 import logging
 import operator
+from functools import cached_property
 from functools import reduce
 
 from django.db.models import CharField
@@ -69,6 +70,48 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self._limit = parameters.get_filter("limit")
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+        # Captured before execute_query() swaps the org unit group_by for an account group_by.
+        group_by = self.parameters.parameters.get("group_by", {})
+        self._org_unit_requested = any(key in group_by for key in ("org_unit_id", "or:org_unit_id"))
+        if self._org_unit_requested:
+            # Save the original report scope before execute_query() rewrites the request for
+            # the initial account query and then mutates it for each child org. _get_filter()
+            # updates query_exclusions, so restore the caller-scoped exclusions afterward.
+            self._org_unit_conversion_filter = copy.deepcopy(self.query_filter)
+            self._org_unit_conversion_exclusions = copy.deepcopy(self.query_exclusions)
+            previous_filter = copy.deepcopy(self._get_filter(delta=True))
+            self.query_exclusions = self._org_unit_conversion_exclusions
+            self._org_unit_previous_conversion_filter = previous_filter
+
+    @cached_property
+    def conversion_queryset(self):
+        """Return rows used to discover conversion inputs.
+
+        Org unit requests run one query per sub-org, each with a different query_filter.
+        Use the immutable scope captured before that loop, including the current and
+        previous periods, so conversion discovery cannot escape caller access filters.
+        """
+        if not self._org_unit_requested:
+            return super().conversion_queryset
+
+        current_filter = self._org_unit_conversion_filter
+        previous_filter = self._org_unit_previous_conversion_filter
+        conversion_filter = current_filter
+        if self.include_previous_period_for_conversion and previous_filter is not None:
+            conversion_filter = current_filter | previous_filter
+
+        query = self.query_table.objects.filter(conversion_filter)
+        exclusions = self._org_unit_conversion_exclusions
+        if exclusions:
+            query = query.exclude(exclusions)
+        return query
+
+    @cached_property
+    def previous_conversion_queryset(self):
+        """Return no additional rows; org unit conversion_queryset includes both periods."""
+        if not self._org_unit_requested:
+            return super().previous_conversion_queryset
+        return self.query_table.objects.none()
 
     @property
     def annotations(self):

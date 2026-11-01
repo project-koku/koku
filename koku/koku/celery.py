@@ -6,6 +6,7 @@ from datetime import datetime
 from datetime import timedelta
 from pprint import pprint
 
+from celery import bootsteps
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
@@ -18,9 +19,12 @@ from kombu.exceptions import OperationalError
 from .database import FKViolation
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
+from koku.probe_server import install_parent_heartbeat
+from koku.probe_server import parent_heartbeat_liveness_response
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
+from koku.probe_server import touch_parent_heartbeat
 
 LOG = logging.getLogger(__name__)
 
@@ -33,6 +37,14 @@ SAAS_ONLY_BEAT_NAMES = (
     "source_status_beat",
     "delete_source_beat",
 )
+ONPREM_ONLY_BEAT_NAMES = ("create_source_beat",)
+
+
+def precreate_partitions_schedule(start_day: int) -> crontab:
+    """Run every eight hours from start_day through the end of each month."""
+    if not 1 <= start_day <= 28:
+        raise ValueError(f"PRECREATE_PARTITIONS_START_DAY must be between 1 and 28, got {start_day}")
+    return crontab(hour="5,13,21", minute=30, day_of_month=f"{start_day}-31")
 
 
 def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
@@ -46,6 +58,18 @@ def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=Non
     beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
         "task": "masu.celery.tasks.get_daily_currency_rates",
         "schedule": schedule or crontab(hour=1, minute=0),
+    }
+    return True
+
+
+def register_onprem_only_beats(beat_schedule, *, onprem=False):
+    """Register on-prem-only Celery beats; skip entirely when not on-prem."""
+    if not onprem:
+        return False
+
+    beat_schedule["create_source_beat"] = {
+        "task": "sources.tasks.create_source_beat",
+        "schedule": crontab(minute="*/5"),
     }
     return True
 
@@ -114,23 +138,27 @@ class LoggingCelery(Celery):
         return super().task(*args, **kwargs)
 
 
-class WorkerProbeServer(ProbeServer):  # pragma: no cover
+class WorkerProbeServer(ProbeServer):
     """HTTP server for liveness/readiness probes."""
 
     _collector = lambda *args: None  # noqa: E731
     _last_query_time = datetime.min
 
     @classmethod
-    def update_last_query_time(cls, value):
+    def update_last_query_time(cls, value):  # pragma: no cover
         """Update the last query time."""
         cls._last_query_time = value
 
-    def metrics_check(self):
+    def metrics_check(self):  # pragma: no cover
         """Get the metrics."""
         if datetime.now() - timedelta(minutes=1) > self._last_query_time:
             self.update_last_query_time(datetime.now())
             self._collector()
         super(ProbeServer, self).do_GET()
+
+    def liveness_check(self):
+        """Fail /livez when the Celery parent heartbeat is missing or stale after startup."""
+        self._write_response(parent_heartbeat_liveness_response(self.ready))
 
     def readiness_check(self):
         """Set the readiness check response."""
@@ -148,6 +176,23 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
         self._write_response(ProbeResponse(status, msg))
 
 
+class ParentHeartbeatStep(bootsteps.StartStopStep):
+    """Re-arm parent /livez heartbeat on every asynloop start, including reconnect.
+
+    Celery 5.6.3 ``asynloop`` calls ``hub.timer.clear()`` on broker connection
+    errors. ``celeryd_after_setup`` runs once, so ``call_repeatedly`` must be
+    installed again here — the same parent hub/timer, not a daemon thread.
+    """
+
+    label = "ParentHeartbeat"
+
+    def register_with_event_loop(self, worker, hub) -> None:
+        """Re-install the heartbeat after hub.timer.clear() on reconnect."""
+        timer = getattr(hub, "timer", None) or getattr(worker, "timer", None)
+        if timer is not None:
+            install_parent_heartbeat(timer)
+
+
 def validate_cron_expression(expression, default="0 * * * *"):
     if len(expression.split(" ", 5)) != 5:
         print(f"Invalid cron expression: {expression}. Falling back to default {default}")
@@ -161,6 +206,11 @@ def validate_cron_expression(expression, default="0 * * * *"):
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
+# Celery's Django fixup runs Django's system checks when a worker starts. The URL check
+# imports every API view and its dependencies (~100 MB per worker process before forecast
+# imported statsmodels lazily, ~12 MB after). The checks still run in CI, migrate and the API.
+# Set CELERY_SKIP_CHECKS to an empty value to run them in workers again.
+os.environ.setdefault("CELERY_SKIP_CHECKS", "1")
 
 print("starting celery")
 # 'app' is the recommended convention from celery docs
@@ -169,6 +219,7 @@ app = LoggingCelery(
     "koku", log="koku.log:TaskRootLogging", backend=settings.CELERY_RESULTS_URL, broker=settings.CELERY_BROKER_URL
 )
 app.config_from_object("django.conf:settings", namespace="CELERY")
+app.steps["worker"].add(ParentHeartbeatStep)
 
 print("celery autodiscover tasks")
 
@@ -238,6 +289,15 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "args": [],
 }
 
+# Create next month's partitions ahead of time (from the configured day, every 8 hours) so the
+# first of the month does not need partition DDL on the processing path. A table that
+# is busy on one run is retried at a different time of day on the next.
+app.conf.beat_schedule["precreate-upcoming-partitions"] = {
+    "task": "masu.celery.tasks.precreate_upcoming_partitions",
+    "schedule": precreate_partitions_schedule(settings.PRECREATE_PARTITIONS_START_DAY),
+    "args": [],
+}
+
 # SaaS-only beats (HCS, Azure scrape, AWS org crawl, Sources status/delete)
 status_fallback = validate_cron_expression("0 3 * * *")
 status_expression = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_fallback)
@@ -251,6 +311,9 @@ if not register_saas_only_beats(
 ):
     LOG.info("SaaS-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
 
+if not register_onprem_only_beats(app.conf.beat_schedule, onprem=settings.ONPREM):
+    LOG.info("On-prem-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
+
 # Beat used to fetch daily rates (only when CURRENCY_URL is configured)
 if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
     LOG.info("Daily currency rates beat not registered (CURRENCY_URL is empty)")
@@ -261,6 +324,16 @@ trigger_delayed_tasks_schedule = crontab(minute=f"*/{DELAYED_TASK_POLLING_MINUTE
 app.conf.beat_schedule["delayed_tasks_trigger"] = {
     "task": "masu.celery.tasks.trigger_delayed_tasks",
     "schedule": trigger_delayed_tasks_schedule,
+}
+
+# Register S3 inbox markers, then enqueue staging rows a worker has not finished.
+app.conf.beat_schedule["reconcile_ingress_staging"] = {
+    "task": "masu.external.downloader.ocp.payload_landing.reconcile_ingress_staging",
+    "schedule": crontab(minute="*"),
+}
+app.conf.beat_schedule["expire_ingress_staging"] = {
+    "task": "masu.external.downloader.ocp.payload_landing.expire_ingress_staging",
+    "schedule": crontab(minute=0),
 }
 
 
@@ -283,24 +356,29 @@ if "scheduler" in hostname:
 
 
 @celeryd_after_setup.connect
-def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
+def wait_for_migrations(sender, instance, **kwargs):
     """Wait for migrations to complete before completing worker startup."""
     from masu.celery.tasks import collect_queue_metrics
 
     from .database import check_migrations
 
     httpd = start_probe_server(WorkerProbeServer)
+    # Touch before the hub/timer is running so kube does not kill the pod during migration wait.
+    touch_parent_heartbeat()
 
     # This is a special case because check_migrations() returns three values
     # True means migrations are up-to-date
     while check_migrations() != True:  # noqa
         LOG.warning("Migrations not done. Sleeping")
+        touch_parent_heartbeat()
         time.sleep(5)
 
     httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
     httpd.RequestHandlerClass._collector = collect_queue_metrics
+    # Parent hub/timer: same loop that freezes if the worker is wedged (not a daemon thread).
+    install_parent_heartbeat(instance.timer)
 
-    if ENVIRONMENT.bool("DEBUG_ATTACH", default=False):
+    if ENVIRONMENT.bool("DEBUG_ATTACH", default=False):  # pragma: no cover
         import debugpy
 
         debugpy.listen(("0.0.0.0", 5678))

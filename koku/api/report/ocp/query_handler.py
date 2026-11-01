@@ -11,13 +11,14 @@ from decimal import DivisionByZero
 from decimal import InvalidOperation
 from functools import cached_property
 
+from dateutil.relativedelta import relativedelta
 from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
-from django.db.models import OuterRef
-from django.db.models import Subquery
+from django.db.models import Q
+from django.db.models import TextField
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.fields.json import KT
@@ -25,7 +26,6 @@ from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
 from api.currency.utils import build_exchange_rate_case
-from api.currency.utils import build_monthly_rate_annotation
 from api.models import Provider
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
@@ -38,14 +38,101 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
+from reporting.provider.ocp.models import OCPCluster
+from reporting.provider.ocp.models import OCPCostSummaryP
+from reporting.provider.ocp.models import OCPPodSummaryByNodeP
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
+
+# Metadata array annotations are split out of the heavy aggregation queries.
+# ARRAY_AGG(DISTINCT ...) forces a serial GroupAggregate; computing these
+# separately lets the main aggregation parallelize.
+DISTINCT_METADATA_FIELDS = ("clusters", "source_uuid")
+
+# Report types whose capacity annotations only read columns that
+# reporting_ocp_pod_summary_by_node_p keeps per day/cluster/node.
+CAPACITY_BY_NODE_SUMMARY_REPORT_TYPES = ("cpu", "memory")
+
+# Filter fields that mean the same thing on reporting_ocp_pod_summary_by_node_p
+# as on the daily summary.  Other columns on the summary are aggregated across
+# namespaces (for example cost_category), so filters on them must keep using
+# the daily summary.
+CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS = frozenset(
+    ("usage_start", "usage_end", "cluster_id", "cluster_alias", "node", "data_source", "source_uuid")
+)
+
+
+def _q_uses_only_fields(q_object, allowed_fields):
+    """Return True if every lookup in q_object is a plain value lookup on allowed_fields."""
+    for child in q_object.children:
+        if isinstance(child, Q):
+            if not _q_uses_only_fields(child, allowed_fields):
+                return False
+            continue
+        if not isinstance(child, tuple) or len(child) != 2:
+            return False
+        lookup, value = child
+        if lookup.split("__", 1)[0] not in allowed_fields or hasattr(value, "resolve_expression"):
+            return False
+    return True
+
+
+CLUSTER_FILTER_FIELDS = ("cluster_alias", "cluster_id")
+# Lookups for which "column matches value" implies "column contains value".
+CLUSTER_FILTER_LOOKUPS = frozenset(
+    ("exact", "iexact", "contains", "icontains", "startswith", "istartswith", "endswith", "iendswith", "in")
+)
+
+
+def _implied_cluster_values(q_object):
+    """Return values that any row matching q_object contains in cluster_alias or cluster_id.
+
+    Returns None when q_object does not guarantee such a match.  An AND node
+    implies what any of its children implies; an OR node only when every
+    branch does.  Negated nodes and other lookups imply nothing.
+    """
+    if q_object.negated:
+        return None
+    implied = []
+    for child in q_object.children:
+        if isinstance(child, Q):
+            values = _implied_cluster_values(child)
+        else:
+            values = _implied_cluster_leaf_values(child)
+        if values is None:
+            if q_object.connector == Q.OR:
+                return None
+            continue
+        implied.append(values)
+    if not implied:
+        return None
+    return set().union(*implied)
+
+
+def _implied_cluster_leaf_values(child):
+    """Return the values a single (lookup, value) condition requires, or None."""
+    if not isinstance(child, tuple) or len(child) != 2:
+        return None
+    lookup, value = child
+    field, _, operation = lookup.partition("__")
+    if field not in CLUSTER_FILTER_FIELDS or (operation or "exact") not in CLUSTER_FILTER_LOOKUPS:
+        return None
+    values = value if operation == "in" else [value]
+    if isinstance(values, str) or not all(isinstance(item, str) and item for item in values):
+        return None
+    return set(values)
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for OCP."""
 
     provider = Provider.PROVIDER_OCP
+
+    @property
+    def _distinct_arrays_split_enabled(self):
+        """OCP metadata arrays use separate parallel-safe queries."""
+        return True
 
     def __init__(self, parameters):
         """Establish OCP report query handler.
@@ -153,12 +240,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 annotations["project"] = F("namespace")
 
-        if is_grouped_by_node(self.parameters):
-            # This adds the instance counts to the node group by.
-            if self._mapper.report_type_map.get("capacity_aggregate", {}).get("node"):
-                self.report_annotations.update(
-                    self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
-                )
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 
@@ -183,32 +264,67 @@ class OCPReportQueryHandler(ReportQueryHandler):
         source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
         return source_map
 
+    def _apply_conversion_query_hints(self, queryset):
+        """Apply the cluster index hint to conversion-input queries."""
+        return self._apply_cluster_filter_index_hint(queryset)
+
+    @cached_property
+    def source_uuids_for_conversion(self):
+        """Return source UUIDs present in the report-scoped rows."""
+        return self._conversion_queryset_values("source_uuid")
+
+    @cached_property
+    def request_source_to_currency_map(self):
+        """Return cost-model currencies for sources present in this request."""
+        mapping = CostModelMap.objects.filter(provider_uuid__in=self.source_uuids_for_conversion).values(
+            "provider_uuid", "cost_model__currency"
+        )
+        return {row["provider_uuid"]: row["cost_model__currency"] for row in mapping if row["cost_model__currency"]}
+
+    def _monthly_source_exchange_rate_case(self):
+        """Build a bounded Case expression for source UUID to cost-model currency rates."""
+        whens = []
+        for source_uuid, base_currency in self.request_source_to_currency_map.items():
+            for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
+                whens.append(
+                    When(
+                        **{
+                            "source_uuid": source_uuid,
+                            "usage_start__gte": month_start,
+                            "usage_start__lt": month_start + relativedelta(months=1),
+                            "then": Value(rate),
+                        }
+                    )
+                )
+        return Case(*whens, default=1, output_field=DecimalField())
+
     @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery.
+        """Get per-month exchange rate annotations.
 
         When constant currency is enabled, OCP needs two annotations:
-        - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
+        - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency map)
         - infra_exchange_rate: cloud bill currency (raw_currency column)
 
-        Falls back to the Case/When approach when the flag is off.
+        Uses a Case/When expression when a source needs currency conversion.
         """
-        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
-            cost_model_currency = Subquery(
-                CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
-                    "currency"
-                )[:1],
-            )
-            exchange_rate_annotation = build_monthly_rate_annotation(cost_model_currency, self.currency)
-            infra_exchange_rate_annotation = build_monthly_rate_annotation(
-                OuterRef(self._mapper.cost_units_key), self.currency
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
+            exchange_rate_annotation = self._monthly_source_exchange_rate_case()
+            infra_exchange_rate_annotation = self._monthly_exchange_rate_case(
+                self._mapper.cost_units_key, self.raw_currencies_for_conversion
             )
         else:
-            exchange_rate_whens = [
-                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-                for uuid, cur in self.source_to_currency_map.items()
-            ]
-            exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
+            source_to_currency_map = self.source_to_currency_map
+            if all(currency == self.currency for currency in source_to_currency_map.values()):
+                exchange_rate_annotation = Value(1, output_field=DecimalField())
+            else:
+                exchange_rate_whens = [
+                    When(
+                        **{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))}
+                    )
+                    for uuid, cur in source_to_currency_map.items()
+                ]
+                exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
             infra_exchange_rate_annotation = build_exchange_rate_case(
                 self._mapper.cost_units_key, self.currency, self.exchange_rates
             )
@@ -220,26 +336,168 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def _get_base_currencies_for_conversion(self):
         """Return base currencies from both raw_currency and cost model currencies."""
-        base_currencies = super()._get_base_currencies_for_conversion()
-        cm_currencies = set(
-            CostModel.objects.filter(
-                costmodelmap__provider_uuid__in=self.query_table.objects.filter(
-                    usage_start__gte=self.start_datetime.date(),
-                    usage_start__lte=self.end_datetime.date(),
-                ).values("source_uuid"),
-            ).values_list("currency", flat=True)
+        return (self.raw_currencies_for_conversion | set(self.request_source_to_currency_map.values())) - {None}
+
+    @cached_property
+    def _is_limited_delta_for_ranked_projects_shape(self):
+        """Whether the ranked, paginated, project-only monthly delta shape is safe.
+
+        This describes the request shape eligible for bounded delta queries.
+        """
+        filter_params = self.parameters.get("filter") or {}
+        return (
+            self._report_type == "costs_by_project"
+            and self.resolution == "monthly"
+            and {"limit", "offset"}.issubset(filter_params)
+            and self._get_group_by() == ["project"]
+            and not self._category
+            and not self.is_csv_output
         )
-        return (base_currencies | cm_currencies) - {None}
+
+    @cached_property
+    def _cluster_filter_values(self):
+        """Return values that every row kept by the report filter matches on cluster_alias/cluster_id.
+
+        Read from the composed filter rather than from the request parameters,
+        so the hint follows exactly what the filter applies (wildcards,
+        operators, and group-by handling included).  Empty when the filter does
+        not restrict the cluster.
+        """
+        return _implied_cluster_values(self.query_filter) or set()
+
+    def _cluster_filter_match(self):
+        """Return a Q matching cluster_alias/cluster_id against any cluster filter value."""
+        match = Q()
+        for value in self._cluster_filter_values:
+            match |= Q(cluster_alias__icontains=value) | Q(cluster_id__icontains=value)
+        return match
+
+    @cached_property
+    def _cluster_filter_source_uuids(self):
+        """Return the sources whose clusters can match the cluster filter.
+
+        reporting_ocp_cost_summary_p keeps the cluster alias each day was
+        summarized with, so it still matches rows written before a cluster
+        rename; reporting_ocp_clusters adds the current alias.
+        """
+        match = self._cluster_filter_match()
+        sources = set(OCPCostSummaryP.objects.filter(match).values_list("source_uuid", flat=True).distinct())
+        sources |= set(OCPCluster.objects.filter(match).values_list("provider_id", flat=True))
+        sources.discard(None)
+        return sources
+
+    @cached_property
+    def _cluster_filter_report_period_ids(self):
+        """Return the report periods whose rows can match the cluster filter."""
+        match = self._cluster_filter_match()
+        return set(
+            OCPUsageReportPeriod.objects.filter(
+                Q(provider_id__in=self._cluster_filter_source_uuids) | match
+            ).values_list("id", flat=True)
+        )
+
+    def _apply_cluster_filter_index_hint(self, queryset):
+        """Add an indexed id filter that is implied by the cluster filter.
+
+        The cluster filter is an unindexable substring match, so every report
+        query reads all rows in its date range.  Restricting to the matching
+        sources (summary tables) or report periods (daily summary table) lets
+        PostgreSQL use an existing index.  The original cluster filter stays in
+        place, so the result is unchanged.
+        """
+        if not self._cluster_filter_values:
+            return queryset
+        field_names = {field.name for field in queryset.model._meta.get_fields()}
+        if "report_period" in field_names:
+            return queryset.filter(
+                Q(report_period_id__in=self._cluster_filter_report_period_ids) | Q(report_period_id__isnull=True)
+            )
+        if "source_uuid" in field_names:
+            return queryset.filter(source_uuid__in=self._cluster_filter_source_uuids)
+        return queryset
+
+    def _distinct_metadata_annotations(self):
+        """Return the clusters/source_uuid ArrayAgg annotations for this report type."""
+        annotations = self._mapper.report_type_map.get("annotations", {})
+        return {field: annotations[field] for field in DISTINCT_METADATA_FIELDS if field in annotations}
+
+    def _backfill_distinct_group_metadata(self, query, query_group_by, query_data):
+        """Backfill clusters/source_uuid onto rows via a separate, cheap query.
+
+        The metadata arrays are removed from the main aggregation so it can
+        parallelize. Recompute them here in a query grouped identically (same
+        filters/joins, no currency math), keyed by the group tuple, and merge
+        them onto each row. Used for the non-limit path; the limited path
+        sources these arrays from the rank query instead.
+        """
+        meta_annotations = self._distinct_metadata_annotations()
+        if not meta_annotations:
+            return query_data
+        meta_by_key = {
+            tuple(row[group] for group in query_group_by): {field: row[field] for field in meta_annotations}
+            for row in query.values(*query_group_by).annotate(**meta_annotations)
+        }
+        merged = []
+        for row in query_data:
+            row = dict(row)
+            metadata = meta_by_key.get(tuple(row[group] for group in query_group_by))
+            if metadata:
+                row.update(metadata)
+            else:
+                for field in meta_annotations:
+                    row.setdefault(field, [])
+            merged.append(row)
+        return merged
+
+    def _cost_model_currency_case(self):
+        """Build a Case mapping source_uuid to its cost-model currency for CSV audit columns.
+
+        Uses request_source_to_currency_map so the Case stays report-scoped, matching
+        _monthly_source_exchange_rate_case.
+        """
+        whens = [
+            When(source_uuid=uuid, then=Value(currency, output_field=TextField()))
+            for uuid, currency in self.request_source_to_currency_map.items()
+        ]
+        return Case(*whens, default=None, output_field=TextField())
 
     @property
     def report_annotations(self):
-        """Return annotations with OCP-specific infra_exchange_rate for CSV output."""
-        annotations = self._mapper.report_type_map.get("annotations", {})
+        """Return annotations with OCP-specific CSV currency audit columns.
+
+        Prefer infrastructure (cloud bill) currency/rate when raw_currency is present.
+        Standalone OCP rows have NULL raw_currency, so fall back to the cost-model
+        currency and its exchange_rate. Gate infra_exchange_rate on raw_currency
+        because the Case default is 1 even when raw_currency is NULL.
+        """
+        annotations = dict(self._mapper.report_type_map.get("annotations", {}))
+        if is_grouped_by_node(self.parameters):
+            # Add instance counts to node reports without mutating the shared mapper.
+            annotations.update(self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {}))
+        # The metadata arrays are computed separately so the main aggregation
+        # can parallelize; drop them from the heavy annotation set.
+        annotations = {k: v for k, v in annotations.items() if k not in DISTINCT_METADATA_FIELDS}
         if self.is_csv_output:
+            cost_units_key = self._mapper.cost_units_key
             annotations = {
                 **annotations,
-                "base_currency": Max(self._mapper.cost_units_key),
-                "exchange_rate": Coalesce(Max("infra_exchange_rate"), Value(1), output_field=DecimalField()),
+                "base_currency": Coalesce(
+                    Max(cost_units_key),
+                    Max(self._cost_model_currency_case()),
+                    output_field=TextField(),
+                ),
+                "exchange_rate": Coalesce(
+                    Max(
+                        Case(
+                            When(**{f"{cost_units_key}__isnull": False}, then=F("infra_exchange_rate")),
+                            default=None,
+                            output_field=DecimalField(),
+                        )
+                    ),
+                    Max("exchange_rate"),
+                    Value(1, output_field=DecimalField()),
+                    output_field=DecimalField(),
+                ),
             }
         return annotations
 
@@ -272,7 +530,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             with tenant_context(self.tenant):
                 output["distributed_overhead"] = False
                 if (
-                    self.query_table.objects.filter(self.query_filter)
+                    self._apply_cluster_filter_index_hint(self.query_table.objects.filter(self.query_filter))
                     .filter(cost_model_rate_type__in=["platform_distributed", "worker_distributed"])
                     .exists()
                 ):
@@ -315,7 +573,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
-            query = self.query_table.objects.filter(self.query_filter)
+            query = self._apply_cluster_filter_index_hint(self.query_table.objects.filter(self.query_filter))
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
@@ -339,6 +597,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     # therefore others must be at the end.
                     # override implicit ordering when using ranked ordering.
                     query_order_by[-1] = "rank"
+            else:
+                # The main aggregation drops the metadata arrays so it can
+                # parallelize; backfill them from a separate cheap query.
+                query_data = self._backfill_distinct_group_metadata(query, query_group_by, query_data)
 
             # Populate the 'total' section of the API response
             if query.exists():
@@ -399,16 +661,47 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     # Capacity Calculations
 
+    def _capacity_query_table(self):
+        """Return the table to read capacity from.
+
+        CPU and memory capacity only need per-day/cluster/node maximums, which
+        reporting_ocp_pod_summary_by_node_p already stores, so it can replace
+        the much larger daily summary when every filter can be applied to it.
+        """
+        q_table = self._mapper.query_table
+        if (
+            self._report_type in CAPACITY_BY_NODE_SUMMARY_REPORT_TYPES
+            and _q_uses_only_fields(self.query_filter, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS)
+            and (
+                not self.query_exclusions
+                or _q_uses_only_fields(self.query_exclusions, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS)
+            )
+        ):
+            return OCPPodSummaryByNodeP
+        return q_table
+
     def get_capacity(self, query_data):
         """Calculate capacity & instance count for all nodes over the date range."""
-        q_table = self._mapper.query_table
+        q_table = self._capacity_query_table()
         LOG.debug(f"Using query table: {q_table}")
-        query = q_table.objects.filter(self.query_filter)
-        if self.query_exclusions:
-            query = query.exclude(self.query_exclusions)
         with tenant_context(self.tenant):
-            _class = NodeCapacity if is_grouped_by_node(self.parameters) else ClusterCapacity
-            capacity = _class(self._mapper.report_type_map, query, self.resolution)
+            query = self._apply_cluster_filter_index_hint(q_table.objects.filter(self.query_filter))
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
+            is_node_report = is_grouped_by_node(self.parameters)
+            capacity_class = NodeCapacity if is_node_report else ClusterCapacity
+            capacity_aggregate = self._mapper.report_type_map.get("capacity_aggregate", {})
+            use_single_scan = (
+                not is_node_report
+                and bool(capacity_aggregate.get("cluster"))
+                and bool(capacity_aggregate.get("cluster_instance_counts"))
+            )
+            capacity = capacity_class(
+                self._mapper.report_type_map,
+                query,
+                self.resolution,
+                **({"use_single_scan": use_single_scan} if not is_node_report else {}),
+            )
             if not capacity.capacity_aggregate:
                 # short circuit for if the capacity dataclass in report provider map
                 return query_data, {}
@@ -434,6 +727,30 @@ class OCPReportQueryHandler(ReportQueryHandler):
             return self.add_current_month_deltas(query_data, query_sum)
         else:
             return super().add_deltas(query_data, query_sum)
+
+    def _get_previous_query(self, delta_filter):
+        """Apply the cluster filter index hint to row and total previous-period deltas."""
+        return self._apply_cluster_filter_index_hint(super()._get_previous_query(delta_filter))
+
+    def _get_previous_rows_query(self, previous_query, query_data):
+        """Limit per-row deltas to ranked projects when the request shape is safe."""
+        if not self._is_limited_delta_for_ranked_projects_shape or not query_data:
+            return previous_query
+
+        projects = {row.get("project") for row in query_data}
+        non_null_projects = projects - {None}
+        project_filter = Q()
+        if non_null_projects:
+            project_filter |= Q(namespace__in=non_null_projects)
+        if None in projects:
+            project_filter |= Q(namespace__isnull=True)
+        return previous_query.filter(project_filter)
+
+    def _get_delta_field(self):
+        """Use the single distributed-cost aggregate for its safe request shape."""
+        if self._is_limited_delta_for_ranked_projects_shape and self._delta == "cost_total_distributed":
+            return self._mapper.combined_distributed_cost
+        return super()._get_delta_field()
 
     def add_current_month_deltas(self, query_data, query_sum):
         """Add delta to the resultset using current month comparisons."""
