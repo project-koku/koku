@@ -65,7 +65,7 @@ feature flag is on.
 A platform-wide latest cross-rate matrix still exists for:
 
 - Legacy conversion when the feature flag is off
-- Feeding dynamic monthly rates for the current month
+- Feeding dynamic monthly rates for the current month and the next month
 
 It is not historical; historical stability comes from monthly exchange rates.
 
@@ -89,8 +89,8 @@ flowchart TD
 
 | Type        | Source                                                                                 | Mutability                                                                                                                      |
 | ----------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Static**  | Admin CRUD                                                                             | Create/update/delete may cover past months; STATIC monthly rows are rewritten for each month in the window (through current) |
-| **Dynamic** | Market feed (when `CURRENCY_URL` is set) + inverse synthesis for missing reverse pairs | Current month refreshed while the month is open; past months finalized (not rewritten by daily refresh or static CRUD)         |
+| **Static**  | Admin CRUD                                                                             | Create/update/delete may cover past months; STATIC monthly rows are rewritten for each month in the window, through the rate end, including future months |
+| **Dynamic** | Market feed (when `CURRENCY_URL` is set) + inverse synthesis for missing reverse pairs | Current month and the next month are refreshed from the market snapshot; past months are finalized and are not rewritten by the daily refresh or static CRUD |
 
 
 
@@ -111,9 +111,10 @@ flowchart TD
 
 | Period                      | Behavior                                                                                                                                              |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current month**           | Dynamic rates can be refreshed daily. Static CRUD upserts the current month’s monthly row when the static window includes today.                      |
+| **Current month**           | Dynamic rates can be refreshed daily. Static CRUD upserts this month when the static window includes today.                                           |
 | **Past months (finalized)** | Dynamic monthly rows are not rewritten by the daily refresh. Static CRUD may create/update/delete STATIC rows for past months in the retention window. |
-| **Future months**           | Not pre-written. When a future month becomes current, writers populate it then.                                                                       |
+| **Next month**              | Dynamic rows are written and refreshed daily from the latest market snapshot, skipping pairs that already have a static rate for that month. Static windows that include this month write their STATIC row when the definition is saved and again on the daily rematerialize. |
+| **Later future months**     | A static definition writes a STATIC row for every month through its end date. Dynamic rates are not written past the next month.                      |
 
 
 
@@ -123,9 +124,9 @@ flowchart TD
 
 | Action       | Allowed when                                 | Effect on monthly rates                                                                                                                      |
 | ------------ | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Create       | Month-bound window; no overlap for the pair  | Writes STATIC monthly rows for each month from max(start, retention) through min(end, current)                                               |
-| Update (any) | `base_currency` is immutable                 | Delete and recreate to change base. Scope/rate changes rewrite STATIC rows in the new window; old-window static rows fall back via current-month ERD + next-later MER backfill |
-| Delete       | Always (subject to auth)                     | Removes STATIC overrides in the window (retention through current). Current month is restored from ERD when possible; past gaps use next-later MER backfill (not today's ERD) |
+| Create       | Month-bound window; no overlap for the pair  | Writes STATIC monthly rows for each month from max(start, retention) through the rate's end month, including future months                    |
+| Update (any) | `base_currency` is immutable                 | Delete and recreate to change base. Scope/rate changes rewrite STATIC rows in the new window (retention through the new end). Months that leave the window lose their STATIC row. The current month and the next month fall back to the market snapshot when no static definition still covers them; past gaps use next-later MER backfill. Today's market rate is not written into closed months or into months beyond the next month |
+| Delete       | Always (subject to auth)                     | Removes STATIC overrides in the window (retention through the rate end, including future months). The current month and the next month are restored from ERD when possible; past gaps use next-later MER backfill (not today's ERD). Months beyond the next month are left without a dynamic row |
 
 
 ---
@@ -188,23 +189,24 @@ Conceptual daily job (product behavior, not task wiring):
 2. If `CURRENCY_URL` is empty, skip the fetch; existing snapshot / static rates
   remain usable.
 3. For each tenant:
-  - Rematerialize **current-month** STATIC monthly rates from
-   `StaticExchangeRate` definitions whose window covers this month, for
-   enabled pairs only. This restores overrides after a currency is
-   re-enabled and writes the new month when a future window becomes current.
-   Past (finalized) months are not rewritten.
-  - Upsert **current-month** dynamic monthly rates for remaining enabled
-   pairs, skipping pairs that already have a static override for the month
-   (from the rematerialized definition, or an existing STATIC MER row).
+  - Rematerialize STATIC monthly rates from the current month through each
+   `StaticExchangeRate` definition's end date, for enabled pairs only. This
+   restores overrides after a currency is re-enabled and keeps future months
+   inside the window written before they start. Past (finalized) months are
+   not rewritten.
+  - Upsert dynamic monthly rates for the **current month and the next month**
+   for remaining enabled pairs, skipping a pair in a month that already has a
+   static override (from the rematerialized definition, or an existing STATIC
+   MER row). The next-month row is provisional and is refreshed on every run.
   - **Backfill** missing past months inside the retention window
-  (see below).
+  (see below). The provisional next-month row is not a backfill source.
   - Invalidate cached report views when monthly rates changed.
 
 New tenant schemas do not wait for that daily job. `template0` is cloned with
 its table data, and on a fresh database that template has an empty
 `MonthlyExchangeRate` table because it is migrated before any market snapshot
 exists. After [`Tenant.create_schema`](../../../koku/api/iam/models.py) commits
-a clone, it runs the same current-month upsert and retention backfill for that
+a clone, it runs the same current-and-next-month upsert and retention backfill for that
 schema from the shared `ExchangeRateDictionary`
 ([`populate_monthly_rates_for_schema`](../../../koku/cost_models/monthly_exchange_rate_utils.py)).
 If the dictionary is empty, that path fetches rates into ERD first when
@@ -277,7 +279,7 @@ reports.
 | Static vs dynamic precedence   | Static wins for covered months                                            |
 | Reverse static rates           | Not auto-generated; define both directions if both are required as static |
 | Currency visibility            | Dropdown = enabled set only; enablement is admin or cloud-bill auto-enable |
-| Month writing                  | Populate when month is current; finalize when month ends                  |
+| Month writing                  | Static rows through the configured end month. Dynamic rows for the current month and one month ahead. Past months stay finalized |
 | Historical gaps                | Backward-looking fill from next later rate within retention               |
 | New tenant schema              | Fill monthly rates from the shared snapshot when the clone commits        |
 | Query-time missing rate        | Hard error (`400`), not silent omit or cross-month substitution           |
