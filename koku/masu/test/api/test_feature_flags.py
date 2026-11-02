@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the schema feature-flags Masu endpoint."""
+from unittest.mock import call
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -42,6 +43,10 @@ class SchemaFeatureFlagsTests(MasuTestCase):
         self.assertEqual(set(body["flags"]), set(DEFAULT_SCHEMA_FEATURE_FLAGS))
         self.assertTrue(body["flags"]["cost-management.backend.penalty-customer"])
         self.assertFalse(body["flags"][OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG])
+        mock_enabled.assert_has_calls(
+            [call(self.schema, flag) for flag in DEFAULT_SCHEMA_FEATURE_FLAGS],
+            any_order=False,
+        )
         self.assertEqual(mock_enabled.call_count, len(DEFAULT_SCHEMA_FEATURE_FLAGS))
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -57,6 +62,7 @@ class SchemaFeatureFlagsTests(MasuTestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["flags"], {flag_a: True, flag_b: True})
+        mock_enabled.assert_has_calls([call(self.schema, flag_a), call(self.schema, flag_b)])
         self.assertEqual(mock_enabled.call_count, 2)
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -65,6 +71,16 @@ class SchemaFeatureFlagsTests(MasuTestCase):
         response = self.client.get(
             reverse("schema_feature_flags"),
             {"schema": self.schema, "flags": " , "},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("flag", response.json()["errors"][0]["detail"].lower())
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_blank_flags_param(self, _):
+        """Explicit empty flags= → 400 (omit the param to use defaults)."""
+        response = self.client.get(
+            reverse("schema_feature_flags"),
+            {"schema": self.schema, "flags": ""},
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("flag", response.json()["errors"][0]["detail"].lower())

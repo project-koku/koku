@@ -41,8 +41,12 @@ DEFAULT_SCHEMA_FEATURE_FLAGS = (
 
 
 def _parse_flags_param(raw_flags):
-    """Split an optional comma-separated flags query into a de-duplicated list."""
-    if raw_flags is None or raw_flags.strip() == "":
+    """Split an optional comma-separated flags query into a de-duplicated list.
+
+    Omitting the parameter (None) uses DEFAULT_SCHEMA_FEATURE_FLAGS. An explicit
+    empty or whitespace-only ``flags`` value is rejected with ValidationError.
+    """
+    if raw_flags is None:
         return list(DEFAULT_SCHEMA_FEATURE_FLAGS)
     flags = []
     seen = set()
