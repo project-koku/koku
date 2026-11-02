@@ -11,6 +11,7 @@ from django.db import connection
 from django.db.models import Q
 from django.utils import timezone
 from django_tenants.utils import schema_context
+from psycopg2.extras import execute_values
 
 from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
@@ -127,6 +128,9 @@ def rematerialize_current_month_static_rates(code=None, enabled_codes=None):
     recreated. When code is provided, only definitions involving that currency
     are applied. Forward only — reverse stays dynamic unless a reverse
     definition exists.
+
+    Returns the number of monthly rows written (one definition covering three
+    months counts as three), not the number of definitions.
     """
     if enabled_codes is None:
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
@@ -138,7 +142,8 @@ def rematerialize_current_month_static_rates(code=None, enabled_codes=None):
     if code:
         qs = qs.filter(Q(base_currency=code) | Q(target_currency=code))
 
-    updated = 0
+    rows_written = 0
+    definitions = 0
     for static_rate in qs:
         if static_rate.base_currency not in enabled_codes or static_rate.target_currency not in enabled_codes:
             continue
@@ -152,13 +157,24 @@ def rematerialize_current_month_static_rates(code=None, enabled_codes=None):
                 )
             )
             continue
+        wrote_definition = False
         for month_start in _unfinalized_static_months(static_rate, current_month):
             _upsert_static_month(static_rate, month_start)
-            updated += 1
+            rows_written += 1
+            wrote_definition = True
+        if wrote_definition:
+            definitions += 1
 
-    if updated:
-        LOG.info(log_json(msg="Rematerialized unfinalized static exchange rates", count=updated, code=code))
-    return updated
+    if rows_written:
+        LOG.info(
+            log_json(
+                msg="Rematerialized unfinalized static exchange rates",
+                rows=rows_written,
+                definitions=definitions,
+                code=code,
+            )
+        )
+    return rows_written
 
 
 def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, start_date, end_date):
@@ -256,7 +272,11 @@ def _rates_from_exchange_dictionary(exchange_dict, enabled_codes, code=None):
 
 
 def _static_pairs_by_month(months):
-    """Return ``{month: {(base, target)}}`` for STATIC rows in the given months."""
+    """Return ``{month: {(base, target)}}`` for STATIC rows in ``months``.
+
+    The caller passes only the months it is about to write. Today that is the
+    current month and the next month.
+    """
     pairs = {}
     rows = MonthlyExchangeRate.objects.filter(
         effective_date__in=months,
@@ -270,41 +290,53 @@ def _static_pairs_by_month(months):
 def _upsert_dynamic_rates(dynamic_rates, months):
     """Bulk-upsert DYNAMIC rows for each month, skipping pairs that are STATIC that month.
 
-    Returns the number of rows written. One statement per call, conflict target
-    ``(base_currency, target_currency, effective_date)``.
+    Returns the number of rows submitted. One statement per call, conflict
+    target ``(base_currency, target_currency, effective_date)``.
+
+    The pre-filter skips known STATIC pairs. A STATIC row created after that
+    read still wins: the conflict update does not change ``rate_type`` and
+    does not run when the stored row is already static, so neither the type
+    nor the static rate is replaced.
     """
     if not dynamic_rates or not months:
         return 0
 
     static_pairs = _static_pairs_by_month(months)
     now = timezone.now()
-    rows = []
+    values = []
     for month_start in months:
         blocked = static_pairs.get(month_start, ())
         for (base_cur, target_cur), rate in dynamic_rates.items():
             if (base_cur, target_cur) in blocked:
                 continue
-            rows.append(
-                MonthlyExchangeRate(
-                    effective_date=month_start,
-                    base_currency=base_cur,
-                    target_currency=target_cur,
-                    exchange_rate=rate,
-                    rate_type=RateType.DYNAMIC,
-                    created_timestamp=now,
-                    updated_timestamp=now,
-                )
-            )
-    if not rows:
+            values.append((month_start, base_cur, target_cur, rate, RateType.DYNAMIC, now, now))
+    if not values:
         return 0
 
-    MonthlyExchangeRate.objects.bulk_create(
-        rows,
-        update_conflicts=True,
-        unique_fields=["base_currency", "target_currency", "effective_date"],
-        update_fields=["exchange_rate", "rate_type", "updated_timestamp"],
-    )
-    return len(rows)
+    table = connection.ops.quote_name(MonthlyExchangeRate._meta.db_table)
+    # rate_type is inserted for new rows and omitted from the update, so a
+    # conflict cannot relabel a row. The WHERE keeps a concurrent STATIC row's
+    # exchange_rate as well.
+    sql = f"""
+        INSERT INTO {table} (
+            effective_date,
+            base_currency,
+            target_currency,
+            exchange_rate,
+            rate_type,
+            created_timestamp,
+            updated_timestamp
+        )
+        VALUES %s
+        ON CONFLICT (base_currency, target_currency, effective_date)
+        DO UPDATE SET
+            exchange_rate = EXCLUDED.exchange_rate,
+            updated_timestamp = EXCLUDED.updated_timestamp
+        WHERE {table}.rate_type <> '{RateType.STATIC}'
+    """
+    with connection.cursor() as cursor:
+        execute_values(cursor, sql, values)
+    return len(values)
 
 
 def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):

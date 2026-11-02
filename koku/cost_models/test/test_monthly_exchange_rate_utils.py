@@ -1008,6 +1008,32 @@ class PopulateDynamicMonthlyRatesRematerializeTest(MasuTestCase):
             )
             self.assertEqual(reverse_row.rate_type, RateType.DYNAMIC)
 
+    @patch("cost_models.monthly_exchange_rate_utils._static_pairs_by_month", return_value={})
+    def test_conflict_leaves_static_row_unchanged(self, _mock_static_pairs):
+        """A STATIC row missed by the pre-filter keeps its type and rate."""
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.current_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.91"),
+                rate_type=RateType.STATIC,
+            )
+
+            populate_dynamic_monthly_rates()
+
+            row = MonthlyExchangeRate.objects.get(
+                effective_date=self.current_month, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(row.rate_type, RateType.STATIC)
+            self.assertEqual(row.exchange_rate, Decimal("0.91"))
+            next_month = (self.current_month + relativedelta(months=1)).replace(day=1)
+            nxt = MonthlyExchangeRate.objects.get(
+                effective_date=next_month, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(nxt.rate_type, RateType.DYNAMIC)
+            self.assertEqual(nxt.exchange_rate, Decimal("0.87"))
+
 
 class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
     """Direct tests for rematerialize_current_month_static_rates."""
@@ -1120,6 +1146,8 @@ class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
 
         self.assertEqual(count, 1)
         mock_info.assert_called_once()
+        self.assertEqual(mock_info.call_args.args[0]["rows"], 1)
+        self.assertEqual(mock_info.call_args.args[0]["definitions"], 1)
 
 
 class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
