@@ -67,4 +67,4 @@ class SchemaFeatureFlagsTests(MasuTestCase):
             {"schema": self.schema, "flags": " , "},
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("flags", response.json()["errors"][0]["attr"])
+        self.assertIn("flag", response.json()["errors"][0]["detail"].lower())
