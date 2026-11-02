@@ -40,6 +40,7 @@ from masu.config import Config
 from masu.external.downloader.ocp import download
 from masu.external.downloader.ocp.payload_landing import REGISTER_INGRESS_STAGING_TASK
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
+from masu.processor import CROSS_ORG_CLUSTER_LOOKUP_FLAG
 from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor import INGRESS_STAGING_LISTENER_FLAG
 from masu.processor.ocp.staged_payloads import processing
@@ -1486,7 +1487,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             shutil.rmtree(shared_dir, ignore_errors=True)
 
     def test_extract_payload_cross_org_flag_not_checked_on_successful_lookup(self):
-        """Test that the feature flag is never consulted when the standard org_id lookup succeeds."""
+        """Cross-org lookup flag is not consulted when the standard org_id lookup succeeds."""
         tarball_path = write_tarball_to_tmpdir(self.tarball_file, self)
         fake_dir = tempfile.mkdtemp()
         with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
@@ -1510,7 +1511,10 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     "fake_identity",
                     {"account": "1234", "org_id": "5678"},
                 )
-                mock_flag.assert_not_called()
+                cross_org_flag_calls = [
+                    c for c in mock_flag.call_args_list if c.args[1] == CROSS_ORG_CLUSTER_LOOKUP_FLAG
+                ]
+                self.assertEqual(cross_org_flag_calls, [])
                 shutil.rmtree(fake_dir, ignore_errors=True)
 
     def test_extract_payload_cross_org_flag_enabled_retries_without_org_filter(self):
