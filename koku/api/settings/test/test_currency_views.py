@@ -1181,6 +1181,13 @@ class EnabledCurrencyViewTest(IamTestCase):
             )
             self.assertEqual(previous.rate_type, RateType.STATIC)
             self.assertEqual(previous.exchange_rate, Decimal("0.89"))
+
+            # Verify re-enable backfilled the reverse pair for previous month
+            previous_reverse = MonthlyExchangeRate.objects.get(
+                effective_date=previous_month, base_currency="CHF", target_currency="USD"
+            )
+            self.assertEqual(previous_reverse.rate_type, RateType.DYNAMIC)
+
             self.assertEqual(StaticExchangeRate.objects.filter(uuid=static_rate.uuid).count(), 1)
 
     def test_reenable_without_static_definition_writes_dynamic_only(self):
