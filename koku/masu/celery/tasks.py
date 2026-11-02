@@ -39,10 +39,8 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_ocp_tag_cleanup_disabled
 from masu.processor import is_purge_trino_files_enabled
-from masu.processor import PRECREATE_PARTITIONS_FLAG
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
@@ -303,8 +301,6 @@ def precreate_upcoming_partitions():
 @celery_app.task(name="masu.celery.tasks.precreate_schema_partitions", queue=DEFAULT)
 def precreate_schema_partitions(schema_name, month_start):
     """Create the partitions for month_start in one schema, skipping busy tables."""
-    if not is_feature_flag_enabled_by_schema(schema_name, PRECREATE_PARTITIONS_FLAG, dev_fallback=True):
-        return
     counts = precreate_monthly_partitions(schema_name, month_start)
     LOG.info(log_json(msg="pre-created partitions", schema=schema_name, month_start=month_start, **counts))
 
