@@ -175,7 +175,7 @@ def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, star
             ).delete()
 
     # Current month from ERD; past gaps inherit the next later MER for the pair.
-    populate_dynamic_monthly_rates(code=base_currency, backfill_past_months=True)
+    populate_dynamic_monthly_rates(code=base_currency)
 
 
 def populate_monthly_rates_for_schema(schema_name):
@@ -191,7 +191,7 @@ def populate_monthly_rates_for_schema(schema_name):
     """
     ensure_exchange_rate_dictionary()
     with schema_context(schema_name):
-        updated = populate_dynamic_monthly_rates(backfill_past_months=True)
+        updated = populate_dynamic_monthly_rates()
     LOG.info(
         log_json(
             msg="Populated monthly exchange rates for schema",
@@ -202,21 +202,21 @@ def populate_monthly_rates_for_schema(schema_name):
     return updated
 
 
-def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # noqa: C901
-    """Populate dynamic MonthlyExchangeRate rows for the current month only.
+def populate_dynamic_monthly_rates(code=None):  # noqa: C901
+    """Populate dynamic MonthlyExchangeRate rows and keep the retention window dense.
 
-    Past months are finalized and read-only — only the current month is written,
-    unless backfill_past_months is True (daily currency task, or a new tenant
-    schema). In that case each missing month in the retention window is filled
-    from the next later existing MonthlyExchangeRate for that pair. Existing rows
-    are never overwritten.
+    Writes the current month, then fills every missing month in the retention
+    window from the next later existing MonthlyExchangeRate for that pair.
+    Existing rows are never overwritten, so closed months keep the rate they were
+    closed with. Reports reject any month in range without a row, so a currency
+    must not be left covering only the current month.
 
     First rematerializes current-month STATIC rows from StaticExchangeRate
     definitions that cover this month (re-enable, month rollover). Then reads
     the latest rates from ExchangeRateDictionary and writes dynamic
     MonthlyExchangeRate rows for remaining enabled currency pairs. Static
-    overrides are preserved. If ERD is missing/empty and backfill_past_months
-    is True, still backfill from existing MER.
+    overrides are preserved. If ERD is missing/empty, the backfill still runs
+    from existing MER.
 
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
@@ -271,6 +271,9 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
         # Exclude pairs that already have a static override for this month
         pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
 
+        # Upsert current-month dynamic rates one pair at a time.
+        # TODO: collapse into bulk_create(update_conflicts=True) if this becomes a bottleneck
+        # on the synchronous enable path. Currently ~4(N-1) round-trips for N enabled currencies.
         for (base_cur, target_cur), rate in pairs_to_upsert.items():
             MonthlyExchangeRate.objects.update_or_create(
                 effective_date=current_month,
@@ -280,9 +283,7 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
             )
             updated_count += 1
 
-    backfilled_count = 0
-    if backfill_past_months:
-        backfilled_count = _backfill_missing_past_months(current_month, enabled_codes=enabled_codes, code=code)
+    backfilled_count = _backfill_missing_past_months(current_month, enabled_codes=enabled_codes, code=code)
 
     return updated_count + backfilled_count
 
