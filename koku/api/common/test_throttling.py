@@ -9,6 +9,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from api.common.throttling import AwsTagQueryThrottle
+from api.common.throttling import IngressReportsPostThrottle
 from api.common.throttling import OcpReportQueryThrottle
 from api.common.throttling import OcpReportQueryTightenThrottle
 from api.common.throttling import OcpTagQueryThrottle
@@ -314,4 +315,53 @@ class OcpReportQueryTightenThrottleGetCacheKeyTest(TestCase):
         throttle = OcpReportQueryTightenThrottle()
         self.assertEqual(throttle.rate, "5/m")
         self.assertEqual(throttle.num_requests, 5)
+        self.assertEqual(throttle.duration, 60)
+
+
+class IngressReportsPostThrottleGetCacheKeyTest(TestCase):
+    """Tests for Unleash-gated IngressReportsPostThrottle."""
+
+    def test_get_cache_key_non_post_returns_none(self):
+        """Non-POST requests are never throttled."""
+        throttle = IngressReportsPostThrottle()
+        for method in ("GET", "PUT", "DELETE", "PATCH"):
+            request = Mock()
+            request.method = method
+            self.assertIsNone(throttle.get_cache_key(request, None))
+
+    def test_get_cache_key_no_customer_returns_none(self):
+        """When request.user has no customer attribute, return None."""
+        throttle = IngressReportsPostThrottle()
+        request = Mock()
+        request.method = "POST"
+        request.user = type("User", (), {})()
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_get_cache_key_flag_disabled_returns_none(self, mock_flag):
+        """When Unleash flag is off, throttle is skipped (returns None)."""
+        throttle = IngressReportsPostThrottle()
+        request = Mock()
+        request.method = "POST"
+        request.user.customer.schema_name = "org1234567"
+        self.assertIsNone(throttle.get_cache_key(request, None))
+        mock_flag.assert_called_once()
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_flag_enabled_returns_key(self, mock_flag):
+        """When flag is on for the schema, the throttle cache key is returned."""
+        throttle = IngressReportsPostThrottle()
+        request = Mock()
+        request.method = "POST"
+        request.user.customer.schema_name = "org1234567"
+        key = throttle.get_cache_key(request, None)
+        self.assertEqual(key, "ingress_reports_post_throttle:org1234567")
+
+    @patch("api.common.throttling.settings")
+    def test_get_rate_uses_settings(self, mock_settings):
+        """Rate is loaded from INGRESS_REPORTS_POST_THROTTLE_RATE setting."""
+        mock_settings.INGRESS_REPORTS_POST_THROTTLE_RATE = "10/m"
+        throttle = IngressReportsPostThrottle()
+        self.assertEqual(throttle.rate, "10/m")
+        self.assertEqual(throttle.num_requests, 10)
         self.assertEqual(throttle.duration, 60)

@@ -28,7 +28,8 @@ def _receipt_key(request_id):
 def _inbox_tar_key(org_id, cluster_id, request_id):
     filename = f"{_sanitized_request_id(request_id)}.tar.gz"
     safe_org_id = validate_safe_path_component(str(org_id), "org_id")
-    return f"{Config.WAREHOUSE_PATH}/ingress_staging/{safe_org_id}/{cluster_id}/{filename}"
+    safe_cluster_id = validate_safe_path_component(str(cluster_id), "cluster_id")
+    return f"{Config.WAREHOUSE_PATH}/ingress_staging/{safe_org_id}/{safe_cluster_id}/{filename}"
 
 
 def _marker_document(request_id, value, s3_key, cluster_id, assembly_id):
