@@ -43,7 +43,6 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
-from masu.processor import OCP_MARKUP_SKIP_UNCHANGED_FLAG
 from masu.processor import OCP_TAG_MAPPING_DIAGNOSTICS_FLAG
 from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
 from masu.processor import OCP_TAG_MAPPING_PRE_ANALYZE_FLAG
@@ -860,9 +859,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 usage_start__gte=start_date,
                 usage_start__lte=end_date,
             )
-            if markup == 0 and is_feature_flag_enabled_by_schema(
-                self.schema, OCP_MARKUP_SKIP_UNCHANGED_FLAG, dev_fallback=True
-            ):
+            if markup == 0:
                 # Markup 0 sets every row to 0. Readers treat NULL as 0, so only rows that
                 # still carry an old non-zero markup need a write; rewriting the rest costs
                 # a new row version and index entries per row.

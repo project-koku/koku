@@ -6,13 +6,16 @@
 from unittest.mock import patch
 from uuid import uuid4
 
+from dateutil.relativedelta import relativedelta
 from django_tenants.utils import schema_context
 from django_tenants.utils import tenant_context
 
+from api.currency.models import ExchangeRateDictionary
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from cost_models.models import EnabledCurrency
+from cost_models.models import MonthlyExchangeRate
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.report_summary_updater import enable_cloud_bill_currencies
@@ -133,6 +136,39 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="AUD").exists())
         mock_populate.assert_called_once_with(code="AUD")
         mock_delete_cache.assert_called_once_with(f"enabled-currency-codes-{self.schema}")
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_enable_cloud_bill_currencies_backfills_past_months(self, mock_retention_start):
+        """An auto-enabled currency covers the retention window, not just the current month.
+
+        Reports reject any month in range without a rate, so a source whose first
+        ingest only carries current-month data must still resolve for prior months.
+        """
+        current_month = self.dh.this_month_start.date()
+        past_months = [(current_month - relativedelta(months=offset)).replace(day=1) for offset in (3, 2, 1)]
+        mock_retention_start.return_value = past_months[0]
+
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(
+            currency_exchange_dictionary={"USD": {"AUD": "1.5", "USD": "1.0"}, "AUD": {"USD": "0.66", "AUD": "1.0"}}
+        )
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        provider = self._create_aws_summary_with_currency("AUD", provider_name="AWS AUD backfill")
+
+        enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
+
+        with tenant_context(self.tenant):
+            for month in [*past_months, current_month]:
+                self.assertTrue(
+                    MonthlyExchangeRate.objects.filter(
+                        effective_date=month, base_currency="USD", target_currency="AUD"
+                    ).exists(),
+                    f"missing USD -> AUD rate for {month}",
+                )
 
     @patch(
         "masu.processor.report_summary_updater.populate_dynamic_monthly_rates",
