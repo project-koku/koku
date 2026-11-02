@@ -347,6 +347,18 @@ class DistributionConfigTest(MasuTestCase):
         with self.assertRaises(ValueError):
             utils.validate_safe_path_component("cluster/nested", "cluster_id")
 
+    def test_validate_safe_path_component_rejects_null_bytes(self):
+        """Test path component validation rejects embedded null bytes."""
+        with self.assertRaises(ValueError):
+            utils.validate_safe_path_component("cluster\x00evil", "cluster_id")
+
+    def test_validate_safe_path_component_allows_safe_punctuation(self):
+        """Test path component validation allows underscores and hyphens."""
+        self.assertEqual(
+            utils.validate_safe_path_component("my_cluster-01", "cluster_id"),
+            "my_cluster-01",
+        )
+
     def test_manifest_rejects_unsafe_cluster_id_and_file_names(self):
         """Test manifest model rejects unsafe cluster_id and file paths."""
         manifest_data = ManifestFactory.build().model_dump()
