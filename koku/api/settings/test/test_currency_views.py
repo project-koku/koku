@@ -1137,12 +1137,14 @@ class EnabledCurrencyViewTest(IamTestCase):
                 end_date=current_end,
             )
             upsert_static_monthly_rates(static_rate)
-            MonthlyExchangeRate.objects.create(
+            MonthlyExchangeRate.objects.update_or_create(
                 effective_date=previous_month,
                 base_currency="USD",
                 target_currency="CHF",
-                exchange_rate=Decimal("0.89"),
-                rate_type=RateType.STATIC,
+                defaults={
+                    "exchange_rate": Decimal("0.89"),
+                    "rate_type": RateType.STATIC,
+                },
             )
 
             response = self.client.delete(self._url("CHF"), **self.headers)
