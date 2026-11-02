@@ -31,6 +31,7 @@ from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
 from cost_models.models import Rate
+from cost_models.price_list_manager import PriceListManager
 from cost_models.rate_sync import RateSyncLockTimeout
 from cost_models.rate_sync import sync_rate_table
 
@@ -156,6 +157,24 @@ class RateSyncProviderLockTest(django.test.TransactionTestCase):
         self.assertEqual(ctx.exception.status_code, 409)
         self.assertTrue(self._rate_exists())
         self.assertTrue(self._probe_can_lock(min(self.provider_uuids, key=str)))
+
+    def test_price_list_update_conflict_leaves_price_list_unchanged(self):
+        """A price list PUT that hits the lock timeout must not commit the new rates JSON or version on its own."""
+        self._probe_hold_lock(max(self.provider_uuids, key=str))
+        with (
+            patch(FLAG_TARGET, return_value=True),
+            patch("cost_models.rate_sync.RATE_SYNC_LOCK_TIMEOUT_MS", 200),
+            patch.object(PriceListManager, "_trigger_recalculation") as trigger_recalculation,
+            schema_context(self.schema),
+        ):
+            version = PriceList.objects.get(uuid=self.price_list.uuid).version
+            with self.assertRaises(RateSyncLockTimeout):
+                PriceListManager(self.price_list.uuid).update(rates=[])
+            price_list = PriceList.objects.get(uuid=self.price_list.uuid)
+            self.assertEqual(len(price_list.rates), 1)
+            self.assertEqual(price_list.version, version)
+        trigger_recalculation.assert_not_called()
+        self.assertTrue(self._rate_exists())
 
     def test_no_locks_needed_when_no_rates_are_deleted(self):
         """Updating or adding rates cannot break the rates_to_usage FK, so it never waits on writers."""
