@@ -11,7 +11,10 @@
 # Prerequisites: VPN, `oc login` to the ephemeral cluster (crc-eph), bonfire installed,
 # docker logged in to quay.io, and the ephemeral secrets file from the runbook.
 #
-# Usage, from the koku repository root:
+# Usage, from the koku repository root. Image from the Konflux build of the draft PR:
+#   KONFLUX_PR=<n> dev/rtu-hardening/ephemeral/deploy.sh wait-image
+#   KONFLUX_PR=<n> dev/rtu-hardening/ephemeral/deploy.sh config
+# or built locally into your own public quay repo:
 #   QUAY_REPO=quay.io/<user>/koku dev/rtu-hardening/ephemeral/deploy.sh build
 #   QUAY_REPO=quay.io/<user>/koku dev/rtu-hardening/ephemeral/deploy.sh config
 #   dev/rtu-hardening/ephemeral/deploy.sh reserve            # DURATION=12h by default
@@ -35,8 +38,19 @@ namespace() {
 }
 
 require_quay() {
-    [[ -n "${QUAY_REPO:-}" ]] || { echo "set QUAY_REPO, e.g. quay.io/<user>/koku" >&2; exit 1; }
+    [[ -n "${QUAY_REPO:-}" ]] || { echo "set QUAY_REPO, e.g. quay.io/<user>/koku, or KONFLUX_PR=<pr number>" >&2; exit 1; }
 }
+
+# Image to deploy: the Konflux PR build (KONFLUX_PR=<n>, tag pr-<n>-<short sha>, public, expires after 5 days)
+# or a locally built image in QUAY_REPO (tag <short sha>).
+KONFLUX_REPO="quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku"
+if [[ -n "${KONFLUX_PR:-}" ]]; then
+    IMAGE="${KONFLUX_REPO}"
+    IMAGE_TAG="pr-${KONFLUX_PR}-${TAG}"
+else
+    IMAGE="${QUAY_REPO:-}"
+    IMAGE_TAG="${TAG}"
+fi
 
 case "${1:-}" in
 build)
@@ -46,14 +60,27 @@ build)
         -t "${QUAY_REPO}:${TAG}" --push "${REPO_DIR}"
     echo "pushed ${QUAY_REPO}:${TAG}"
     ;;
+wait-image)
+    [[ -n "${KONFLUX_PR:-}" ]] || { echo "set KONFLUX_PR=<pr number>" >&2; exit 1; }
+    url="https://quay.io/api/v1/repository/${KONFLUX_REPO#quay.io/}/tag/?specificTag=${IMAGE_TAG}"
+    for _ in $(seq 1 90); do
+        if curl -sf "${url}" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["tags"] else 1)'; then
+            echo "image ready: ${IMAGE}:${IMAGE_TAG}"
+            exit 0
+        fi
+        sleep 60
+    done
+    echo "image ${IMAGE}:${IMAGE_TAG} not found after 90 minutes" >&2
+    exit 1
+    ;;
 config)
-    require_quay
+    [[ -n "${KONFLUX_PR:-}" ]] || require_quay
     # Local component: bonfire reads deploy/clowdapp.yaml from REPO_DIR and takes the commit from its HEAD.
     sed -e "s#repo: project-koku/koku#repo: ${REPO_DIR}#" \
         -e "s#ref: <insert-commit>#ref: ${SHA}#" \
-        -e "s#IMAGE_TAG: <insert-tag>#IMAGE_TAG: ${TAG}\n        IMAGE: ${QUAY_REPO}\n        ENHANCED_ORG_ADMIN: True#" \
+        -e "s#IMAGE_TAG: <insert-tag>#IMAGE_TAG: ${IMAGE_TAG}\n        IMAGE: ${IMAGE}\n        ENHANCED_ORG_ADMIN: True#" \
         "${REPO_DIR}/dev/config.yaml.local-example" > "${REPO_DIR}/dev/config.yaml"
-    echo "wrote dev/config.yaml for ${QUAY_REPO}:${TAG}"
+    echo "wrote dev/config.yaml for ${IMAGE}:${IMAGE_TAG}"
     ;;
 reserve)
     bonfire namespace reserve --duration "${DURATION:-12h}" > "${NS_FILE}"
