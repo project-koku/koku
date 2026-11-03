@@ -26,12 +26,14 @@ All fixes land on the long-running branch **`mpovolny/rtu-hardening`** (from `ma
 |---|---|---|---|
 | 1 | Drop the `rate_id` and `cost_model_id` FK constraints and cascades on `rates_to_usage` (Finding E, R8, R11 part) | Done: migration `0355`, model `DO_NOTHING` + `db_constraint=False`, tests rewritten to the new contract | `d50cafd5e` |
 | 1b | Remove RTU rows of deleted rates and cost models now that the cascade is gone. RTU is intermediate (no API reads it; only the pipeline, scoped to the run's window), and recalculation rebuilds only the processed months, so older months would keep dead rows | Done: task `delete_rates_to_usage_rows` (cost model queue, one indexed `DELETE ... WHERE rate_id = ANY(...) OR cost_model_id = ANY(...)`), scheduled `on_commit` by `sync_rate_table` (removed rates), `PriceListManager.delete` (its rates) and cost model DELETE; never inside the API request, nothing on rollback | see `git log` |
+| 1c | Distributed RTU rows (`worker_distributed`, `platform_distributed`, ...) copy the rate's `custom_name` but write `rate_id = NULL`, so neither the old cascade nor `delete_rates_to_usage_rows` removes them when the rate is deleted; they stay until their month is recalculated (2,232 rows in the ephemeral test) | To do: distribution SQL copies the source row's `rate_id` (sql/, trino_sql/, self_hosted_sql/ GPU) | |
 | 2 | Atomic price list PUT and cost model PUT (R4, R5), without the advisory lock | To do: port from #6414, tests via an invalid `rate_id` instead of a lock timeout | |
 | 3 | `report_period_id` / `source_uuid` FKs: explicit RTU deletes in `Provider.delete()` and the retention purge, then drop those cascades too (Findings B, F, COST-8112) | To do: decide after 1 and 2 | |
 | 4 | Writers that set `rate_id` without the provider lock (usage rates, monthly, tag, VM, GPU) (R7) | To do: needed only for the report-period/source FKs once 1 is in | |
 | 5 | Partition-drop deadlocks (Findings H, I) | To do: port #6270 / #6271 | |
 | 6 | `_ensure_rate_sync` on the read replica (R10) | To do | |
 | 7 | OpenAPI: document any new error responses | To do with 2 | |
+| 9 | The price list API returns no `rate_id` for its rates, so clients cannot round-trip rate IDs; `sync_rate_table` matches by `custom_name` (a rename becomes delete + create) | To decide | |
 | 8 | 15 tests in `masu.test.processor.ocp.test_phase2_rates_to_usage` fail locally on `main` and on the branch (identical list); the run connects to a local Unleash, likely flag evaluation | To investigate | |
 
 ## Test data
