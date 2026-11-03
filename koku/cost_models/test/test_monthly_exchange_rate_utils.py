@@ -17,7 +17,7 @@ from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import purge_expired_exchange_rates_for_all_tenants
-from cost_models.monthly_exchange_rate_utils import rematerialize_current_month_static_rates
+from cost_models.monthly_exchange_rate_utils import rematerialize_open_static_monthly_rates
 from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
@@ -675,7 +675,7 @@ class PopulateDynamicMonthlyRatesRematerializeTest(MasuTestCase):
             EnabledCurrency.objects.create(currency_code="EUR")
 
     def test_covering_definition_writes_static_when_mer_missing(self):
-        """A covering StaticExchangeRate is rematerialized as current-month STATIC MER."""
+        """A covering StaticExchangeRate is rematerialized as a STATIC MER row."""
         with tenant_context(self.tenant):
             StaticExchangeRate.objects.create(
                 base_currency="USD",
@@ -750,7 +750,7 @@ class PopulateDynamicMonthlyRatesRematerializeTest(MasuTestCase):
             )
 
     def test_does_not_rewrite_previous_month_even_when_definition_spans(self):
-        """Rematerialize writes the current month only; spanning definitions leave past MER alone."""
+        """Past months stay finalized when a definition also covers them."""
         with tenant_context(self.tenant):
             StaticExchangeRate.objects.create(
                 base_currency="USD",
@@ -926,7 +926,7 @@ class PopulateDynamicMonthlyRatesRematerializeTest(MasuTestCase):
             )
             upsert_static_monthly_rates(usd_gbp)
 
-            # Disable USD — removes all current-month MER involving USD.
+            # Disable USD — removes open MER rows involving USD. Past months stay.
             remove_monthly_rates("USD")
             self.assertFalse(
                 MonthlyExchangeRate.objects.filter(effective_date=self.current_month)
@@ -1035,8 +1035,8 @@ class PopulateDynamicMonthlyRatesRematerializeTest(MasuTestCase):
             self.assertEqual(nxt.exchange_rate, Decimal("0.87"))
 
 
-class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
-    """Direct tests for rematerialize_current_month_static_rates."""
+class RematerializeOpenStaticMonthlyRatesTest(MasuTestCase):
+    """Direct tests for rematerialize_open_static_monthly_rates."""
 
     def setUp(self):
         super().setUp()
@@ -1060,7 +1060,7 @@ class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
                 end_date=self.current_end,
             )
 
-            count = rematerialize_current_month_static_rates(enabled_codes=set())
+            count = rematerialize_open_static_monthly_rates(enabled_codes=set())
 
             self.assertEqual(count, 0)
             self.assertFalse(MonthlyExchangeRate.objects.exists())
@@ -1076,7 +1076,7 @@ class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
                 end_date=self.current_end,
             )
 
-            count = rematerialize_current_month_static_rates()
+            count = rematerialize_open_static_monthly_rates()
 
             self.assertEqual(count, 1)
             mer = MonthlyExchangeRate.objects.get(
@@ -1098,7 +1098,7 @@ class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
             StaticExchangeRate.objects.filter(pk=static_rate.pk).update(exchange_rate=Decimal("0"))
 
             with patch("cost_models.monthly_exchange_rate_utils.LOG.warning") as mock_warning:
-                count = rematerialize_current_month_static_rates(enabled_codes={"USD", "EUR"})
+                count = rematerialize_open_static_monthly_rates(enabled_codes={"USD", "EUR"})
 
             self.assertEqual(count, 0)
             mock_warning.assert_called_once()
@@ -1121,7 +1121,7 @@ class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
                 end_date=future_end,
             )
 
-            count = rematerialize_current_month_static_rates(enabled_codes={"USD", "EUR"})
+            count = rematerialize_open_static_monthly_rates(enabled_codes={"USD", "EUR"})
 
             self.assertEqual(count, 1)
             mer = MonthlyExchangeRate.objects.get(base_currency="USD", target_currency="EUR")
@@ -1142,7 +1142,7 @@ class RematerializeCurrentMonthStaticRatesTest(MasuTestCase):
                 end_date=self.current_end,
             )
 
-            count = rematerialize_current_month_static_rates(enabled_codes={"USD", "EUR"})
+            count = rematerialize_open_static_monthly_rates(enabled_codes={"USD", "EUR"})
 
         self.assertEqual(count, 1)
         mock_info.assert_called_once()

@@ -114,7 +114,7 @@ def upsert_static_monthly_rates(static_rate):
         _upsert_static_month(static_rate, month_start)
 
 
-def rematerialize_current_month_static_rates(code=None, enabled_codes=None):
+def rematerialize_open_static_monthly_rates(code=None, enabled_codes=None):
     """Re-apply StaticExchangeRate definitions onto unfinalized MER rows.
 
     Used on currency re-enable, daily crawl, and new-schema fill so surviving
@@ -344,7 +344,11 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):
 
     Past months are finalized and read-only. The next month is a provisional
     snapshot of the latest ExchangeRateDictionary, refreshed on every run, so
-    the row exists before that month starts. Closed months are never overwritten.
+    the row exists before that month starts. Refreshing it on every day of the
+    current month, rather than only the last few days, means one successful run
+    anywhere in the month is enough, and the rate at midnight is the latest
+    snapshot rather than one frozen earlier in the month. Closed months are
+    never overwritten.
 
     When backfill_past_months is True (daily currency task, or a new tenant
     schema), each missing month in the retention window is filled from the next
@@ -366,7 +370,7 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):
         return 0
 
     current_month, next_month = _open_month_starts()
-    updated_count = rematerialize_current_month_static_rates(code=code, enabled_codes=enabled_codes)
+    updated_count = rematerialize_open_static_monthly_rates(code=code, enabled_codes=enabled_codes)
     erd = ExchangeRateDictionary.objects.first()
     if erd and erd.currency_exchange_dictionary:
         dynamic_rates = _rates_from_exchange_dictionary(erd.currency_exchange_dictionary, enabled_codes, code=code)
