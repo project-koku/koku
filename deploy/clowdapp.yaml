@@ -640,6 +640,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_MASU}
         - name: SCHEMA_SUFFIX
@@ -1313,6 +1315,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_CELERY}
         - name: SCHEMA_SUFFIX
@@ -1505,6 +1509,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL}
         - name: SCHEMA_SUFFIX
@@ -1702,6 +1708,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL_XL}
         - name: SCHEMA_SUFFIX
@@ -1899,6 +1907,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL_PENALTY}
         - name: SCHEMA_SUFFIX
@@ -2096,6 +2106,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD}
         - name: SCHEMA_SUFFIX
@@ -2297,6 +2309,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD_XL}
         - name: SCHEMA_SUFFIX
@@ -2498,6 +2512,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD_PENALTY}
         - name: SCHEMA_SUFFIX
@@ -2699,6 +2715,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP}
         - name: SCHEMA_SUFFIX
@@ -2908,6 +2926,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP_XL}
         - name: SCHEMA_SUFFIX
@@ -3117,6 +3137,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP_PENALTY}
         - name: SCHEMA_SUFFIX
@@ -3314,6 +3336,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY}
         - name: SCHEMA_SUFFIX
@@ -3508,6 +3532,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY_XL}
         - name: SCHEMA_SUFFIX
@@ -3702,6 +3728,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY_PENALTY}
         - name: SCHEMA_SUFFIX
@@ -3896,6 +3924,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH}
         - name: SCHEMA_SUFFIX
@@ -4082,6 +4112,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH_XL}
         - name: SCHEMA_SUFFIX
@@ -4268,6 +4300,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH_PENALTY}
         - name: SCHEMA_SUFFIX
@@ -4475,6 +4509,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY}
         - name: SCHEMA_SUFFIX
@@ -4687,6 +4723,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY_XL}
         - name: SCHEMA_SUFFIX
@@ -4899,6 +4937,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY_PENALTY}
         - name: SCHEMA_SUFFIX
@@ -5090,6 +5130,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_HCS}
         - name: SCHEMA_SUFFIX
@@ -5278,6 +5320,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUBS_EXTRACTION}
         - name: SCHEMA_SUFFIX
@@ -5458,6 +5502,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUBS_TRANSMISSION}
         - name: SCHEMA_SUFFIX
@@ -6058,6 +6104,12 @@ parameters:
   displayName: OCP tag-mapping statement timeout
   name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
   value: "28800000"
+- description: PostgreSQL client_connection_check_interval (ms) for masu and worker
+    connections, so queries of killed workers are cancelled; 0 disables
+  displayName: Worker client connection check interval
+  name: WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+  required: true
+  value: "5000"
 - description: Number of days to expand the data validation
   displayName: Data validation
   name: VALIDATION_RANGE
