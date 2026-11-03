@@ -140,13 +140,18 @@ def _session_options():
     DATABASE_STATEMENT_TIMEOUT_MS cancels statements that run longer than the API
     deadline. DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS lets PostgreSQL notice a
     dropped client (killed Gunicorn worker, restarted pod) while a query runs and
-    cancel it. Unset or 0 leaves the server defaults.
+    cancel it. Unset leaves the server or role default; 0 is sent and disables the
+    setting even when the server or role default is nonzero.
     """
     settings_by_name = {
-        "statement_timeout": ENVIRONMENT.int("DATABASE_STATEMENT_TIMEOUT_MS", default=0),
-        "client_connection_check_interval": ENVIRONMENT.int("DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS", default=0),
+        "statement_timeout": ENVIRONMENT.int("DATABASE_STATEMENT_TIMEOUT_MS", default=None),
+        "client_connection_check_interval": ENVIRONMENT.int(
+            "DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS", default=None
+        ),
     }
-    return " ".join(f"-c {name}={value}" for name, value in settings_by_name.items() if value > 0)
+    return " ".join(
+        f"-c {name}={value}" for name, value in settings_by_name.items() if value is not None and value >= 0
+    )
 
 
 def dbfunc_exists(connection, function_schema, function_name, function_signature):
