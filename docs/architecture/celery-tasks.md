@@ -359,7 +359,7 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 
 **Queue**: `DEFAULT`
 
-**Description**: Creates the partitions for one month in one schema via `koku.pg_partition.precreate_monthly_partitions`. Gated by the `cost-management.backend.precreate_partitions` flag.
+**Description**: Creates the partitions for one month in one schema via `koku.pg_partition.precreate_monthly_partitions`.
 
 **Workflow**:
 1. For each range-partitioned table with a default partition, skips the month if its partition already exists
@@ -726,8 +726,6 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 **Task**: `masu.celery.tasks.precreate_upcoming_partitions`
 
 **Schedule**: Every 8 hours (05:30, 13:30, 21:30 UTC) from `PRECREATE_PARTITIONS_START_DAY` through month end. The default is 15 (`30 5,13,21 15-31 * *`); the setting accepts 1–28 so every month has at least one run. Set it on the scheduler deployment to start earlier in an environment.
-
-**Enabled**: Per schema via `cost-management.backend.precreate_partitions`
 
 ---
 

@@ -200,7 +200,8 @@ for this currency are rematerialized into STATIC monthly rates from the current
 month through each definition's end date (so a disable → re-enable cycle
 restores still-valid overrides, including future months). Remaining enabled
 pairs then receive dynamic monthly rates for the current month and the next
-month when market data is available. Report caches for the tenant are invalidated.
+month when market data is available. Missing past months in the retention window
+are filled from the next later monthly rate. Report caches for the tenant are invalidated.
 
 ---
 

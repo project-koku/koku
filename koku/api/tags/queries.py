@@ -14,8 +14,6 @@ from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
-from masu.processor import is_feature_flag_enabled_by_schema
-from masu.processor import TAG_KEYS_REPORT_PERIOD_IDS_FLAG
 from reporting.provider.all.models import TagMapping
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
@@ -340,9 +338,7 @@ class TagQueryHandler(QueryHandler):
         the period ids as well lets it use the index on the foreign key. The
         time filter stays in place, so the result is unchanged.
         """
-        if self.parameters.get_filter("value") or not is_feature_flag_enabled_by_schema(
-            self.tenant.schema_name, TAG_KEYS_REPORT_PERIOD_IDS_FLAG, dev_fallback=True
-        ):
+        if self.parameters.get_filter("value"):
             return None
         fk_name, _, period_field = (source.get("db_column_period") or "").partition("__")
         if not period_field:

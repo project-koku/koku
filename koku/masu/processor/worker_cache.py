@@ -4,6 +4,7 @@
 #
 """Cache of worker tasks currently running."""
 import logging
+import time
 
 from django.conf import settings
 from django.core.cache import caches
@@ -13,7 +14,15 @@ from koku import CELERY_INSPECT
 from koku.cache import CacheEnum
 
 TASK_CACHE_EXPIRE = 30
+# A worker that did not answer Celery inspect is dropped only after it has not been seen for this long.
+WORKER_OFFLINE_GRACE_SECONDS = 600
+WORKER_LAST_SEEN_KEY = "keys_last_seen"
 LOG = logging.getLogger(__name__)
+
+
+def _now():
+    """Return the current time in seconds since the epoch."""
+    return time.time()
 
 
 def create_single_task_cache_key(task_name, task_args=None):
@@ -26,19 +35,47 @@ def create_single_task_cache_key(task_name, task_args=None):
 
 
 def rate_limit_tasks(task_name, schema_name):
-    """Limit the number of concurrent tasks for a customer."""
+    """Limit the number of concurrent tasks for a customer.
+
+    A lock counts only while the worker holding it is alive: a killed worker never
+    releases its locks, and they would otherwise block the customer until they expire.
+    """
+    limit = settings.WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+    lock_keys = _unexpired_lock_keys(task_name, schema_name)
+    if len(lock_keys) < limit:
+        return False
+
+    live_workers = WorkerCache.cache.get("keys", set())
+    if not live_workers:
+        LOG.warning("No live worker list in the worker cache, counting every lock for %s", schema_name)
+        return True
+
+    held_locks = [key for key in lock_keys if _lock_is_held(key, live_workers)]
+    return len(held_locks) >= limit
+
+
+def _unexpired_lock_keys(task_name, schema_name):
+    """Return the worker_cache_table keys of the unexpired locks of task_name for schema_name."""
     # The database cache deletes expired rows only occasionally, so they must not count as running tasks.
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT count(*) FROM public.worker_cache_table "
+            "SELECT cache_key FROM public.worker_cache_table "
             "WHERE cache_key LIKE %s AND cache_key LIKE %s AND expires > now()",
             [f"%{task_name}%", f"%{schema_name}%"],
         )
-        count = cursor.fetchone()[0]
+        return [row[0] for row in cursor.fetchall()]
 
-    if count >= settings.WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS:
+
+def _lock_is_held(table_key, live_workers):
+    """Return whether the lock stored under table_key belongs to one of live_workers.
+
+    lock_single_task stores the worker's hostname under the default cache version. A row
+    under another key format cannot be resolved and counts, as it did before.
+    """
+    prefix = WorkerCache.cache.make_key("")
+    if not table_key.startswith(prefix):
         return True
-    return False
+    return WorkerCache.cache.get(table_key[len(prefix) :]) in live_workers
 
 
 class WorkerCache:
@@ -110,15 +147,29 @@ class WorkerCache:
             self.cache.set("keys", worker_keys)
 
     def remove_offline_worker_keys(self):
-        """Remove worker key for offline workers."""
-        worker_keys = self.worker_cache_keys
-        running_workers = self.active_workers
+        """Remove the keys of workers not seen in Celery inspect replies for WORKER_OFFLINE_GRACE_SECONDS.
 
-        for worker in worker_keys:
-            if worker not in running_workers:
+        Celery inspect stops collecting replies after a second without one, so a busy worker
+        can miss a round. Without any reply the live workers are unknown and nothing is removed.
+        """
+        running_workers = self.active_workers
+        if not running_workers:
+            LOG.info("No Celery inspect replies, keeping all worker keys")
+            return
+
+        now = _now()
+        last_seen = self.cache.get(WORKER_LAST_SEEN_KEY, {})
+        for worker in {*running_workers, self._hostname}:
+            last_seen[worker] = now
+        for worker in self.worker_cache_keys:
+            # Workers registered before last-seen tracking start their grace period now.
+            last_seen.setdefault(worker, now)
+            if now - last_seen[worker] > WORKER_OFFLINE_GRACE_SECONDS:
                 LOG.info(f"Removing old worker: {worker}")
                 self.invalidate_host(worker)
                 self.remove_worker_key(worker)
+        recent = {worker: seen for worker, seen in last_seen.items() if now - seen <= WORKER_OFFLINE_GRACE_SECONDS}
+        self.cache.set(WORKER_LAST_SEEN_KEY, recent)
 
     def invalidate_host(self, host=None):
         """Invalidate the cache for a particular host."""
