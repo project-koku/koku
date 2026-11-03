@@ -10,13 +10,15 @@ The PRs serialize work per provider with one advisory lock. That fixes races whe
 
 On main, the writers that hold the lock never set `rate_id` at all: distribution and markup write NULL, aggregation and breakdown write other tables. So the rate-delete lock in [#6414](https://github.com/project-koku/koku/pull/6414) protects nothing against the `rate_id` FK crash until [#6272](https://github.com/project-koku/koku/pull/6272) locks the usage-rates insert, and even then the monthly, tag, VM and GPU inserts stay exposed.
 
-**Recommendation:** remove the `rate_id` cascade instead of locking around it (see [Proposal](#proposal-remove-the-rate_id-cascade)). Nothing reads `rates_to_usage.rate_id`, and RTU is rebuilt per date range on every run, so the cascade only deletes intermediate rows early, and its FK check is what crashes the inserts. Dropping it fixes Finding E and the stale `rate_uuid` for every writer with no lock, no 409 and no flag. [#6414](https://github.com/project-koku/koku/pull/6414) then shrinks to its two transaction fixes. This reverses a design decision, so it needs the tech lead's agreement. The general rule behind it is in [Design principle](#design-principle-no-database-cascades-on-reporting-data): no database cascades on derived, partitioned reporting data.
+**Recommendation:** remove the `rate_id` cascade instead of locking around it (see [Proposal](#proposal-remove-the-rate_id-cascade)). Nothing reads `rates_to_usage.rate_id`, and RTU is rebuilt per date range on every run, so the cascade only deletes intermediate rows early, and its FK check is what crashes the inserts. Dropping it fixes Finding E and the stale `rate_uuid` for every writer with no lock, no 409 and no flag. [#6414](https://github.com/project-koku/koku/pull/6414) then shrinks to its two transaction fixes. This reverses a design decision; **the team agreed to it on 2026-11-03**. The general rule behind it is in [Design principle](#design-principle-no-database-cascades-on-reporting-data): no database cascades on derived, partitioned reporting data.
 
 **Current flag state (2026-11-02, read from Unleash with `unleash-get`):** the RTU pipeline flag `cost-management.backend.cost_breakdown_rates_to_usage` is **off in stage** (the flag exists with a 100% rollout strategy, but the environment is disabled) and **does not exist in prod** (HTTP 404, so it evaluates false; the code uses `dev_fallback=False`). No tenant writes `rates_to_usage` today, so Finding E, the stale `rate_uuid`, the RTU parts of Findings A, B and F, and COST-8112 cannot happen in stage or prod. They must be fixed before the stage flag is turned on. Not behind that flag and live today: the API rate-table sync and its partial commits (R4, R5), `_ensure_rate_sync` on the read replica (R10), and the partition-drop deadlocks (Findings H, I). `cost-management.backend.disable_price_list` does not exist in either environment, so the worker reads rates from the price-list tables everywhere.
 
 **Feature flags for our fixes: not needed.** Removing the `rate_id` cascade only changes what happens to RTU rows, and RTU is empty while the RTU flag is off; a migration cannot be flagged anyway. The transaction fixes for the price list and cost model PUTs are plain bug fixes in the API. #6414's `rate_sync_provider_lock` flag goes away with its lock. Exception: the locks added by #6102 (`Provider.delete()`) and #6269 (retention purge) run whatever the RTU flag says, and they wait on `_distribution_provider_lock`, which the legacy path also takes in `populate_distributed_cost_sql` (markup-to-RTU and aggregation run only when RTU is on), so those two change prod behaviour today.
 
 ## Branch work log
+
+Setup, artifacts and how to run everything (local and ephemeral): [`README.md`](README.md).
 
 All fixes land on the long-running branch **`mpovolny/rtu-hardening`** (from `main` at `1941b81e9`, 2026-11-03), one commit per issue. No PR until everything is fixed and tested; then the branch is split into PRs back to `main` (migrations separate from code, per repo rules). This file lives on the branch at `dev/rtu-hardening/rtu-race-map.md`.
 
@@ -185,7 +187,7 @@ Sources: [`cost_models/models.py`](https://github.com/project-koku/koku/blob/8fc
 |---|---|---|---|---|
 | A | Concurrent breakdown population deadlocks or silently corrupts `reporting_ocp_cost_breakdown_p` | [COST-8117](https://redhat.atlassian.net/browse/COST-8117) | [#6102](https://github.com/project-koku/koku/pull/6102) (open) | Ticket says "merged as part of [#6102](https://github.com/project-koku/koku/pull/6102)": it means the [#6102](https://github.com/project-koku/koku/pull/6102) branch, which is not merged. |
 | B | `Provider.delete()` vs RTU writer: FK `IntegrityError` on the deferred report-period FK | [COST-8118](https://redhat.atlassian.net/browse/COST-8118) | [#6102](https://github.com/project-koku/koku/pull/6102) (open) | Adds `Provider._rtu_distribution_lock`. Protects only writers that also lock. |
-| C, D | Not found | – | – | No ticket, PR, repo doc or the [COST-7249 design doc](https://docs.google.com/document/d/1wWdrYuhNpiJPMgVdJzS6yTvCKxRZ1g5j6CLzLJjASHA/edit?tab=t.emwv4tp6xkon#heading=h.sdhov05ddhog) mentions them. Ask Jordi. |
+| C, D | Not found | – | – | No ticket, PR, repo doc or the [COST-7249 design doc](https://docs.google.com/document/d/1wWdrYuhNpiJPMgVdJzS6yTvCKxRZ1g5j6CLzLJjASHA/edit?tab=t.emwv4tp6xkon#heading=h.sdhov05ddhog) mentions them. Jordi confirmed (2026-11-03) he has no record of them; closed as unavailable. |
 | E | `sync_rate_table` stale-rate delete vs RTU writer: `rates_to_usage_rate_id_fk` crash | [COST-8113](https://redhat.atlassian.net/browse/COST-8113) | [#6268](https://github.com/project-koku/koku/pull/6268) → [#6414](https://github.com/project-koku/koku/pull/6414) (draft) | Ticket says "every RTU write path ... take that lock"; false on main (see writers table). |
 | F | Retention purge cascade silently deletes rows written during the purge | [COST-8114](https://redhat.atlassian.net/browse/COST-8114) | [#6269](https://github.com/project-koku/koku/pull/6269) (open) | Adds another `_multi_provider_distribution_lock` copy. |
 | G | `sync_rate_table` session lock leaks on a DB error inside the caller's transaction | [COST-8119](https://redhat.atlassian.net/browse/COST-8119) | [#6268](https://github.com/project-koku/koku/pull/6268) (open) | Gone in [#6414](https://github.com/project-koku/koku/pull/6414): transaction-level locks have no unlock statement. |
@@ -295,7 +297,7 @@ Reading: the `rate_id` FK race (Finding E) involves only the first four rows. Wi
 
 - `rate_id` loses its referential check: an insert with a wrong UUID no longer fails. A future join back to `Rate` must be a LEFT JOIN.
 - Rows for a deleted rate stay in RTU until their date range is rebuilt: the current month right after the PUT (the dispatched recalculation), past months at their next resummary. Nothing reads `rate_id`, so they are invisible.
-- **Reverses a documented design decision** ([PRD04 data model](https://docs.google.com/document/d/1wWdrYuhNpiJPMgVdJzS6yTvCKxRZ1g5j6CLzLJjASHA/edit?tab=t.emwv4tp6xkon#heading=h.sdhov05ddhog), [`open-concerns.md` Concern 3](https://github.com/project-koku/koku/blob/8fc9d550945fdafe73285fdc5f923cfa4018830c/docs/architecture/cost-breakdown/open-concerns.md?plain=1#L38)). Needs the tech lead's agreement before any code.
+- **Reverses a documented design decision** ([PRD04 data model](https://docs.google.com/document/d/1wWdrYuhNpiJPMgVdJzS6yTvCKxRZ1g5j6CLzLJjASHA/edit?tab=t.emwv4tp6xkon#heading=h.sdhov05ddhog), [`open-concerns.md` Concern 3](https://github.com/project-koku/koku/blob/8fc9d550945fdafe73285fdc5f923cfa4018830c/docs/architecture/cost-breakdown/open-concerns.md?plain=1#L38)). **Agreement reached (2026-11-03).**
 
 ### Fallback if the cascade stays
 
@@ -341,19 +343,19 @@ Reading: the `rate_id` FK race (Finding E) involves only the first four rows. Wi
 | OpenAPI 409s (R9) | Required by repo rules for [#6414](https://github.com/project-koku/koku/pull/6414) | Add 409 to both PUTs. |
 | `_ensure_rate_sync` on the read replica (R10) | Pre-existing; lazy sync can never write in prod reads pods | Move the lazy sync to a write path or drop it. |
 | Five copies of the lock primitive across PRs | Maintenance | Use `koku/advisory_locks.py` ([#6414](https://github.com/project-koku/koku/pull/6414)) in [#6102](https://github.com/project-koku/koku/pull/6102) and [#6269](https://github.com/project-koku/koku/pull/6269). |
-| Findings C and D | Unknown | Not in any ticket, PR or doc read here. Ask Jordi. |
+| Findings C and D | Closed | Not recorded anywhere; Jordi confirmed (2026-11-03) they will not be provided. |
 
 ## Recommended plan
 
 1. Run the prod check for the RTU FK errors (`rates_to_usage_rate_id_fk`, `rates_to_usage_report_period_id_fk`) to size the problem.
-2. Get the tech lead's agreement to remove the `rate_id` cascade ([Proposal](#proposal-remove-the-rate_id-cascade)).
+2. ~~Get the tech lead's agreement to remove the `rate_id` cascade~~ **Agreed (2026-11-03)** ([Proposal](#proposal-remove-the-rate_id-cascade)).
 3. If agreed: open the migration PR; shrink [#6414](https://github.com/project-koku/koku/pull/6414) to the transaction fixes (R4, R5); close [#6274](https://github.com/project-koku/koku/pull/6274); update [COST-8113](https://redhat.atlassian.net/browse/COST-8113) and [COST-8119](https://redhat.atlassian.net/browse/COST-8119). If not: follow the fallback, and push the two local [#6414](https://github.com/project-koku/koku/pull/6414) commits, add the OpenAPI 409s (R9) and merge [#6272](https://github.com/project-koku/koku/pull/6272) with or before [#6414](https://github.com/project-koku/koku/pull/6414).
 4. Merge [#6272](https://github.com/project-koku/koku/pull/6272) and the lock parts of [#6102](https://github.com/project-koku/koku/pull/6102) anyway: they protect the report-period and provider FKs (Finding B, [COST-8112](https://redhat.atlassian.net/browse/COST-8112)), which stay.
 5. Merge [#6270](https://github.com/project-koku/koku/pull/6270) and [#6271](https://github.com/project-koku/koku/pull/6271) on their own; they are independent.
 6. Merge [#6269](https://github.com/project-koku/koku/pull/6269) for the retention purge (Finding F).
 7. File tickets for R11 (cost model DELETE cascade) and R10 (`_ensure_rate_sync` on the read replica), linked "Related" to [COST-7249](https://redhat.atlassian.net/browse/COST-7249) and [COST-8113](https://redhat.atlassian.net/browse/COST-8113).
 8. Fix the JIRA wording: [COST-8117](https://redhat.atlassian.net/browse/COST-8117), 8118 and 8119 say "merged"; [COST-8113](https://redhat.atlassian.net/browse/COST-8113) says every writer takes the lock.
-9. Ask Jordi what Findings C and D were.
+9. ~~Ask Jordi what Findings C and D were.~~ Closed: not available (2026-11-03).
 
 Open decisions: remove the `rate_id` cascade or keep it (step 2); same treatment for `cost_model_id` or a lock (R11).
 
