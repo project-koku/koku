@@ -94,7 +94,7 @@ LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS
     ON gpu.namespace LIKE cat_ns.namespace
 WHERE date(gpu.interval_start) >= DATE({{start_date}})
   AND date(gpu.interval_start) <= DATE({{end_date}})
-  AND gpu.source = {{source_uuid}}
+  AND gpu.source = {{source_uuid | string}}
   AND gpu.year = {{year}}
   AND gpu.month = {{month}}
   AND gpu.gpu_vendor_name LIKE '{{tag_key | sqlsafe}}%'
@@ -148,7 +148,7 @@ WITH cte_unutilized_uptime_hours AS (
             gpu.gpu_model_name,
             DATE(gpu.interval_start) as interval_date
         FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu
-        WHERE gpu.source = {{source_uuid}}
+        WHERE gpu.source = {{source_uuid | string}}
             AND gpu.year = {{year}}
             AND gpu.month = {{month}}
             AND date(gpu.interval_start) >= DATE({{start_date}})
@@ -162,7 +162,7 @@ WITH cte_unutilized_uptime_hours AS (
         AND date(node_ut.interval_start) <= DATE({{end_date}})
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
-        AND node_ut.source = {{source_uuid}}
+        AND node_ut.source = {{source_uuid | string}}
         AND node_labels like '%"nvidia_com_gpu_present": "True"%'
     GROUP BY node_ut.node, gpu.gpu_model_name, json_extract_scalar(node_ut.node_labels, '$.nvidia_com_gpu_product'),
              DATE(node_ut.interval_start), gpu.max_slices_per_gpu,
