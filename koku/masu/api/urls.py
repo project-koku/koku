@@ -38,6 +38,7 @@ from masu.api.views import purge_trino_files
 from masu.api.views import recheck_infra_map
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
+from masu.api.views import schema_feature_flags
 from masu.api.views import schema_sizes
 from masu.api.views import stat_activity
 from masu.api.views import stat_statements
@@ -69,6 +70,7 @@ urlpatterns = [
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/explain-query/", explain_query, name="explain_query"),
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
+    path("feature-flags/", schema_feature_flags, name="schema_feature_flags"),
 ]
 
 if not settings.ONPREM or settings.IQE_TEST_RUN:
