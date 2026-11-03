@@ -495,6 +495,12 @@ parameters:
   displayName: OCP tag-mapping statement timeout
   name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
   value: "28800000"
+- description: PostgreSQL client_connection_check_interval (ms) for masu and worker connections, so queries
+    of killed workers are cancelled; 0 disables
+  displayName: Worker client connection check interval
+  name: WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+  required: true
+  value: "5000"
 - description: Number of days to expand the data validation
   displayName: Data validation
   name: VALIDATION_RANGE

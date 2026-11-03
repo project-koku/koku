@@ -35,19 +35,47 @@ def create_single_task_cache_key(task_name, task_args=None):
 
 
 def rate_limit_tasks(task_name, schema_name):
-    """Limit the number of concurrent tasks for a customer."""
+    """Limit the number of concurrent tasks for a customer.
+
+    A lock counts only while the worker holding it is alive: a killed worker never
+    releases its locks, and they would otherwise block the customer until they expire.
+    """
+    limit = settings.WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+    lock_keys = _unexpired_lock_keys(task_name, schema_name)
+    if len(lock_keys) < limit:
+        return False
+
+    live_workers = WorkerCache.cache.get("keys", set())
+    if not live_workers:
+        LOG.warning("No live worker list in the worker cache, counting every lock for %s", schema_name)
+        return True
+
+    held_locks = [key for key in lock_keys if _lock_is_held(key, live_workers)]
+    return len(held_locks) >= limit
+
+
+def _unexpired_lock_keys(task_name, schema_name):
+    """Return the worker_cache_table keys of the unexpired locks of task_name for schema_name."""
     # The database cache deletes expired rows only occasionally, so they must not count as running tasks.
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT count(*) FROM public.worker_cache_table "
+            "SELECT cache_key FROM public.worker_cache_table "
             "WHERE cache_key LIKE %s AND cache_key LIKE %s AND expires > now()",
             [f"%{task_name}%", f"%{schema_name}%"],
         )
-        count = cursor.fetchone()[0]
+        return [row[0] for row in cursor.fetchall()]
 
-    if count >= settings.WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS:
+
+def _lock_is_held(table_key, live_workers):
+    """Return whether the lock stored under table_key belongs to one of live_workers.
+
+    lock_single_task stores the worker's hostname under the default cache version. A row
+    under another key format cannot be resolved and counts, as it did before.
+    """
+    prefix = WorkerCache.cache.make_key("")
+    if not table_key.startswith(prefix):
         return True
-    return False
+    return WorkerCache.cache.get(table_key[len(prefix) :]) in live_workers
 
 
 class WorkerCache:
