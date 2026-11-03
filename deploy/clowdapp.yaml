@@ -6333,8 +6333,7 @@ parameters:
   name: KOKU_READS_GUNICORN_TIMEOUT
   required: true
   value: "35"
-- description: PostgreSQL statement_timeout (ms) for reads API connections; 0 keeps
-    the server default
+- description: PostgreSQL statement_timeout (ms) for reads API connections; 0 disables
   displayName: Reads API statement timeout
   name: KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS
   required: true

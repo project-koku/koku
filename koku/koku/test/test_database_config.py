@@ -31,7 +31,22 @@ class DatabaseSessionOptionsTest(SimpleTestCase):
         self.assertIn("application_name", options)
 
     def test_zero_disables_a_setting(self):
-        """A value of 0 leaves that setting out."""
+        """A value of 0 is sent, so it overrides a nonzero server or role default."""
         env = {"DATABASE_STATEMENT_TIMEOUT_MS": "30000", "DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS": "0"}
         with patch.dict(os.environ, env):
-            self.assertEqual(database._session_options(), "-c statement_timeout=30000")
+            self.assertEqual(
+                database._session_options(), "-c statement_timeout=30000 -c client_connection_check_interval=0"
+            )
+
+    def test_zero_statement_timeout_is_sent(self):
+        """An explicit 0 statement timeout is sent too."""
+        env = {"DATABASE_STATEMENT_TIMEOUT_MS": "0"}
+        with patch.dict(os.environ, env):
+            os.environ.pop("DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS", None)
+            self.assertEqual(database._session_options(), "-c statement_timeout=0")
+
+    def test_negative_value_is_left_out(self):
+        """A negative value is not a valid setting and is left out, as before."""
+        env = {"DATABASE_STATEMENT_TIMEOUT_MS": "-1", "DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS": "5000"}
+        with patch.dict(os.environ, env):
+            self.assertEqual(database._session_options(), "-c client_connection_check_interval=5000")
