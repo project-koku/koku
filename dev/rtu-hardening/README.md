@@ -102,7 +102,8 @@ Namespace `ephemeral-7ctbkc`, image `pr-6425-a5c7320`, RTU flag on, test org `76
 | November after the recalculation the PUTs triggered | no rows of the removed rates |
 | October | 2,232 rows remain: `worker_distributed` / `platform_distributed` rows with the removed rates' `custom_name` and `rate_id = NULL`. Distribution copies the name but not the ID, so neither the old cascade nor the cleanup task reaches them; the next recalculation of October removes them. Work log item 1c. |
 | Rows whose `rate_id` points to a deleted rate | 0 |
-| Cluster A | First upload hit the Trino/Glue misconfiguration (known issues); re-uploaded after the fix |
+| Re-upload of both clusters after the Trino fix (new runs load the current price list) | Cluster A and B identical: October 16,027 rows, November 1,530 rows, 10 rates (the 13 producing rates minus the 3 removed), October cost 148,556.45 / 148,556.43 |
+| Cluster B's October rebuilt by the reprocessing | the 2,232 distributed leftovers of the removed rates are gone: the rebuild path cleans its window, as designed |
 
 ## Known issues
 
