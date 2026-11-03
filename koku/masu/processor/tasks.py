@@ -1096,6 +1096,37 @@ def update_all_summary_tables(start_date, end_date=None):
         ).apply_async(queue=queue_name or fallback_queue)
 
 
+@celery_app.task(name="masu.processor.tasks.delete_rates_to_usage_rows", queue=CostModelQueue.DEFAULT)
+def delete_rates_to_usage_rows(schema_name, rate_ids=None, cost_model_ids=None):
+    """Delete the rates_to_usage rows of deleted rates and cost models, in every month.
+
+    rates_to_usage.rate_id and .cost_model_id carry no database cascade (migration 0355),
+    so the API schedules this task after it deletes Rate or CostModel rows. Recalculation
+    rebuilds only the months it processes; this removes the rest. Uses the
+    ratestousage_rate_id_idx / ratestousage_cost_model_id_idx indexes.
+    """
+    rate_ids = [str(rate_id) for rate_id in rate_ids or []]
+    cost_model_ids = [str(cost_model_id) for cost_model_id in cost_model_ids or []]
+    if not rate_ids and not cost_model_ids:
+        return 0
+    with schema_context(schema_name), connection.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM rates_to_usage WHERE rate_id = ANY(%s::uuid[]) OR cost_model_id = ANY(%s::uuid[])",
+            [rate_ids, cost_model_ids],
+        )
+        deleted = cursor.rowcount
+    LOG.info(
+        log_json(
+            msg="deleted rates_to_usage rows of deleted rates and cost models",
+            schema=schema_name,
+            rate_ids=rate_ids,
+            cost_model_ids=cost_model_ids,
+            deleted=deleted,
+        )
+    )
+    return deleted
+
+
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT)
 def update_cost_model_costs(  # noqa: C901
     schema_name,
