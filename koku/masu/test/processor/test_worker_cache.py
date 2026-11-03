@@ -6,12 +6,17 @@
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.core.cache.backends.db import DatabaseCache
 from django.db import connection
 from django.test.utils import override_settings
 
 from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
+
+# Tests run the worker cache on LocMemCache; rate_limit_tasks reads worker_cache_table,
+# so the rate limit tests use the production backend.
+DB_WORKER_CACHE = DatabaseCache("worker_cache_table", {})
 
 
 class WorkerCacheTest(MasuTestCase):
@@ -200,27 +205,23 @@ class WorkerCacheTest(MasuTestCase):
         cache.release_single_task(task_name, task_args)
         self.assertFalse(cache.single_task_is_running(task_name, task_args))
 
-    @override_settings(HOSTNAME="kokuworker")
+    @override_settings(HOSTNAME="kokuworker", WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS=2)
+    @patch.object(WorkerCache, "cache", DB_WORKER_CACHE)
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_rate_limit_tasks(self, mock_inspect):
-        """Test that single task cache creates and deletes a cache entry."""
+        """Test that the customer is rate limited once it holds the maximum number of locks."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         cache = WorkerCache()
         task_name = "test_task"
         task_args = [self.schema, "OCP", "1"]
         cache.lock_single_task(task_name, task_args)
 
-        with patch("masu.processor.worker_cache.connection") as mock_conn:
-            mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (1,)
-            # mock_execute.return_value = 1
-            self.assertFalse(rate_limit_tasks(task_name, self.schema))
+        self.assertFalse(rate_limit_tasks(task_name, self.schema))
 
         task_args = [self.schema, "OCP", "2"]
         cache.lock_single_task(task_name, task_args)
 
-        with patch("masu.processor.worker_cache.connection") as mock_conn:
-            mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (2,)
-            self.assertTrue(rate_limit_tasks(task_name, self.schema))
+        self.assertTrue(rate_limit_tasks(task_name, self.schema))
 
     @override_settings(WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS=2)
     def test_rate_limit_tasks_ignores_expired_locks(self):
