@@ -99,6 +99,18 @@ show)
 rbac-check)
     in_pod python3 /tmp/rtu/rtu_setup.py rbac-check
     ;;
+wait-rtu)
+    # Wait (default 60 min) until RTU has rows for WANT source-months (default 4: 2 clusters x 2 months).
+    want="${WANT:-4}"
+    for _ in $(seq 1 "${WAIT_MINUTES:-60}"); do
+        have="$(db -At -c "SELECT count(DISTINCT (source_uuid, date_trunc('month', usage_start))) FROM ${SCHEMA}.rates_to_usage;" 2> /dev/null || echo 0)"
+        echo "$(date -u +%H:%M:%S) source-months with RTU rows: ${have}/${want}"
+        [[ "${have:-0}" -ge "${want}" ]] && exit 0
+        sleep 60
+    done
+    echo "timed out waiting for RTU rows" >&2
+    exit 1
+    ;;
 clean)
     oc delete pod "${POD}" -n "${NS}" --ignore-not-found
     ;;
