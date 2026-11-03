@@ -6,12 +6,17 @@
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.core.cache.backends.db import DatabaseCache
 from django.db import connection
 from django.test.utils import override_settings
 
 from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
+
+# Tests run the worker cache on LocMemCache; rate_limit_tasks reads worker_cache_table,
+# so the rate limit tests use the production backend.
+DB_WORKER_CACHE = DatabaseCache("worker_cache_table", {})
 
 
 class WorkerCacheTest(MasuTestCase):
@@ -21,11 +26,14 @@ class WorkerCacheTest(MasuTestCase):
         """Set up the test."""
         super().setUp()
         cache.clear()
+        # The worker cache is a process-wide LocMemCache in tests; clear it so tests do not leak state.
+        WorkerCache.cache.clear()
 
     def tearDown(self):
         """Tear down the test."""
         super().tearDown()
         cache.clear()
+        WorkerCache.cache.clear()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_worker_cache(self, mock_inspect):
@@ -200,27 +208,23 @@ class WorkerCacheTest(MasuTestCase):
         cache.release_single_task(task_name, task_args)
         self.assertFalse(cache.single_task_is_running(task_name, task_args))
 
-    @override_settings(HOSTNAME="kokuworker")
+    @override_settings(HOSTNAME="kokuworker", WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS=2)
+    @patch.object(WorkerCache, "cache", DB_WORKER_CACHE)
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_rate_limit_tasks(self, mock_inspect):
-        """Test that single task cache creates and deletes a cache entry."""
+        """Test that the customer is rate limited once it holds the maximum number of locks."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         cache = WorkerCache()
         task_name = "test_task"
         task_args = [self.schema, "OCP", "1"]
         cache.lock_single_task(task_name, task_args)
 
-        with patch("masu.processor.worker_cache.connection") as mock_conn:
-            mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (1,)
-            # mock_execute.return_value = 1
-            self.assertFalse(rate_limit_tasks(task_name, self.schema))
+        self.assertFalse(rate_limit_tasks(task_name, self.schema))
 
         task_args = [self.schema, "OCP", "2"]
         cache.lock_single_task(task_name, task_args)
 
-        with patch("masu.processor.worker_cache.connection") as mock_conn:
-            mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (2,)
-            self.assertTrue(rate_limit_tasks(task_name, self.schema))
+        self.assertTrue(rate_limit_tasks(task_name, self.schema))
 
     @override_settings(WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS=2)
     def test_rate_limit_tasks_ignores_expired_locks(self):
@@ -250,3 +254,83 @@ class WorkerCacheTest(MasuTestCase):
                 [live[1]],
             )
             self.assertTrue(rate_limit_tasks(task_name, self.schema))
+
+
+@override_settings(WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS=2)
+@patch.object(WorkerCache, "cache", DB_WORKER_CACHE)
+class RateLimitDeadWorkerLockTest(MasuTestCase):
+    """rate_limit_tasks counts only locks held by live workers."""
+
+    task_name = "masu.processor.tasks.update_summary_tables"
+
+    def lock_as(self, host, *task_args, task_name=None, schema=None):
+        """Take a lock the way a worker named host does."""
+        with override_settings(HOSTNAME=host), patch("masu.processor.worker_cache.CELERY_INSPECT") as inspect:
+            inspect.reserved.return_value = {f"celery@{host}": []}
+            WorkerCache().lock_single_task(
+                task_name or self.task_name, [schema or self.schema, *task_args], timeout=3600
+            )
+
+    def set_live_workers(self, *hosts):
+        """Set the live worker set, as WorkerCache() leaves it after pruning offline workers."""
+        DB_WORKER_CACHE.set("keys", set(hosts))
+
+    def test_live_locks_rate_limit(self):
+        """Two locks held by live workers rate limit the customer."""
+        self.lock_as("worker-a", "1")
+        self.lock_as("worker-b", "2")
+        self.set_live_workers("worker-a", "worker-b")
+        self.assertTrue(rate_limit_tasks(self.task_name, self.schema))
+
+    def test_lock_of_dead_worker_does_not_count(self):
+        """A lock whose worker is gone does not count toward the limit."""
+        self.lock_as("worker-a", "1")
+        self.lock_as("worker-dead", "2")
+        self.set_live_workers("worker-a")
+        self.assertFalse(rate_limit_tasks(self.task_name, self.schema))
+
+    def test_locks_of_dead_workers_only(self):
+        """Locks held only by dead workers never rate limit."""
+        self.lock_as("worker-dead-1", "1")
+        self.lock_as("worker-dead-2", "2")
+        self.set_live_workers("worker-a")
+        self.assertFalse(rate_limit_tasks(self.task_name, self.schema))
+
+    def test_expired_locks_of_live_workers_do_not_count(self):
+        """Expired locks stay ignored when the live worker set is known."""
+        self.lock_as("worker-a", "1")
+        self.lock_as("worker-a", "2")
+        self.set_live_workers("worker-a")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE public.worker_cache_table SET expires = now() - interval '1 minute' WHERE cache_key LIKE %s",
+                [f"%{self.task_name}%"],
+            )
+        self.assertFalse(rate_limit_tasks(self.task_name, self.schema))
+
+    def test_other_schema_and_task_locks_do_not_count(self):
+        """Locks for another schema or another task do not count."""
+        self.lock_as("worker-a", "1")
+        self.lock_as("worker-a", "2", schema="org7654321")
+        self.lock_as("worker-a", "3", task_name="masu.processor.tasks.update_cost_model_costs")
+        self.set_live_workers("worker-a")
+        self.assertFalse(rate_limit_tasks(self.task_name, self.schema))
+
+    def test_unknown_live_workers_counts_every_lock(self):
+        """Without a live worker set every unexpired lock counts, as before."""
+        self.lock_as("worker-dead-1", "1")
+        self.lock_as("worker-dead-2", "2")
+        DB_WORKER_CACHE.delete("keys")
+        self.assertTrue(rate_limit_tasks(self.task_name, self.schema))
+
+    def test_lock_with_unresolvable_key_counts(self):
+        """A lock row that is not a default-version cache key counts, as before."""
+        self.lock_as("worker-a", "1")
+        self.set_live_workers("worker-a")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO public.worker_cache_table (cache_key, value, expires) "
+                "VALUES (%s, 'x', now() + interval '1 hour')",
+                [f":2:{self.task_name}:{self.schema}:2"],
+            )
+        self.assertTrue(rate_limit_tasks(self.task_name, self.schema))
