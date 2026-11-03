@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import faker
 import requests_mock
+from dateutil.relativedelta import relativedelta
 from django.test import override_settings
 from django_tenants.utils import tenant_context
 from model_bakery import baker
@@ -538,6 +539,12 @@ class TestCeleryTasks(MasuTestCase):
             )
             self.assertEqual(mer.rate_type, RateType.DYNAMIC)
             self.assertEqual(mer.exchange_rate, Decimal("0.87"))
+            next_month = current_month + relativedelta(months=1)
+            next_mer = MonthlyExchangeRate.objects.get(
+                effective_date=next_month, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(next_mer.rate_type, RateType.DYNAMIC)
+            self.assertEqual(next_mer.exchange_rate, Decimal("0.87"))
 
             inverse = MonthlyExchangeRate.objects.get(
                 effective_date=current_month, base_currency="EUR", target_currency="USD"
@@ -629,10 +636,19 @@ class TestCeleryTasks(MasuTestCase):
             result = tasks.get_daily_currency_rates()
 
         self.assertIn("CAD", result)
+        next_month = current_month + relativedelta(months=1)
         with tenant_context(self.tenant):
             self.assertTrue(
                 MonthlyExchangeRate.objects.filter(
                     effective_date=current_month, base_currency="USD", target_currency="CAD"
+                ).exists()
+            )
+            self.assertTrue(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=next_month,
+                    base_currency="USD",
+                    target_currency="CAD",
+                    rate_type=RateType.DYNAMIC,
                 ).exists()
             )
 
