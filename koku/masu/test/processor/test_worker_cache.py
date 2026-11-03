@@ -26,11 +26,14 @@ class WorkerCacheTest(MasuTestCase):
         """Set up the test."""
         super().setUp()
         cache.clear()
+        # The worker cache is a process-wide LocMemCache in tests; clear it so tests do not leak state.
+        WorkerCache.cache.clear()
 
     def tearDown(self):
         """Tear down the test."""
         super().tearDown()
         cache.clear()
+        WorkerCache.cache.clear()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_worker_cache(self, mock_inspect):
