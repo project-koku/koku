@@ -2,7 +2,7 @@
 
 Work on the rates-to-usage (RTU) races and cascades found in COST-8113 and Jordi Gil's COST-7249 audit. Everything is collected on one long-running branch and tested in an ephemeral environment with our own data. Findings, decisions and the per-issue work log: [`rtu-race-map.md`](rtu-race-map.md).
 
-Status as of 2026-11-03: fixes 1 and 1b are done and unit-tested; the ephemeral environment runs them; loading test data there is blocked on ephemeral RBAC (see [Known issues](#known-issues)).
+Status as of 2026-11-03: fixes 1 and 1b are done, unit-tested and verified end to end in ephemeral ([Results](#results-2026-11-03)). Found there: distributed RTU rows carry no `rate_id`, so they outlive a removed rate until their month is recalculated (work log item 1c).
 
 ## Artifacts
 
@@ -89,17 +89,33 @@ What each piece does:
 - **Data:** two clusters, `rtu-cluster-a` and `rtu-cluster-b`, both from `static-files/rtu_ocp_on_premise.yaml` on the nise-populator branch (koku's dev on-prem dataset: 12 nodes, GPUs, KubeVirt VMs, PVCs, tags). Rates: the 16 rates of the koku dev on-prem cost model (usage, monthly node/cluster/PVC/VM/project/GPU, tag rates, all distribution types). Both cost models share one price list, so one rate change hits both providers (the Finding E blast radius).
 - **Expected after `verify`:** schema `org7654321` with `0355` as the latest reporting migration; `rates_to_usage FKs` lists only `report_period_id` and `source_uuid`; RTU rows for both sources in both months; zero rows whose rate no longer exists. After `remove-rate`, the removed rate's rows disappear in the current month (recalculation) and in the previous month (`delete_rates_to_usage_rows`).
 
+## Results (2026-11-03)
+
+Namespace `ephemeral-7ctbkc`, image `pr-6425-a5c7320`, RTU flag on, test org `7654321`, data 2026-10-01 .. 2026-11-03.
+
+| Check | Result |
+|---|---|
+| Migration in the tenant | `org7654321` latest reporting migration `0355_rtu_drop_rate_cost_model_fks` |
+| Constraints on `rates_to_usage` | only `report_period_id` and `source_uuid` (cascade) and `cost_category_id`; no `rate_id` / `cost_model_id` FK |
+| RTU written by the pipeline (cluster B) | October 23,622 rows, November 2,265 rows, 13 of the 16 rates produce rows |
+| Remove 3 rates from the shared price list (`cpu_core_usage_per_hour` usage writer, `node_cost_per_month` monthly writer with `rate_uuid` parameter, `vm_cost_per_hour` VM writer) | `Rate` rows deleted; `delete_rates_to_usage_rows` ran within seconds of each PUT and deleted 1,734 / 1,156 / 306 rows (every row carrying those `rate_id`s, both months) in about 25 ms each |
+| November after the recalculation the PUTs triggered | no rows of the removed rates |
+| October | 2,232 rows remain: `worker_distributed` / `platform_distributed` rows with the removed rates' `custom_name` and `rate_id = NULL`. Distribution copies the name but not the ID, so neither the old cascade nor the cleanup task reaches them; the next recalculation of October removes them. Work log item 1c. |
+| Rows whose `rate_id` points to a deleted rate | 0 |
+| Cluster A | First upload hit the Trino/Glue misconfiguration (known issues); re-uploaded after the fix |
+
 ## Known issues
 
 | Issue | Effect | Workaround |
 |---|---|---|
-| **Ephemeral RBAC `GET /api/rbac/v1/access/` returns 404** for every identity (seen 2026-11-03; RBAC is up, `/api/rbac/v1/status/` is 200, the BOP mock knows `jdoe`) | sources-api cannot authorize, so `bulk_create` answers 500 and no source can be registered; blocks step 4 | `SOURCES_BYPASS_RBAC=true KONFLUX_PR=6425 deploy.sh deploy` turns off sources-api's RBAC check in that namespace only. Not done yet: a deliberate decision. Diagnose with `testdata.sh rbac-check` |
+| **Ephemeral RBAC `GET /api/rbac/v1/access/` returns 404** for every identity (seen 2026-11-03; RBAC is up, `/api/rbac/v1/status/` is 200, the BOP mock knows `jdoe`) | sources-api cannot authorize, so `bulk_create` answers 500 and no source can be registered; blocks step 4 | `SOURCES_BYPASS_RBAC=true KONFLUX_PR=6425 deploy.sh deploy` turns off sources-api's RBAC check in that namespace only (approved and used 2026-11-03). Diagnose with `testdata.sh rbac-check` |
 | `dev/config.yaml.local-example` pins Trino `405-002` | Trino `ImagePullBackOff`, no OCP processing | `deploy.sh deploy` no longer uses a local config |
+| Without the runbook's `trino/HIVE_PROPERTIES_FILE=glue.properties` and `trino/GLUE_PROPERTIES_FILE=hive.properties` | Trino looks for a `hive-metastore` that ephemeral does not run; OCP processing fails in `sync_hive_partitions`, manifests never complete | `deploy.sh deploy` sets both; payloads uploaded before the fix must be uploaded again |
 | The `hccm` nise-populator CronJob pod waits for secret key `gcp-credentials-qe` | That pod never starts | Not needed; we run our own toolbox pod |
 | service-docs runbook asks for `creds.txt` | Not needed | `koku-aws` and `koku-gcp` come with the reserved namespace |
 | `oc` tokens expire | Commands fail with 401 | Rerun `~/bin/oc-token.sh eph --setup-context && oc config use-context eph` |
 
 ## Next
 
-1. Unblock sources (RBAC) and run steps 4 and 5; record the results in the work log.
+1. Work log item 1c: distribution copies the source row's `rate_id`, so the cleanup task also removes distributed rows of a deleted rate.
 2. Work log item 2 onward in [`rtu-race-map.md`](rtu-race-map.md).
