@@ -653,16 +653,8 @@ class TestPrecreatePartitionTasks(MasuTestCase):
         self.assertNotIn("template0", queued)
         self.assertEqual(set(queued.values()), {"2032-01-01"})
 
-    @patch("masu.celery.tasks.precreate_monthly_partitions")
-    @patch("masu.celery.tasks.is_feature_flag_enabled_by_schema", return_value=False)
-    def test_precreate_schema_partitions_flag_off(self, _mock_flag, mock_precreate):
-        """With the flag off nothing is created."""
-        tasks.precreate_schema_partitions(self.schema, "2032-01-01")
-        mock_precreate.assert_not_called()
-
     @patch("masu.celery.tasks.precreate_monthly_partitions", return_value={"created": 2})
-    @patch("masu.celery.tasks.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_precreate_schema_partitions_flag_on(self, _mock_flag, mock_precreate):
-        """With the flag on the schema's partitions for the month are created."""
+    def test_precreate_schema_partitions(self, mock_precreate):
+        """The schema's partitions for the month are created."""
         tasks.precreate_schema_partitions(self.schema, "2032-01-01")
         mock_precreate.assert_called_once_with(self.schema, "2032-01-01")

@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider Mapper for Reports."""
-from masu.processor import is_feature_flag_enabled_by_schema
-from masu.processor import OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG
 
 
 class ProviderMap:
@@ -69,14 +67,12 @@ class ProviderMap:
         if not getattr(self, "_mapping"):
             self._mapping = [{}]
 
-    def add_cluster_summary_views(self, schema_name):
+    def add_cluster_summary_views(self):
         """Serve cluster group-bys and filters from each report type's default summary table.
 
         The OCP-on-cloud summary tables are aggregated per cluster and day, so without these
         entries a cluster group-by falls back to the much larger line-item daily summary.
         """
-        if not is_feature_flag_enabled_by_schema(schema_name, OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG, dev_fallback=True):
-            return
         for report_views in self.views.values():
             report_views.setdefault(("cluster",), report_views["default"])
 

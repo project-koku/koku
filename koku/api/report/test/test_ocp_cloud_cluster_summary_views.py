@@ -4,10 +4,10 @@
 #
 """Tests for serving OCP-on-cloud cluster group-bys from the summary tables.
 
-``OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG`` maps a cluster group-by or filter to each
+``ProviderMap.add_cluster_summary_views`` maps a cluster group-by or filter to each
 report type's default summary table instead of the line-item daily summary.  The
 summary tables are aggregated per cluster and day, so report output must be
-identical with the flag on and off.
+identical to the line-item reports.
 """
 from datetime import date
 from decimal import Decimal
@@ -34,7 +34,6 @@ from api.report.azure.openshift.view import OCPAzureStorageView
 from api.report.test.ocp.test_cluster_filter_index_hint import _canonical_rows
 from api.report.test.ocp.test_cluster_filter_index_hint import _ranking
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.processor import OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG
 from reporting.models import OCPAllComputeSummaryPT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostSummaryPT
@@ -48,7 +47,7 @@ from reporting.models import OCPAzureCostSummaryP
 from reporting.models import OCPAzureStorageSummaryP
 from reporting.models import TenantAPIProvider
 
-FLAG_TARGET = "api.report.provider_map.is_feature_flag_enabled_by_schema"
+SUMMARY_VIEWS = "api.report.provider_map.ProviderMap.add_cluster_summary_views"
 
 PROVIDERS = {
     "OCP-on-AWS": {
@@ -89,21 +88,21 @@ PROVIDERS = {
 
 
 class OCPCloudClusterSummaryViewsTest(IamTestCase):
-    """Cluster group-bys use the summary tables only with the flag on, with the same output."""
+    """Cluster group-bys use the summary tables, with the same output as the line items."""
 
     LAST_MONTH = "filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
     DAILY = "filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
 
-    def _handler(self, provider, view, url, enabled):
-        def _side_effect(schema, feature_flag, *args, **kwargs):
-            return enabled and feature_flag == OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG
-
-        with patch(FLAG_TARGET, side_effect=_side_effect):
-            query_params = self.mocked_query_params(url, view)
+    def _handler(self, provider, view, url, summary_views):
+        """Build a handler; summary_views=False keeps the line-item routing for comparison."""
+        query_params = self.mocked_query_params(url, view)
+        if summary_views:
+            return PROVIDERS[provider]["handler"](query_params)
+        with patch(SUMMARY_VIEWS, lambda self: None):
             return PROVIDERS[provider]["handler"](query_params)
 
     def test_query_table_for_cluster_group_by(self):
-        """The flag routes cluster group-bys and filters to each report type's summary table."""
+        """Cluster group-bys and filters are routed to each report type's summary table."""
         for provider, config in PROVIDERS.items():
             for view, summary_table in config["tables"].items():
                 for url in ("?group_by[cluster]=*", "?filter[cluster]=my-cluster"):
