@@ -5,6 +5,7 @@
 """Test dropping offline workers from the worker cache."""
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test.utils import override_settings
 
 from masu.processor.worker_cache import WORKER_OFFLINE_GRACE_SECONDS
@@ -56,6 +57,8 @@ class WorkerPruningTest(MasuTestCase):
         self.assertNotIn("worker-b", cache.worker_cache_keys)
         self.assertEqual(sorted(cache.get_all_running_tasks()), [1])
         self.assertFalse(cache.single_task_is_running(TASK, TASK_ARGS))
+        # Its task list is deleted too, so a worker coming back under the same name starts empty.
+        self.assertIsNone(WorkerCache.cache.get(settings.WORKER_CACHE_KEY, version="worker-b"))
 
     def test_no_replies_drops_nothing(self):
         """Without any inspect reply liveness is unknown, so no worker is dropped."""
