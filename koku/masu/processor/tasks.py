@@ -1144,6 +1144,8 @@ def update_cost_model_costs(  # noqa: C901
         timeout = settings.WORKER_CACHE_TIMEOUT
         fallback_queue = get_customer_queue(schema_name, CostModelQueue)
         rate_limited = False
+        if fallback_queue != CostModelQueue.DEFAULT:
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
