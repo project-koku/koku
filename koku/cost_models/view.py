@@ -30,6 +30,7 @@ from api.currency.currencies import get_enabled_currency_codes
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
+from cost_models.rtu_cleanup import schedule_rates_to_usage_cleanup
 from cost_models.serializers import CostModelSerializer
 
 LOG = logging.getLogger(__name__)
@@ -181,6 +182,12 @@ class CostModelViewSet(viewsets.ModelViewSet):
         except ValidationError as err:
             raise CostModelQueryException(err)
         return super().destroy(request=request, args=args, kwargs=kwargs)
+
+    def perform_destroy(self, instance):
+        """Delete the cost model and schedule removal of its rates_to_usage rows (no FK cascade)."""
+        cost_model_uuid = instance.uuid
+        super().perform_destroy(instance)
+        schedule_rates_to_usage_cleanup(cost_model_ids=[cost_model_uuid])
 
     @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):

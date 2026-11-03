@@ -23,6 +23,7 @@ All fixes land on the long-running branch **`mpovolny/rtu-hardening`** (from `ma
 | # | Issue | Status | Commit |
 |---|---|---|---|
 | 1 | Drop the `rate_id` and `cost_model_id` FK constraints and cascades on `rates_to_usage` (Finding E, R8, R11 part) | Done: migration `0355`, model `DO_NOTHING` + `db_constraint=False`, tests rewritten to the new contract | `d50cafd5e` |
+| 1b | Remove RTU rows of deleted rates and cost models now that the cascade is gone. RTU is intermediate (no API reads it; only the pipeline, scoped to the run's window), and recalculation rebuilds only the processed months, so older months would keep dead rows | Done: task `delete_rates_to_usage_rows` (cost model queue, one indexed `DELETE ... WHERE rate_id = ANY(...) OR cost_model_id = ANY(...)`), scheduled `on_commit` by `sync_rate_table` (removed rates), `PriceListManager.delete` (its rates) and cost model DELETE; never inside the API request, nothing on rollback | see `git log` |
 | 2 | Atomic price list PUT and cost model PUT (R4, R5), without the advisory lock | To do: port from #6414, tests via an invalid `rate_id` instead of a lock timeout | |
 | 3 | `report_period_id` / `source_uuid` FKs: explicit RTU deletes in `Provider.delete()` and the retention purge, then drop those cascades too (Findings B, F, COST-8112) | To do: decide after 1 and 2 | |
 | 4 | Writers that set `rate_id` without the provider lock (usage rates, monthly, tag, VM, GPU) (R7) | To do: needed only for the report-period/source FKs once 1 is in | |
