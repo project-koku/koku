@@ -10,6 +10,7 @@ from django.db import connection
 from django.test.utils import override_settings
 
 from masu.processor.worker_cache import rate_limit_tasks
+from masu.processor.worker_cache import WORKER_OFFLINE_GRACE_SECONDS
 from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
 
@@ -21,11 +22,14 @@ class WorkerCacheTest(MasuTestCase):
         """Set up the test."""
         super().setUp()
         cache.clear()
+        # The worker cache is a process-wide LocMemCache in tests; clear it so tests do not leak state.
+        WorkerCache.cache.clear()
 
     def tearDown(self):
         """Tear down the test."""
         super().tearDown()
         cache.clear()
+        WorkerCache.cache.clear()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_worker_cache(self, mock_inspect):
@@ -155,8 +159,9 @@ class WorkerCacheTest(MasuTestCase):
         self.assertEqual(_cache.active_workers, [])
 
     @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache._now", return_value=1_700_000_000.0)
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    def test_remove_offline_worker_keys(self, mock_inspect):
+    def test_remove_offline_worker_keys(self, mock_inspect, mock_now):
         """Test the remove_offline_worker_keys function."""
         second_host = "kokuworker2"
         first_host_list = [1, 2, 3]
@@ -171,13 +176,14 @@ class WorkerCacheTest(MasuTestCase):
             _cache.add_task_to_cache(task)
 
         with override_settings(HOSTNAME=second_host):
-            _cache = WorkerCache()
+            second_cache = WorkerCache()
             for task in second_host_list:
-                _cache.add_task_to_cache(task)
+                second_cache.add_task_to_cache(task)
 
         self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(all_work_list))
 
-        # kokuworker2 goes offline
+        # kokuworker2 goes offline and stays unseen for longer than the grace period
+        mock_now.return_value += WORKER_OFFLINE_GRACE_SECONDS + 1
         mock_inspect.reset()
         mock_worker_list = {"celery@kokuworker": ""}
         mock_inspect.reserved.return_value = mock_worker_list
