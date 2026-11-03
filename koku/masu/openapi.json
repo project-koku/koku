@@ -89,6 +89,10 @@
         {
             "name": "Manifests",
             "description": "An endpoint to review the status of manifest and reportstatus entries."
+        },
+        {
+            "name": "Feature Flags",
+            "description": "Evaluate Unleash feature flags for a tenant schema."
         }
     ],
     "paths": {
@@ -2164,6 +2168,60 @@
                     "Invalidate Cache"
                 ]
             }
+        },
+        "/feature-flags/": {
+            "get": {
+                "summary": "Evaluate Unleash feature flags for a tenant schema",
+                "operationId": "getSchemaFeatureFlags",
+                "description": "Return whether selected schema-scoped Unleash flags are enabled for an existing tenant schema. When flags is omitted, a curated ops default list is evaluated. An explicit empty flags value is rejected.",
+                "parameters": [
+                    {
+                        "name": "schema",
+                        "in": "query",
+                        "description": "Tenant schema name (for example acct12345 or org12345).",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "acct12345"
+                        }
+                    },
+                    {
+                        "name": "flags",
+                        "in": "query",
+                        "description": "Optional comma-separated Unleash flag names. Omit to use the curated default list. Empty or whitespace-only values return 400.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "cost-management.backend.penalty-customer,cost-management.backend.ocp_tag_mapping_statement_timeout"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Schema and enabled/disabled state for each evaluated flag.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SchemaFeatureFlagsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing/unknown schema, or empty flags selection.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SchemaFeatureFlagsErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Feature Flags"
+                ]
+            }
         }
     },
     "components": {
@@ -3417,6 +3475,49 @@
                     "url": {
                         "type": "string",
                         "description": "The URL to further information about the error."
+                    }
+                }
+            },
+            "SchemaFeatureFlagsResponse": {
+                "type": "object",
+                "required": [
+                    "schema",
+                    "flags"
+                ],
+                "properties": {
+                    "schema": {
+                        "type": "string",
+                        "example": "acct12345"
+                    },
+                    "flags": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "boolean"
+                        },
+                        "example": {
+                            "cost-management.backend.penalty-customer": true,
+                            "cost-management.backend.ocp_tag_mapping_statement_timeout": false
+                        }
+                    }
+                }
+            },
+            "SchemaFeatureFlagsErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "detail": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string",
+                                    "example": "400"
+                                }
+                            }
+                        }
                     }
                 }
             }
