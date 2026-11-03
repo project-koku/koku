@@ -89,6 +89,8 @@ secrets)
 deploy)
     # Everything from app-interface (current trino, rbac, ...); only koku's template ref and image
     # are overridden. Bonfire fetches the template from GitHub by full SHA, so push the branch first.
+    # The two trino parameters (from the service-docs runbook) point Trino's hive catalog at AWS Glue:
+    # ephemeral has no hive-metastore, and without them OCP processing fails in sync_hive_partitions.
     # SOURCES_BYPASS_RBAC=true (opt-in) turns off sources-api's RBAC check in this namespace only.
     # Needed while RBAC's /api/rbac/v1/access/ returns 404 in ephemeral (seen 2026-11-03): sources-api
     # then answers 500 to every source registration. Decide deliberately; see README "Known issues".
@@ -103,6 +105,8 @@ deploy)
         --set-parameter "koku/IMAGE=${IMAGE}" \
         --set-parameter "koku/IMAGE_TAG=${IMAGE_TAG}" \
         ${extra[@]+"${extra[@]}"} \
+        --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
+        --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
         --no-remove-resources koku \
         --no-remove-resources trino \
         --namespace "$(namespace)" | oc apply -f - -n "$(namespace)"
