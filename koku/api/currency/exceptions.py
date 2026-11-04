@@ -14,12 +14,23 @@ class ExchangeRateNotFound(ValidationError):
         missing_pairs = ", ".join(f"{base} -> {target_currency}" for base in base_currencies)
         if missing_months:
             months_str = ", ".join(m.strftime("%Y-%m") for m in sorted(missing_months))
-            detail = f"Exchange rate missing for {missing_pairs} for months: {months_str}."
+            detail = (
+                f"Exchange rate missing to convert costs into {target_currency} for {missing_pairs} "
+                f"for months: {months_str}."
+            )
         else:
-            detail = f"No exchange rate available for {missing_pairs} for {start_date} to {end_date}."
+            detail = (
+                f"No exchange rate available to convert costs into {target_currency} for {missing_pairs} "
+                f"for {start_date} to {end_date}."
+            )
 
+        detail += (
+            " Costs are stored in the source currency; preferred currency is the conversion target."
+            f" Ask your administrator to configure static exchange rates for each missing"
+            f" source -> {target_currency} pair (the reverse direction is not used)"
+        )
         if settings.CURRENCY_URL:
-            detail += " Ask your administrator to configure static exchange rates."
+            detail += "."
         else:
-            detail += " Ask your administrator to configure static exchange rates or enable dynamic exchange rates."
+            detail += " or enable dynamic exchange rates."
         super().__init__({"currency": detail})
