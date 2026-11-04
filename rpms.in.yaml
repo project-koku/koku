@@ -1,0 +1,28 @@
+# Generated with rpm-lockfile-prototype:
+# podman run --rm -v ${PWD}:/work:z localhost/rpm-lockfile-prototype:latest --outfile=rpms.lock.yaml rpms.in.yaml
+installWeakDeps: false
+contentOrigin:
+  repofiles:
+    - ./ubi.repo
+packages:
+  # Base runtime packages (existing)
+  - python3.11
+  - python3.11-devel
+  - glibc-langpack-en
+  - gcc-c++
+  - shadow-utils
+
+  # Build dependencies for Python C extensions (BaseOS/AppStream)
+  - libffi-devel          # for cffi
+  - openssl-devel         # for cryptography
+  - libzstd-devel         # for zstandard
+
+  # Build dependencies requiring CodeReady Builder (CRB)
+  - postgresql-devel      # for psycopg2 (if building from source)
+  - openblas-devel        # for numpy, scipy, pandas (includes LAPACK)
+  - lz4-devel             # for lz4
+arches:
+  - x86_64
+context:
+  containerfile:
+    file: Dockerfile
