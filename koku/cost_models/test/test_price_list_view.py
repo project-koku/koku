@@ -1080,6 +1080,67 @@ class PriceListRatesIntegrationTest(IamTestCase):
             self.assertTrue(rate["custom_name"])
             self.assertIn("cost_type", rate)
 
+    def test_rates_response_matches_openapi_schema(self):
+        """Every field the rates endpoint returns is documented, and no rate identifier is documented."""
+        import json
+        import os
+
+        from django.conf import settings
+
+        with open(os.path.join(settings.BASE_DIR, "..", "docs/specs/openapi.json")) as spec_file:
+            spec = json.load(spec_file)
+        schemas = spec["components"]["schemas"]
+        documented = set(schemas["PriceListRateOut"]["properties"])
+        self.assertIn("/price-lists/{price_list_uuid}/rates/", spec["paths"])
+        for name in ("PriceListRateOut", "TieredRate", "TagRate"):
+            self.assertFalse({"rate_id", "uuid"} & set(schemas[name]["properties"]), name)
+
+        pl_uuid = self._create_diverse_price_list()
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(url, {"limit": "100"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for rate in response.data["data"]:
+            self.assertLessEqual(set(rate), documented)
+            self.assertLessEqual(
+                set(rate["metric"]), set(schemas["PriceListRateOut"]["properties"]["metric"]["properties"])
+            )
+
+    def test_documented_query_parameters_are_accepted(self):
+        """Every query parameter openapi.json documents for the price list list and rates endpoints returns 200."""
+        import json
+        import os
+        from uuid import uuid4
+
+        from django.conf import settings
+
+        with open(os.path.join(settings.BASE_DIR, "..", "docs/specs/openapi.json")) as spec_file:
+            spec = json.load(spec_file)
+
+        def sample(param):
+            if "example" in param:
+                example = param["example"]
+                return example[0] if isinstance(example, list) else example
+            schema = param["schema"]
+            if schema.get("enum"):
+                return schema["enum"][0]
+            items = schema.get("items", schema)
+            if items.get("format") == "uuid" or schema.get("format") == "uuid":
+                return str(uuid4())
+            return {"boolean": "true", "integer": "1"}.get(schema.get("type"), "x")
+
+        pl_uuid = self._create_diverse_price_list()
+        endpoints = {
+            "/price-lists/": reverse("price-lists-list"),
+            "/price-lists/{price_list_uuid}/rates/": reverse("price-lists-rates", kwargs={"uuid": pl_uuid}),
+        }
+        for path, url in endpoints.items():
+            for param in spec["paths"][path]["get"]["parameters"]:
+                if "$ref" in param or param["in"] != "query":
+                    continue
+                with self.subTest(path=path, param=param["name"]):
+                    response = self.client.get(url, {param["name"]: sample(param)}, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
     # --- TC-121: Rates endpoint filters by metric_type via HTTP ---
 
     def test_rates_endpoint_filters_metric_type_via_http(self):
