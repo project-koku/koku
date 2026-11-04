@@ -175,6 +175,19 @@ def cmd_remove_rate(args):
     print(json.dumps({"removed_custom_name": target, "removed_rate_id": removed.get("rate_id")}))
 
 
+def cmd_delete_source(args):
+    """Scenario E8: delete one cluster's source through sources-api; koku then deletes the provider."""
+    name = CLUSTERS[args.cluster]
+    for source in call("GET", f"{SOURCES_API}/sources", params={"limit": 1000})["data"]:
+        if source["name"] == name:
+            response = requests.delete(f"{SOURCES_API}/sources/{source['id']}", headers=headers(), timeout=120)
+            if response.status_code != 204:
+                sys.exit(f"DELETE source -> {response.status_code}: {response.text[:500]}")
+            print(json.dumps({"deleted_source_id": source["id"], "name": name}))
+            return
+    sys.exit(f"no source named {name!r}")
+
+
 def cmd_delete_cost_model(args):
     """Scenario E4: delete the cost model of one cluster through the API."""
     name = f"RTU cost model {args.cluster}"
@@ -266,6 +279,9 @@ def main():
     delete_cm.add_argument("--cluster", default="rtu-cluster-a", choices=sorted(CLUSTERS))
     delete_cm.set_defaults(func=cmd_delete_cost_model)
     sub.add_parser("scratch-price-list").set_defaults(func=cmd_scratch_price_list)
+    delete_source = sub.add_parser("delete-source")
+    delete_source.add_argument("--cluster", default="rtu-cluster-b", choices=sorted(CLUSTERS))
+    delete_source.set_defaults(func=cmd_delete_source)
     e6 = sub.add_parser("e6")
     e6.add_argument("--cluster", default="rtu-cluster-b", choices=sorted(CLUSTERS))
     e6.add_argument("--custom-name", default="cluster_cost_per_month-Infrastructure")

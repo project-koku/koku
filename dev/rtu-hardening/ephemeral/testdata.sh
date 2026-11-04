@@ -115,6 +115,10 @@ delete-cost-model)
     # Scenario E4; optional second argument rtu-cluster-a (default) or rtu-cluster-b
     in_pod python3 /tmp/rtu/rtu_setup.py delete-cost-model ${2:+--cluster "$2"}
     ;;
+delete-source)
+    # Scenario E8; optional second argument rtu-cluster-b (default) or rtu-cluster-a
+    in_pod python3 /tmp/rtu/rtu_setup.py delete-source ${2:+--cluster "$2"}
+    ;;
 e6)
     # Scenario E6: recalculate the previous month for rtu-cluster-b and remove a rate DELAY seconds later
     prev_start="$(python3 -c 'import datetime as d; t = d.date.today().replace(day=1) - d.timedelta(days=1); print(t.replace(day=1))')"
