@@ -115,6 +115,29 @@ delete-cost-model)
     # Scenario E4; optional second argument rtu-cluster-a (default) or rtu-cluster-b
     in_pod python3 /tmp/rtu/rtu_setup.py delete-cost-model ${2:+--cluster "$2"}
     ;;
+rates-check)
+    # Items 6 and 9: rates endpoint returns complete rates and no rate_id
+    in_pod python3 /tmp/rtu/rtu_setup.py rates-check
+    ;;
+put-rates-unnamed)
+    # Item 6: PUT the price list rates without custom_name; compare Rate UUIDs with rate-ids before and after
+    in_pod python3 /tmp/rtu/rtu_setup.py put-rates-unnamed
+    ;;
+rate-ids)
+    db -At -c "SELECT custom_name || ' ' || uuid FROM ${SCHEMA}.cost_model_rate ORDER BY custom_name;"
+    ;;
+recalc)
+    # Item 4: recalc START END [QUEUE] [CLUSTER]; two overlapping windows on different queues (priority,
+    # cost_model) run in parallel, since each worker has one process
+    in_pod python3 /tmp/rtu/rtu_setup.py recalc --start-date "$2" --end-date "$3" ${4:+--queue "$4"} ${5:+--cluster "$5"}
+    ;;
+rtu-totals)
+    # Item 4: RTU rows and cost per month for a cluster (default A); must not change between serial and overlapping runs
+    db -c "SELECT date_trunc('month', r.usage_start)::date AS month, count(*) AS rtu_rows,
+                  sum(r.calculated_cost)::numeric(18,2) AS cost
+           FROM ${SCHEMA}.rates_to_usage r JOIN public.api_provider p ON p.uuid = r.source_uuid
+           WHERE p.name = '${2:-RTU cluster A}' GROUP BY 1 ORDER BY 1;"
+    ;;
 delete-source)
     # Scenario E8; optional second argument rtu-cluster-b (default) or rtu-cluster-a
     in_pod python3 /tmp/rtu/rtu_setup.py delete-source ${2:+--cluster "$2"}
