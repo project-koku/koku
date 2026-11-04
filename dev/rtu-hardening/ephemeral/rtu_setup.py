@@ -210,6 +210,25 @@ def cmd_scratch_price_list(_):
     print(json.dumps({"created_and_deleted_price_list": pl["uuid"], "rates": len(pl["rates"])}))
 
 
+def cmd_e6(args):
+    """Scenario E6: remove a rate while a cost model recalculation for a past month is running."""
+    sources = koku_sources()
+    provider_uuid = sources[CLUSTERS[args.cluster]]["uuid"]
+    masu = os.environ.get("MASU_API", "http://koku-clowder-masu:10000/api/cost-management/v1")
+    params = {
+        "provider_uuid": provider_uuid,
+        "schema": f"org{ORG_ID}",
+        "start_date": args.start_date,
+        "end_date": args.end_date,
+    }
+    started = time.strftime("%H:%M:%S", time.gmtime())
+    response = requests.get(f"{masu}/update_cost_model_costs/", params=params, timeout=120)
+    print(f"{started} triggered update_cost_model_costs {params}: {response.status_code} {response.text[:200]}")
+    time.sleep(args.delay)
+    print(f"{time.strftime('%H:%M:%S', time.gmtime())} removing rate {args.custom_name!r}")
+    args.func_remove(argparse.Namespace(custom_name=args.custom_name))
+
+
 def cmd_rbac_check(_):
     """sources-api asks RBAC for the caller's access; RBAC must know the org (404 otherwise)."""
     response = requests.get(
@@ -247,6 +266,13 @@ def main():
     delete_cm.add_argument("--cluster", default="rtu-cluster-a", choices=sorted(CLUSTERS))
     delete_cm.set_defaults(func=cmd_delete_cost_model)
     sub.add_parser("scratch-price-list").set_defaults(func=cmd_scratch_price_list)
+    e6 = sub.add_parser("e6")
+    e6.add_argument("--cluster", default="rtu-cluster-b", choices=sorted(CLUSTERS))
+    e6.add_argument("--custom-name", default="cluster_cost_per_month-Infrastructure")
+    e6.add_argument("--start-date", required=True)
+    e6.add_argument("--end-date", required=True)
+    e6.add_argument("--delay", type=float, default=5.0, help="seconds between trigger and rate removal")
+    e6.set_defaults(func=cmd_e6, func_remove=cmd_remove_rate)
     args = parser.parse_args()
     args.func(args)
 
