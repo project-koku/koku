@@ -175,6 +175,41 @@ def cmd_remove_rate(args):
     print(json.dumps({"removed_custom_name": target, "removed_rate_id": removed.get("rate_id")}))
 
 
+def cmd_delete_cost_model(args):
+    """Scenario E4: delete the cost model of one cluster through the API."""
+    name = f"RTU cost model {args.cluster}"
+    for cost_model in call("GET", f"{KOKU_API}/cost-models/", params={"limit": 100})["data"]:
+        if cost_model["name"] == name:
+            response = requests.delete(f"{KOKU_API}/cost-models/{cost_model['uuid']}/", headers=headers(), timeout=120)
+            if response.status_code != 204:
+                sys.exit(f"DELETE cost model -> {response.status_code}: {response.text[:500]}")
+            print(json.dumps({"deleted_cost_model": cost_model["uuid"], "name": name}))
+            return
+    sys.exit(f"no cost model named {name!r}")
+
+
+def cmd_scratch_price_list(_):
+    """Scenario E5: create an unassigned price list with one rate, then delete it."""
+    template = json.load(open(COST_MODEL_JSON))
+    first_of_month = date.today().replace(day=1)
+    pl = call(
+        "POST",
+        f"{KOKU_API}/price-lists/",
+        json={
+            "name": "RTU scratch price list",
+            "description": "RTU hardening scenario E5, deleted right away",
+            "currency": "USD",
+            "effective_start_date": str(first_of_month),
+            "effective_end_date": "2099-12-31",
+            "rates": template["rates"][:1],
+        },
+    )
+    response = requests.delete(f"{KOKU_API}/price-lists/{pl['uuid']}/", headers=headers(), timeout=120)
+    if response.status_code != 204:
+        sys.exit(f"DELETE price list -> {response.status_code}: {response.text[:500]}")
+    print(json.dumps({"created_and_deleted_price_list": pl["uuid"], "rates": len(pl["rates"])}))
+
+
 def cmd_rbac_check(_):
     """sources-api asks RBAC for the caller's access; RBAC must know the org (404 otherwise)."""
     response = requests.get(
@@ -208,6 +243,10 @@ def main():
     remove.set_defaults(func=cmd_remove_rate)
     sub.add_parser("show").set_defaults(func=cmd_show)
     sub.add_parser("rbac-check").set_defaults(func=cmd_rbac_check)
+    delete_cm = sub.add_parser("delete-cost-model")
+    delete_cm.add_argument("--cluster", default="rtu-cluster-a", choices=sorted(CLUSTERS))
+    delete_cm.set_defaults(func=cmd_delete_cost_model)
+    sub.add_parser("scratch-price-list").set_defaults(func=cmd_scratch_price_list)
     args = parser.parse_args()
     args.func(args)
 
