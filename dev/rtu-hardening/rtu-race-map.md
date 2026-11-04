@@ -259,6 +259,35 @@ Reading: the `rate_id` FK race (Finding E) involves only the first four rows. Wi
 | [#6274](https://github.com/project-koku/koku/pull/6274) | [COST-8126](https://redhat.atlassian.net/browse/COST-8126) | `lock_timeout` on [#6268](https://github.com/project-koku/koku/pull/6268)'s session lock | [COST-8126](https://redhat.atlassian.net/browse/COST-8126) | Closed 2026-11-04, superseded by [#6425](https://github.com/project-koku/koku/pull/6425) (cascades removed instead of locked around) |
 | [#6414](https://github.com/project-koku/koku/pull/6414) | [COST-8113](https://redhat.atlassian.net/browse/COST-8113) | Shared `koku/advisory_locks.py`; transaction-level locks in `sync_rate_table` only when deleting rates; 5 s budget → 409; flag `rate_sync_provider_lock`; atomic price list and cost model PUTs | E, G, R1–R6 | Closed 2026-11-04, superseded by [#6425](https://github.com/project-koku/koku/pull/6425) (cascades removed instead of locked around) |
 
+## Next steps (2026-11-04)
+
+### Changes to the solution
+
+Reviewed after all work log items were done. In priority order:
+
+| # | Change | Why | State |
+|---|---|---|---|
+| S1 | Test whether the **legacy** (non-RTU) writers double-count under overlapping recalculations | Item 4 proved overlapping runs double RTU rows and locked the RTU writers only when `use_rtu=True`. The legacy `populate_monthly_cost_sql` deletes its window's monthly-cost rows from the daily summary and inserts new ones as separate statements, unlocked, and WorkerCache lets overlapping windows run together: possibly doubled monthly costs in prod today. Not yet tested | To do: adapt `test_rtu_writer_lock` to the legacy monthly writer; if it doubles, separate ticket and PR first |
+| S2 | Decide: per-provider-month single-flight in `update_cost_model_costs` instead of per-writer locks | Fixes the overlap at its root for every table (RTU and legacy); item 4's decorator must otherwise be remembered on every new writer. Costs some parallelism within a month | Decision |
+| S3 | Spike: does `rates_to_usage` need to persist between runs? | Its persistence is what needed cascades, cleanup, explicit deletes and locks. If every consumer reads it within one run, a per-run scope removes most of that. Partial-window runs may depend on earlier rows: verify | Before the RTU flag goes on |
+| S4 | Periodic sweep of RTU rows whose source, report period or rate is gone | Without FKs a run racing a delete can leave rows until the next rebuild or retention; a cheap sweep in the expired-data task bounds that | Before the RTU flag goes on |
+| S5 | Ship fewer, smaller PRs (below) | The flag is off and RTU is empty, so the RTU ordering constraints are moot until it goes on; the fixes that matter now can merge independently | In progress |
+| S6 | Small: document the remaining name-matching edge case (item 6), close E6's race window with an injected delay, remove #6102's `Provider.delete()` lock | Leftovers from the review | To do |
+
+### Split into PRs
+
+Small PRs for the fixes that matter now, independent of the RTU flag, each linking back to [#6425](https://github.com/project-koku/koku/pull/6425):
+
+| Item | PR | Contents | Depends on |
+|---|---|---|---|
+| 2 | to open | Atomic price list and cost model PUTs | nothing |
+| 5 | to open | Partition drop one table per statement (+ TC-51 test update) | nothing |
+| 6 | to open | Read-only rates GET, rate identity for JSON without `rate_id` | nothing |
+| 9 | to open | No `rate_id` in the rates endpoint; design docs record the CM-7 decision | nothing |
+| 7 | to open | OpenAPI for the price list endpoints, contract tests | 9 (its contract test needs the rates response without `rate_id`) |
+
+The RTU work proper (1, 1b, 1c, 3, 4) follows as the code PR plus one PR per migration, per the merge and ship order below.
+
 ## Merge and ship order
 
 How the branch splits into PRs, and in which order they reach production. Migrations go in their own PRs (repo rule). Branch commits that mix code and migration (items 1 and 3) are split when the PRs are cut.
