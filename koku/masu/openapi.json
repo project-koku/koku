@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).\n\nOn-prem (ONPREM=true): allow-listed Masu admin paths require `Authorization: Bearer <MASU_ADMIN_TOKEN>` (shared secret from the Operator). Requests without a valid token return 401. `/status/` remains open for health checks. Support/runbook details for obtaining the token and calling via `oc port-forward` may live with COST-7844.",
+        "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).\n\nOn-prem (ONPREM=true): allow-listed Masu admin paths require `Authorization: Bearer <MASU_ADMIN_TOKEN>` (shared secret from the Operator). Requests without a valid token return 401. `/status/` remains open for health checks. Support/runbook details for obtaining the token and calling via `oc port-forward` may live with COST-7844.\n\nThis document is shared by SaaS and on-prem deployments, and OpenAPI cannot express environment-conditional security. The on-prem Bearer requirement is therefore documented here and on the 401 responses instead of being declared as an operation-level security scheme; in SaaS these operations are reached without a token and rely on network isolation.",
         "version": "1.0.0",
         "title": "Cost Management Admin",
         "license": {
@@ -501,11 +501,6 @@
                         }
                     }
                 ],
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Data summary task has been queued",
@@ -776,7 +771,6 @@
                         }
                     }
                 ],
-                "security": [],
                 "responses": {
                     "200": {
                         "description": "",
@@ -970,11 +964,6 @@
                 "summary": "Returns a list of running celery tasks.",
                 "operationId": "runningCeleryTasks",
                 "description": "Returns a list of running celery tasks.",
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Returns a list of running celery tasks.",
@@ -1020,11 +1009,6 @@
                             "type": "string",
                             "example": "masu.processor.tasks.update_summary_tables"
                         }
-                    }
-                ],
-                "security": [
-                    {
-                        "MasuAdminBearer": []
                     }
                 ],
                 "responses": {
@@ -1082,11 +1066,6 @@
                         }
                     }
                 ],
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "One matching queued task was removed.",
@@ -1132,11 +1111,6 @@
                 "summary": "Returns a list of celery queues with the number of tasks in them.",
                 "operationId": "celeryQueueLength",
                 "description": "Returns a dictionary of queues with queue length.",
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Returns a dictionary of queues with their associated lengths.",
@@ -1194,11 +1168,6 @@
                 "summary": "Returns a table showing the PostgreSQL database software version.",
                 "operationId": "dbPerformanceDbVersion",
                 "description": "Returns a HTML document showing the database version.",
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Returns a HTML document showing the database version.",
@@ -1221,11 +1190,6 @@
                 "summary": "Returns a table showing the PostgreSQL database software version.",
                 "operationId": "dbPerformanceDbSettings",
                 "description": "Returns a HTML document showing the database software settings.",
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Returns a HTML document showing the database software settings.",
@@ -1281,11 +1245,6 @@
                             "format": "int32",
                             "minimum": 1
                         }
-                    }
-                ],
-                "security": [
-                    {
-                        "MasuAdminBearer": []
                     }
                 ],
                 "responses": {
@@ -1371,11 +1330,6 @@
                         }
                     }
                 ],
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Returns a HTML document showing current connection activity.",
@@ -1431,11 +1385,6 @@
                             "format": "int32",
                             "minimum": 1
                         }
-                    }
-                ],
-                "security": [
-                    {
-                        "MasuAdminBearer": []
                     }
                 ],
                 "responses": {
@@ -1495,11 +1444,6 @@
                         }
                     }
                 ],
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Returns a HTML document showing current connection activity.",
@@ -1522,11 +1466,6 @@
                 "summary": "Returns a HTML document interface to submit a query for the database to explain.",
                 "operationId": "dbPerformanceExplainQuery",
                 "description": "Returns a HTML document interface to submit a query for the database to explain.",
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Returns a HTML document interface to submit a query for the database to explain.",
@@ -1570,11 +1509,6 @@
                         }
                     }
                 },
-                "security": [
-                    {
-                        "MasuAdminBearer": []
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Return Plans.",
@@ -2272,14 +2206,6 @@
         }
     },
     "components": {
-        "securitySchemes": {
-            "MasuAdminBearer": {
-                "type": "http",
-                "scheme": "bearer",
-                "bearerFormat": "MASU_ADMIN_TOKEN",
-                "description": "Shared secret for on-prem Masu admin endpoints. Configure via the MASU_ADMIN_TOKEN env var (Operator-mounted Secret). Not required for SaaS; /status/ does not require this token."
-            }
-        },
         "parameters": {
             "ProviderName": {
                 "name": "provider_name",
