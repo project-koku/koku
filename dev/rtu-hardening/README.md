@@ -54,7 +54,7 @@ Prerequisites: VPN, a Kerberos ticket, `bonfire`, `gh`, the koku branch pushed.
 
 ```bash
 # 1. Log in to the ephemeral cluster
-~/bin/oc-token.sh eph --setup-context && oc config use-context eph
+~/bin/oc-token.sh eph --setup-context   # creates/refreshes the eph context; the scripts use it whatever the current context is
 
 # 2. Image: push the branch; Konflux builds it for draft PR #6425
 git push
@@ -116,8 +116,9 @@ Namespace `ephemeral-7ctbkc`, image `pr-6425-a5c7320`, RTU flag on, test org `76
 | Without the runbook's `trino/HIVE_PROPERTIES_FILE=glue.properties` and `trino/GLUE_PROPERTIES_FILE=hive.properties` | Trino looks for a `hive-metastore` that ephemeral does not run; OCP processing fails in `sync_hive_partitions`, manifests never complete | `deploy.sh deploy` sets both; payloads uploaded before the fix must be uploaded again |
 | The `hccm` nise-populator CronJob pod waits for secret key `gcp-credentials-qe` | That pod never starts | Not needed; we run our own toolbox pod |
 | service-docs runbook asks for `creds.txt` | Not needed | `koku-aws` and `koku-gcp` come with the reserved namespace |
-| `oc` tokens expire | Commands fail with 401 | Rerun `~/bin/oc-token.sh eph --setup-context && oc config use-context eph` |
-| Another tool switches the shared kubeconfig's current context (seen 2026-11-04: `clusterbot`) | `oc` calls hit another cluster: `namespaces "ephemeral-..." not found`, bonfire says the cluster has no reservation system | `deploy.sh` and `testdata.sh` pin `oc` to `--context $OC_CONTEXT` (default `eph`); bonfire `reserve`/`release` still need `oc config use-context eph` first |
+| `oc` tokens expire | Commands fail with 401 | Rerun `~/bin/oc-token.sh eph --setup-context` |
+| Another tool switches the shared kubeconfig's current context (seen 2026-11-04: `clusterbot`) | Before the fix: `oc` calls hit another cluster (`namespaces "ephemeral-..." not found`), bonfire says the cluster has no reservation system | Fixed: `deploy.sh` and `testdata.sh` pin `oc` to `--context $OC_CONTEXT` (default `eph`), and `deploy.sh` runs bonfire with a temporary kubeconfig holding only that context. Never needs `oc config use-context` |
+| **Upstream follow-up (bonfire):** bonfire has no `--context` / `--kubeconfig` option (checked on crc-bonfire 6.13.3: `namespace reserve`, `namespace release`, `process` and `deploy`); it always uses the kubeconfig's current context | Without our wrapper, bonfire reserves, deploys or releases on whatever cluster another tool last switched to | Workaround: the `bonfire()` wrapper in `deploy.sh` (temporary kubeconfig from `oc config view --raw --minify --context eph`). Fix later in bonfire: add a global `--context` option (or honour a `BONFIRE_KUBE_CONTEXT` variable) and pass it to its kube client, then drop the wrapper |
 
 ## Next
 

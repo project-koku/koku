@@ -6,8 +6,8 @@
 # Deploy the current branch to an ephemeral namespace with bonfire, without merging anything,
 # and turn the RTU flag on in the namespace's Unleash. Full walkthrough: dev/rtu-hardening/README.md.
 #
-# Prerequisites: `oc` logged in to the ephemeral cluster (e.g. ~/bin/oc-token.sh eph --setup-context
-# && oc config use-context eph), bonfire installed, and the branch pushed. The image comes from the
+# Prerequisites: an `eph` kube context for the ephemeral cluster (~/bin/oc-token.sh eph --setup-context;
+# no need to make it the current context), bonfire installed, and the branch pushed. The image comes from the
 # Konflux build of a draft PR (KONFLUX_PR=<n>), or from your own public quay repo (QUAY_REPO=...).
 #
 # Usage, from the koku repository root:
@@ -21,10 +21,20 @@
 # The reserved namespace is remembered in dev/rtu-hardening/ephemeral/.namespace (git-ignored).
 set -euo pipefail
 
-# Pin oc calls to the ephemeral cluster's context (OC_CONTEXT, default "eph"). bonfire itself uses
-# the kubeconfig's current context, so reserve/release also need `oc config use-context eph` first.
+# Pin every cluster call to the ephemeral cluster's context (OC_CONTEXT, default "eph"), whatever the
+# kubeconfig's current context is (other tools switch it). oc takes --context; bonfire has no such
+# option and follows the current context, so it gets a temporary kubeconfig holding only OC_CONTEXT.
 OC_CONTEXT="${OC_CONTEXT:-eph}"
 oc() { command oc --context "${OC_CONTEXT}" "$@"; }
+bonfire() {
+    local kubeconfig rc=0
+    kubeconfig="$(mktemp)"
+    chmod 600 "${kubeconfig}"
+    command oc config view --raw --minify --context "${OC_CONTEXT}" > "${kubeconfig}"
+    KUBECONFIG="${kubeconfig}" command bonfire "$@" || rc=$?
+    rm -f "${kubeconfig}"
+    return "${rc}"
+}
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${HERE}/../../.." && pwd)"
