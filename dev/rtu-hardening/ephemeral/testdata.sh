@@ -115,6 +115,12 @@ delete-cost-model)
     # Scenario E4; optional second argument rtu-cluster-a (default) or rtu-cluster-b
     in_pod python3 /tmp/rtu/rtu_setup.py delete-cost-model ${2:+--cluster "$2"}
     ;;
+e6)
+    # Scenario E6: recalculate the previous month for rtu-cluster-b and remove a rate DELAY seconds later
+    prev_start="$(python3 -c 'import datetime as d; t = d.date.today().replace(day=1) - d.timedelta(days=1); print(t.replace(day=1))')"
+    prev_end="$(python3 -c 'import datetime as d; print(d.date.today().replace(day=1) - d.timedelta(days=1))')"
+    in_pod python3 /tmp/rtu/rtu_setup.py e6 --start-date "${prev_start}" --end-date "${prev_end}" --delay "${DELAY:-5}" ${2:+--custom-name "$2"}
+    ;;
 scratch-price-list)
     # Scenario E5: create an unassigned price list with one rate and delete it
     in_pod python3 /tmp/rtu/rtu_setup.py scratch-price-list
