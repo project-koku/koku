@@ -271,7 +271,7 @@ Reviewed after all work log items were done. In priority order:
 | S2 | Decide: per-provider-month single-flight in `update_cost_model_costs` instead of per-writer locks | Fixes the overlap at its root for every table (RTU and legacy); item 4's decorator must otherwise be remembered on every new writer. Costs some parallelism within a month | Decision |
 | S3 | Spike: does `rates_to_usage` need to persist between runs? | Its persistence is what needed cascades, cleanup, explicit deletes and locks. If every consumer reads it within one run, a per-run scope removes most of that. Partial-window runs may depend on earlier rows: verify | Before the RTU flag goes on |
 | S4 | Periodic sweep of RTU rows whose source, report period or rate is gone | Without FKs a run racing a delete can leave rows until the next rebuild or retention; a cheap sweep in the expired-data task bounds that | Before the RTU flag goes on |
-| S5 | Ship fewer, smaller PRs (below) | The flag is off and RTU is empty, so the RTU ordering constraints are moot until it goes on; the fixes that matter now can merge independently | Five small PRs open (#6430-#6434); RTU code and migration PRs to follow |
+| S5 | Ship fewer, smaller PRs (below) | The flag is off and RTU is empty, so the RTU ordering constraints are moot until it goes on; the fixes that matter now can merge independently | Six small PRs open (#6430-#6435); RTU code and migration PRs to follow |
 | S6 | Small: document the remaining name-matching edge case (item 6), close E6's race window with an injected delay, remove #6102's `Provider.delete()` lock | Leftovers from the review | To do |
 
 ### Split into PRs
@@ -285,6 +285,7 @@ Small PRs for the fixes that matter now, independent of the RTU flag, each a dra
 | 6 | [#6432](https://github.com/project-koku/koku/pull/6432) (draft) | Read-only rates GET, rate identity for JSON without `rate_id` | nothing |
 | 9 | [#6433](https://github.com/project-koku/koku/pull/6433) (draft) | No `rate_id` in the rates endpoint; design docs record the CM-7 decision | code: nothing; its design-doc text also describes #6432, so merge after #6432 |
 | 7 | [#6434](https://github.com/project-koku/koku/pull/6434) (draft) | OpenAPI for the price list endpoints, contract tests | stacked on #6433 (contains its commit; its contract test needs the rates response without `rate_id`) |
+| 8 | [#6435](https://github.com/project-koku/koku/pull/6435) (draft) | Test runner recreates a stale kept test DB; testing guide | nothing |
 
 The RTU work proper (1, 1b, 1c, 3, 4) follows as the code PR plus one PR per migration, per the merge and ship order below.
 
