@@ -6,7 +6,7 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
     custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, distributed_cost, cost_model_id
+    monthly_cost_type, distributed_cost, cost_model_id, rate_id
 )
 WITH gpu_rtu_cost AS (
     SELECT
@@ -17,6 +17,7 @@ WITH gpu_rtu_cost AS (
         rtu.report_period_id,
         rtu.node,
         rtu.all_labels->>'gpu-model' AS gpu_model,
+        rtu.rate_id,
         rtu.custom_name,
         rtu.metric_type,
         rtu.cost_model_rate_type,
@@ -36,7 +37,7 @@ WITH gpu_rtu_cost AS (
     -- re-applied in full once per model, over-distributing to real namespaces.
     GROUP BY rtu.usage_start, rtu.source_uuid, rtu.cluster_id, rtu.cluster_alias,
              rtu.report_period_id, rtu.node, rtu.all_labels->>'gpu-model',
-             rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
+             rtu.rate_id, rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
 ),
 namespace_usage_information AS (
     SELECT gpu_model_name,
@@ -75,7 +76,8 @@ SELECT
     -- SUM (not MAX): a namespace can have usage on more than one GPU model on the
     -- same node, and each model's contribution must accumulate into one output row.
     SUM(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost),
-    {{cost_model_id}}::uuid
+    {{cost_model_id}}::uuid,
+    gc.rate_id
 FROM gpu_rtu_cost gc
 JOIN namespace_usage_information nsp
     ON nsp.node = gc.node
@@ -86,7 +88,7 @@ JOIN total_usage tu
     AND tu.gpu_model_name = nsp.gpu_model_name
     AND tu.usage_start = nsp.usage_start
 GROUP BY nsp.usage_start, nsp.node, nsp.namespace,
-         gc.source_uuid, gc.custom_name, gc.metric_type, gc.cost_model_rate_type
+         gc.source_uuid, gc.rate_id, gc.custom_name, gc.metric_type, gc.cost_model_rate_type
 HAVING SUM(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost) != 0;
 
 -- Negate source: derive negation from the distributed output rows just inserted.
