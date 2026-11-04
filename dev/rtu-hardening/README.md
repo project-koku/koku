@@ -13,6 +13,7 @@ Status as of 2026-11-03: fixes 1 and 1b are done, unit-tested and verified end t
 | nise-populator branch (test data) | `mpovolny/rtu-testdata` on `martinpovolny/nise-populator` (fork), based on upstream `main` |
 | Work log, findings, proposal | [`rtu-race-map.md`](rtu-race-map.md) |
 | Test plan | [`test-plan.md`](test-plan.md) |
+| Merge and ship order | [`rtu-race-map.md#merge-and-ship-order`](rtu-race-map.md#merge-and-ship-order) |
 | Local DB-only test data and measurement | [`testdata/seed_rtu.py`](testdata/seed_rtu.py), [`testdata/measure_rate_delete.sh`](testdata/measure_rate_delete.sh) |
 | Ephemeral deploy | [`ephemeral/deploy.sh`](ephemeral/deploy.sh) |
 | Ephemeral test data and checks | [`ephemeral/testdata.sh`](ephemeral/testdata.sh) (runs [`ephemeral/rtu_setup.py`](ephemeral/rtu_setup.py) inside the namespace) |
