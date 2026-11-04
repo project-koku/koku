@@ -8,7 +8,7 @@
 them, and RTU is rebuilt per date range on every cost model run. They therefore
 carry no database constraint and no cascade, so deleting a Rate or CostModel
 never deletes from (or blocks inserts into) the partitioned rates_to_usage table.
-The report period and source FKs keep their database-level CASCADE.
+The report period and source FKs are gone too (0356, test_rtu_parent_deletes).
 """
 from datetime import date
 from decimal import Decimal
@@ -40,7 +40,7 @@ WHERE n.nspname = %s
 
 
 class RatesToUsageForeignKeyTest(MasuTestCase):
-    """Rate and CostModel deletes leave rates_to_usage alone; provider and report period FKs still cascade."""
+    """Rate and CostModel deletes leave rates_to_usage alone."""
 
     def _ensure_rtu_partition(self, usage_start):
         PartitionHandlerMixin()._handle_partitions(
@@ -111,13 +111,11 @@ class RatesToUsageForeignKeyTest(MasuTestCase):
         super().tearDown()
 
     def test_rate_and_cost_model_columns_have_no_constraint(self):
-        """Only the report period and source FKs remain, and both cascade in the database."""
+        """rate_id and cost_model_id carry no database constraint."""
         with tenant_context(self.tenant):
             fk_columns = self._fk_columns()
         self.assertNotIn("rate_id", fk_columns)
         self.assertNotIn("cost_model_id", fk_columns)
-        self.assertEqual(fk_columns.get("report_period_id"), "c")
-        self.assertEqual(fk_columns.get("source_uuid"), "c")
 
     def test_rate_delete_keeps_rtu_rows(self):
         """Deleting a Rate does not touch rates_to_usage; the next rebuild of the range removes the rows."""
