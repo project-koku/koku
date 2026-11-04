@@ -657,11 +657,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         with schema_context(self.schema):
             recipients = self._recipient_qs()
             self.assertTrue(recipients.exists(), "distribution produced no per-rate rows")
-            self.assertFalse(
-                recipients.filter(rate_id__isnull=True).exists(),
-                "per-rate distributed rows without rate_id: "
-                f"{list(recipients.filter(rate_id__isnull=True).values_list('monthly_cost_type', flat=True).distinct())}",
-            )
+            missing = recipients.filter(rate_id__isnull=True)
+            missing_types = list(missing.values_list("monthly_cost_type", flat=True).distinct())
+            self.assertFalse(missing.exists(), f"per-rate distributed rows without rate_id: {missing_types}")
             for dist_type in recipients.values_list("monthly_cost_type", flat=True).distinct():
                 source_pairs = set(self._source_qs(dist_type).values_list("custom_name", "rate_id").distinct())
                 recipient_pairs = set(
@@ -671,7 +669,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                     recipient_pairs, source_pairs, f"{dist_type}: (custom_name, rate_id) not found in its source rows"
                 )
             negations = self._distributed_qs().filter(custom_name="")
-            self.assertFalse(negations.filter(rate_id__isnull=False).exists(), "negation rows must not carry a rate_id")
+            self.assertFalse(
+                negations.filter(rate_id__isnull=False).exists(), "negation rows must not carry a rate_id"
+            )
 
     # ------------------------------------------------------------------
     # Assertion 13: Deleting a rate's rows removes its distributed rows too
