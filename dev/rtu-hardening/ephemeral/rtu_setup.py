@@ -242,6 +242,50 @@ def cmd_e6(args):
     args.func_remove(argparse.Namespace(custom_name=args.custom_name))
 
 
+def cmd_rates_check(_):
+    """Items 6 and 9: the rates endpoint returns complete rates and no rate_id."""
+    pl = price_list() or sys.exit("no RTU price list; run cost-models first")
+    rates = call("GET", f"{KOKU_API}/price-lists/{pl['uuid']}/rates/", params={"limit": 100})["data"]
+    print(
+        json.dumps(
+            {
+                "entries": len(rates),
+                "with_rate_id": sum("rate_id" in r for r in rates),
+                "with_tiered_rates": sum(bool(r.get("tiered_rates")) for r in rates),
+                "with_tag_rates": sum(bool(r.get("tag_rates")) for r in rates),
+                "price_list_rates": len(pl["rates"]),
+            }
+        )
+    )
+
+
+def cmd_put_rates_unnamed(_):
+    """Item 6: PUT the price list's rates without custom_name (pre-0013 shape); Rate rows must keep their UUIDs."""
+    pl = price_list() or sys.exit("no RTU price list; run cost-models first")
+    body = {k: pl[k] for k in ("name", "description", "currency", "effective_start_date", "effective_end_date")}
+    body["rates"] = [{k: v for k, v in r.items() if k not in ("custom_name", "rate_id")} for r in pl["rates"]]
+    call("PUT", f"{KOKU_API}/price-lists/{pl['uuid']}/", json=body)
+    print(json.dumps({"put_rates_without_custom_name": len(body["rates"]), "price_list": pl["uuid"]}))
+
+
+def cmd_recalc(args):
+    """Item 4: trigger update_cost_model_costs for one cluster and window through masu."""
+    provider_uuid = koku_sources()[CLUSTERS[args.cluster]]["uuid"]
+    masu = os.environ.get("MASU_API", "http://koku-clowder-masu:10000/api/cost-management/v1")
+    params = {
+        "provider_uuid": provider_uuid,
+        "schema": f"org{ORG_ID}",
+        "start_date": args.start_date,
+        "end_date": args.end_date,
+    }
+    if args.queue:
+        # Each Celery worker runs one process: send overlapping runs to different queues to run them in parallel.
+        params["queue"] = args.queue
+    response = requests.get(f"{masu}/update_cost_model_costs/", params=params, timeout=120)
+    window = f"{params['start_date']}..{params['end_date']}"
+    print(f"{time.strftime('%H:%M:%S', time.gmtime())} {window}: {response.status_code} {response.text[:160]}")
+
+
 def cmd_rbac_check(_):
     """sources-api asks RBAC for the caller's access; RBAC must know the org (404 otherwise)."""
     response = requests.get(
@@ -279,6 +323,14 @@ def main():
     delete_cm.add_argument("--cluster", default="rtu-cluster-a", choices=sorted(CLUSTERS))
     delete_cm.set_defaults(func=cmd_delete_cost_model)
     sub.add_parser("scratch-price-list").set_defaults(func=cmd_scratch_price_list)
+    sub.add_parser("rates-check").set_defaults(func=cmd_rates_check)
+    sub.add_parser("put-rates-unnamed").set_defaults(func=cmd_put_rates_unnamed)
+    recalc = sub.add_parser("recalc")
+    recalc.add_argument("--cluster", default="rtu-cluster-a", choices=sorted(CLUSTERS))
+    recalc.add_argument("--start-date", required=True)
+    recalc.add_argument("--end-date", required=True)
+    recalc.add_argument("--queue", default=None, help="Celery queue, e.g. priority or cost_model")
+    recalc.set_defaults(func=cmd_recalc)
     delete_source = sub.add_parser("delete-source")
     delete_source.add_argument("--cluster", default="rtu-cluster-b", choices=sorted(CLUSTERS))
     delete_source.set_defaults(func=cmd_delete_source)
