@@ -72,9 +72,9 @@ Setup: README "Ephemeral, end to end" (deploy with `SOURCES_BYPASS_RBAC=true`, f
 | Run | Image | Result |
 |---|---|---|
 | 2026-11-03, `ephemeral-7ctbkc` | `pr-6425-a5c7320` (items 1, 1b) | E1 pass; E2 pass for `rate_id` rows (1,734 / 1,156 / 306 rows deleted in about 25 ms each); 2,232 distributed rows without `rate_id` survived in the previous month (found item 1c); E3 pass; E7 pass (rebuild removed them). Details: README "Results" |
-| 2026-11-04, `ephemeral-wufsxu` | `pr-6425-0da7c0b` (items 1, 1b, 1c) | running: E1, E2 (with the GPU rate), E7 |
+| 2026-11-04, `ephemeral-wufsxu` | `pr-6425-0da7c0b` (items 1, 1b, 1c) | E1 pass: both clusters October 23,622 / November 3,020 rows, 13 rates; distributed rows with `rate_id`: gpu 248 (Trino template), platform 10,080, worker 8,820, without: 0. E2 pass: removed usage, monthly, VM and GPU rates; cleanup deleted 6,090 / 4,900 / 594 / 3,118 rows (now including distributed rows) in 19-31 ms; 0 rows of the removed rates in either month. E3 pass: 6 recalculations succeeded, 0 errors; both clusters November 9 identical rates. E4 pass: deleting cluster A's cost model deleted 19,273 rows (its whole RTU, both months); cluster B untouched. E5 pass: deleting an unassigned price list scheduled the cleanup with its 1 rate ID (0 rows), no error |
 
-E4, E5 and E6 have not been run yet.
+E6 (rate removed during a running recalculation) and E7 on this image have not been run yet.
 
 ## Regression: existing IQE tests to run against the branch
 

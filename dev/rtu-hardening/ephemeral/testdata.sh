@@ -111,6 +111,14 @@ show)
 rbac-check)
     in_pod python3 /tmp/rtu/rtu_setup.py rbac-check
     ;;
+delete-cost-model)
+    # Scenario E4; optional second argument rtu-cluster-a (default) or rtu-cluster-b
+    in_pod python3 /tmp/rtu/rtu_setup.py delete-cost-model ${2:+--cluster "$2"}
+    ;;
+scratch-price-list)
+    # Scenario E5: create an unassigned price list with one rate and delete it
+    in_pod python3 /tmp/rtu/rtu_setup.py scratch-price-list
+    ;;
 wait-rtu)
     # Wait (default 60 min) until RTU has rows for WANT source-months (default 4: 2 clusters x 2 months).
     want="${WANT:-4}"
