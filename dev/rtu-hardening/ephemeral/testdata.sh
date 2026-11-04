@@ -75,8 +75,19 @@ cost-models)
     ;;
 upload)
     start="$(python3 -c 'import datetime as d; t = d.date.today().replace(day=1) - d.timedelta(days=1); print(t.replace(day=1))')"
+    # ONLY_CLUSTER=rtu-cluster-a uploads one cluster (e.g. after its sibling's source was deleted, scenario E7)
+    in_pod python3 -c "
+import sys, yaml
+config = yaml.safe_load(open('/tmp/np/static-files/rtu_sources.yaml'))
+only = sys.argv[1]
+if only:
+    config['sources'] = [s for s in config['sources'] if next(iter(s.values()))['cluster_id'] == only]
+    if not config['sources']:
+        sys.exit(f'no source with cluster_id {only}')
+yaml.safe_dump(config, open('/tmp/np/rtu_sources_upload.yaml', 'w'))
+" "${ONLY_CLUSTER:-}"
     in_pod sh -c "cd /tmp/np && \
-        SOURCES_CONFIG=\"\$(cat static-files/rtu_sources.yaml)\" POPULATE_SOURCES=OCP \
+        SOURCES_CONFIG=\"\$(cat /tmp/np/rtu_sources_upload.yaml)\" POPULATE_SOURCES=OCP \
         POPULATE_START_DATE=${start} \
         INSIGHTS_URL=http://ingress-service:8000/api/ingress/v1/upload \
         INSIGHTS_ACCOUNT_ID=${ORG_ID} INSIGHTS_ORG_ID=${ORG_ID} \
