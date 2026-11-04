@@ -116,6 +116,7 @@ Namespace `ephemeral-7ctbkc`, image `pr-6425-a5c7320`, RTU flag on, test org `76
 | The `hccm` nise-populator CronJob pod waits for secret key `gcp-credentials-qe` | That pod never starts | Not needed; we run our own toolbox pod |
 | service-docs runbook asks for `creds.txt` | Not needed | `koku-aws` and `koku-gcp` come with the reserved namespace |
 | `oc` tokens expire | Commands fail with 401 | Rerun `~/bin/oc-token.sh eph --setup-context && oc config use-context eph` |
+| Another tool switches the shared kubeconfig's current context (seen 2026-11-04: `clusterbot`) | `oc` calls hit another cluster: `namespaces "ephemeral-..." not found`, bonfire says the cluster has no reservation system | `deploy.sh` and `testdata.sh` pin `oc` to `--context $OC_CONTEXT` (default `eph`); bonfire `reserve`/`release` still need `oc config use-context eph` first |
 
 ## Next
 
