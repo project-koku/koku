@@ -1082,18 +1082,22 @@ class RatesToUsage(models.Model):
     cost_model = models.ForeignKey(
         "cost_models.CostModel", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False
     )
+    # No database constraint and no cascade on the parents either: Provider.delete and the OCP
+    # retention purges delete these rows explicitly first (rates_to_usage_deletes.py).
     report_period = models.ForeignKey(
         "OCPUsageReportPeriod",
-        on_delete=models.CASCADE,
+        on_delete=models.DO_NOTHING,
         null=True,
         db_column="report_period_id",
+        db_constraint=False,
     )
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
+        on_delete=models.DO_NOTHING,
         unique=False,
         null=False,
         db_column="source_uuid",
+        db_constraint=False,
     )
     usage_start = models.DateField()
     usage_end = models.DateField()

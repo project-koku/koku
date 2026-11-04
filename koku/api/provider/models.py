@@ -298,6 +298,12 @@ class Provider(models.Model):
                     # until the delete commits. of=("self",) avoids "FOR UPDATE on nullable outer
                     # join" caused by ProviderObjectsManager.get_queryset() → select_related().
                     Provider.objects.using(using).select_for_update(of=("self",)).get(pk=self.pk)
+                    if self._normalized_type == Provider.PROVIDER_OCP.lower():
+                        # rates_to_usage has no FK to its source (no database cascade), and
+                        # _cascade_delete does not discover it: delete its rows explicitly.
+                        from reporting.provider.ocp.rates_to_usage_deletes import delete_rates_to_usage_for_source
+
+                        delete_rates_to_usage_for_source(self.pk)
                     self._cascade_delete()
                     LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                     LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
