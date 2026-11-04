@@ -15,6 +15,7 @@ WITH network_rtu_cost AS (
         rtu.usage_start,
         rtu.source_uuid,
         rtu.cluster_id,
+        rtu.rate_id,
         rtu.custom_name,
         rtu.metric_type,
         rtu.cost_model_rate_type,
@@ -35,7 +36,7 @@ WITH network_rtu_cost AS (
             'unattributed_storage', 'unattributed_network'
         ))
     GROUP BY rtu.usage_start, rtu.source_uuid, rtu.cluster_id,
-             rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
+             rtu.rate_id, rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
 ),
 network_infra AS (
     SELECT
@@ -120,7 +121,7 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
     cost_category_id, custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, distributed_cost, cost_model_id
+    monthly_cost_type, distributed_cost, cost_model_id, rate_id
 )
 SELECT
     uuid_generate_v4(),
@@ -138,7 +139,8 @@ SELECT
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     CASE WHEN nt.total_rate_cost > 0 THEN ntot.total_distributed * (nc.rate_cost / nt.total_rate_cost) ELSE 0 END,
-    {{cost_model_id}}::uuid
+    {{cost_model_id}}::uuid,
+    nc.rate_id
 FROM namespace_totals ntot
 JOIN network_rtu_cost nc
     ON nc.usage_start = ntot.usage_start AND nc.cluster_id = ntot.cluster_id
@@ -174,7 +176,8 @@ SELECT
          ELSE (nu.ns_memory / d.usage_memory_sum) * ni.infra_total
     END,
     {% endif %}
-    {{cost_model_id}}::uuid
+    {{cost_model_id}}::uuid,
+    NULL::uuid
 FROM network_infra ni
 JOIN denominator d
     ON d.usage_start = ni.usage_start AND d.cluster_id = ni.cluster_id
