@@ -10,10 +10,9 @@ from django.conf import settings
 
 from api.common import log_json
 from koku.database import cascade_delete
-from koku.database import execute_delete_sql
+from koku.pg_partition import drop_expired_partitions
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor import is_ocp_tag_cleanup_disabled
-from reporting.models import PartitionedTable
 from reporting.models import TRINO_MANAGED_TABLES
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 from reporting.provider.ocp.rates_to_usage_deletes import delete_rates_to_usage_for_report_periods
@@ -138,14 +137,7 @@ class OCPReportDBCleaner:
                         partitions=partition_from,
                     )
                 )
-                del_count = execute_delete_sql(
-                    PartitionedTable.objects.filter(
-                        schema_name=self._schema,
-                        partition_of_table_name__in=table_names,
-                        partition_parameters__default=False,
-                        partition_parameters__from__lte=partition_from,
-                    )
-                )
+                del_count = drop_expired_partitions(self._schema, table_names, partition_from)
                 LOG.info(log_json(msg="deleted table partitions", count=del_count, schema=self._schema))
 
                 # Remove all data related to the report period. rates_to_usage has no FK to its

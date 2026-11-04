@@ -24,11 +24,37 @@ from django.db import transaction
 from django_tenants.utils import schema_context
 
 from api.common import log_json
+from koku.database import execute_delete_sql
 from koku.database import get_model
 
 
 random.seed(time.time())
 PartitionedTable = get_model("PartitionedTable")
+
+
+def drop_expired_partitions(schema_name, table_names, partition_from):
+    """Drop the non-default partitions of table_names that start on or before partition_from.
+
+    Deleting a partitioned_tables row makes trfn_partition_manager DETACH, TRUNCATE and DROP the
+    partition, which takes ACCESS EXCLUSIVE on the parent table until the transaction ends. One
+    statement over several parents held several of those locks at once, and a writer touching two
+    of the tables in the other order deadlocked with it (COST-8115, COST-8116). So: one statement
+    per parent table. The retention purge runs in autocommit, so each statement commits on its own
+    and holds at most one parent lock; inside an atomic block this helper does not help.
+
+    Returns the number of partitions dropped.
+    """
+    dropped = 0
+    for table_name in table_names:
+        dropped += execute_delete_sql(
+            PartitionedTable.objects.filter(
+                schema_name=schema_name,
+                partition_of_table_name=table_name,
+                partition_parameters__default=False,
+                partition_parameters__from__lte=partition_from,
+            )
+        )
+    return dropped
 
 
 # If this is detected, the code will try to resolve this to a name
