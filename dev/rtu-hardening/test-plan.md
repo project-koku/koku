@@ -1,6 +1,6 @@
 # RTU hardening: test plan
 
-Branch `mpovolny/rtu-hardening` (draft PR [#6425](https://github.com/project-koku/koku/pull/6425), image builds only). Covers work log items 1, 1b and 1c of [`rtu-race-map.md`](rtu-race-map.md); later items add their rows here. How to run everything: [`README.md`](README.md).
+Branch `mpovolny/rtu-hardening` (draft PR [#6425](https://github.com/project-koku/koku/pull/6425), image builds only). Covers work log items 1, 1b, 1c, 2 and 3 of [`rtu-race-map.md`](rtu-race-map.md); later items add their rows here. How to run everything: [`README.md`](README.md).
 
 Out of scope: correctness of the cost breakdown API and of the breakdown tree itself. That is the QE plan "Cost Breakdown and Rate Filtering" (`docs/tests/COST-7249/qe-test-plan-cost-breakdown.md`, added by #6102). Phase 1 schema normalization (Rate table, diff-based `sync_rate_table`, write freeze) is `docs/architecture/cost-breakdown/test-plan.md`.
 
@@ -11,6 +11,8 @@ Out of scope: correctness of the cost breakdown API and of the breakdown tree it
 | 1 | `rates_to_usage.rate_id` and `.cost_model_id` have no FK constraint and no cascade (migration `0355`, model `DO_NOTHING` + `db_constraint=False`) |
 | 1b | Deleting rates (`sync_rate_table`, `PriceListManager.delete`) or a cost model schedules `delete_rates_to_usage_rows` on commit; the task deletes their RTU rows in every month |
 | 1c | Per-rate distributed RTU rows (platform, worker, unattributed storage and network, GPU) carry the source row's `rate_id`; negation and infra-only rows keep `rate_id = NULL` |
+| 2 | A price list PUT saves the price list and syncs its Rate rows in one transaction; a cost model PUT changes sources and rates in one transaction |
+| 3 | `rates_to_usage` has no FK at all to its report period or source (migration `0356`); `Provider.delete()` and both OCP retention purges delete its rows explicitly first |
 
 ## Invariants
 
@@ -22,15 +24,18 @@ Out of scope: correctness of the cost breakdown API and of the breakdown tree it
 | I4 | After a cost model is deleted, no RTU row with its `cost_model_id` remains, in any month |
 | I5 | A cleanup is scheduled only when the delete commits, and only when something was deleted |
 | I6 | Distribution results are unchanged by 1c: same totals; each per-rate distributed row has its source row's (`custom_name`, `rate_id`); negation rows have no `rate_id` |
-| I7 | The `report_period_id` and `source_uuid` FKs still cascade in the database |
+| I7 | Superseded by I10 (item 3): no RTU FK cascades in the database |
 | I8 | Rows of rates that still exist are never deleted by the cleanup |
+| I9 | A failed rate sync leaves the price list or cost model exactly as before: name, version, rates JSON, source mapping, and no recalculation dispatched |
+| I10 | Deleting a provider, or purging report periods by provider or by date, removes exactly their RTU rows (in every partition) and no others; inserts referencing a missing source or report period succeed |
 
 ## Unit tests (local, `koku-db` on :15432)
 
 ```bash
 python koku/manage.py test --noinput reporting.provider.ocp.test.test_rtu_migrations \
   masu.test.processor.test_delete_rates_to_usage_rows cost_models.test.test_rtu_cleanup \
-  masu.test.processor.ocp.test_phase4_distribution
+  masu.test.processor.ocp.test_phase4_distribution cost_models.test.test_atomic_updates \
+  reporting.provider.ocp.test.test_rtu_parent_deletes masu.test.processor.ocp.test_ocp_report_db_cleaner
 ```
 
 | Test | Invariants | Red before the fix |
@@ -45,9 +50,14 @@ python koku/manage.py test --noinput reporting.provider.ocp.test.test_rtu_migrat
 | `test_rtu_cleanup.test_sync_rate_table_without_deletes_schedules_nothing`, `test_rolled_back_delete_schedules_nothing` | I5 | yes |
 | `test_phase4_distribution.test_12_recipient_rows_carry_source_rate_id` | I6 | yes |
 | `test_phase4_distribution.test_13_rate_cleanup_removes_distributed_rows` | I3 (distributed) | yes |
+| `test_atomic_updates.test_failed_sync_rolls_back_price_list_changes` | I9 | yes (price list stayed renamed) |
+| `test_atomic_updates.test_failed_rate_update_rolls_back_source_changes` | I9 | yes (source mapping changed on a 400) |
+| `test_rtu_parent_deletes.test_no_report_period_or_source_constraint`, `test_insert_with_unknown_report_period_and_source_succeeds` | I10 | yes |
+| `test_rtu_parent_deletes.test_provider_delete_removes_its_rows_only`, `test_purge_by_provider_removes_its_rows_only`, `test_purge_by_date_removes_rows_of_expired_report_periods` | I10 | yes, after `0356` and before the explicit deletes |
+| `test_ocp_report_db_cleaner.test_purge_expired_report_data_for_provider_deletes_rtu` (existing) | I10 | yes, same |
 | `test_phase4_distribution` existing tests 01–11 (proportionality, sum consistency, cost conservation, sign, idempotency, multi-rate, two-phase equivalence) | I6 (totals) | n/a, must stay green |
 
-Known local failures not caused by this work (identical on `main`): 15 tests in `masu.test.processor.ocp.test_phase2_rates_to_usage` and `test_phase4_distribution.test_worker_zero_rate_pool_is_distributed_and_negated_exactly` (work log item 8).
+Known local failures not caused by this work (identical on `main`): 15 tests in `masu.test.processor.ocp.test_phase2_rates_to_usage` and `test_phase4_distribution.test_worker_zero_rate_pool_is_distributed_and_negated_exactly` (work log item 8). `api.provider.test.test_provider_manager.test_provider_statistics` and `_ocp_on_cloud` fail when the cached test database predates the current month (no report period for it).
 
 ## Database-only measurement (local)
 
@@ -66,6 +76,7 @@ Setup: README "Ephemeral, end to end" (deploy with `SOURCES_BYPASS_RBAC=true`, f
 | E5 Delete an unassigned price list | create a second price list with a rate, never assign it, delete it | cleanup task scheduled with its rate IDs; no error | I3, I5 |
 | E6 Remove a rate during a running recalculation | start a recalculation (`update_cost_model_costs` for the previous month), remove a rate while it runs | the run completes without `IntegrityError`. Known limitation: rows the run writes for the removed rate after the cleanup stay until that month is recalculated again | I2 |
 | E7 Rebuild cleans its window | re-upload the data after E2 | reprocessed months contain no rows of the removed rates | I3 |
+| E8 Delete a source | delete one cluster's source through sources-api, wait for the provider delete, `verify` | tenant on `0356`; no RTU FKs except `cost_category_id`; 0 RTU rows of the deleted source; the other cluster untouched | I10 |
 
 ## Results
 
@@ -90,6 +101,8 @@ These exercise rate changes and recalculation through the API. They do not read 
 With the RTU flag on: E2 (rows of a removed rate disappear in every month, including distributed rows), E4 (cost model delete), and E3 (recalculation after a rate removal does not fail). They need a read path for RTU state, which today only the database offers; with #6102 merged, the breakdown API is that path.
 
 ## Not covered yet
+
+- Rows written by a pipeline run that races a provider delete stay until retention drops their partitions (no FK rejects them any more).
 
 - Trino templates are exercised only in ephemeral (no Trino in unit tests).
 - On-prem (`ONPREM=True`) end to end; the self-hosted GPU template is covered only by the unit tests.
