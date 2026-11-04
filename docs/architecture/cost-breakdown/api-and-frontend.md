@@ -7,47 +7,49 @@ breakdown endpoint, and the frontend integration plan.
 
 ## Cost Model API Changes
 
-### `RateSerializer` — Add `custom_name` and `rate_id` Fields
+### `RateSerializer` — `custom_name`, no `rate_id`
 
 File: `cost_models/serializers.py`
 
-`RateSerializer` currently handles `metric`, `cost_type`, `description`,
-`tiered_rates`, and `tag_rates`. Add `custom_name` and `rate_id`:
+> **Decision (2026-11-04): `rate_id` is not part of the API, in either direction.** This supersedes the
+> earlier design of this section, which made `rate_id` (`Rate.uuid`) a read-write field so clients could
+> round-trip stable Rate UUIDs.
 
-```python
-class RateSerializer(serializers.Serializer):
-    rate_id = serializers.UUIDField(required=False, allow_null=True)
-    custom_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
-    metric = serializers.DictField(required=True)
-    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICES, required=True)
-    description = serializers.CharField(required=False, allow_blank=True)
-    tiered_rates = TieredRateSerializer(many=True, required=False)
-    tag_rates = TagRateSerializer(required=False)
+**Behaviour**:
 
-    def to_representation(self, rate_obj):
-        out = super().to_representation(rate_obj)
-        # rate_obj is a dict from the JSON blob — rate_id is injected
-        # during dual-write (see _sync_rate_table). The existing
-        # to_representation builds a fixed output dict; rate_id must be
-        # added explicitly since the base method only emits declared
-        # fields that are present in rate_obj.
-        if "rate_id" in rate_obj:
-            out["rate_id"] = rate_obj["rate_id"]
-        return out
-```
+- **Output**: `RateSerializer` (the `rates` of price lists and cost models) emits `metric`, `description`,
+  `custom_name`, `cost_type`, and `tiered_rates` or `tag_rates`. `GET /price-lists/{uuid}/rates/`
+  ([`PriceListViewSet.rates`](../../../koku/cost_models/price_list_view.py)) emits the
+  same business fields plus metric labels, `metric_type` and `default_rate`. Neither emits `rate_id`.
+- **Input**: `rate_id` is silently dropped ([`RateSerializer.to_internal_value`](../../../koku/cost_models/serializers.py)), so a client that sends
+  back an older response does not get a 400 ([#6123](https://github.com/project-koku/koku/pull/6123),
+  COST-7703).
+- **Identity**: `custom_name` identifies a rate within its price list (unique per price list).
+  [`sync_rate_table`](../../../koku/cost_models/rate_sync.py) matches incoming rates by `custom_name`; a missing name is generated the way migration
+  0013 generated it, so price lists from before 0013 keep their Rate rows. **Renaming a rate deletes the old
+  Rate row and creates a new one with a new UUID.**
+- **Internal only**: `rate_id` stays in the stored rates JSON (written by `sync_rate_table`) and in
+  `rates_to_usage.rate_id`; [`match_rates_to_json`](../../../koku/cost_models/rate_sync.py) uses it to join JSON entries to Rate rows.
 
-**`rate_id` field notes**:
+**Why — FedRAMP CM-7 (Least Functionality)**: the API exposes only what a consumer needs, and no consumer
+needs `Rate.uuid`:
 
-- `rate_id` is the `Rate.uuid` (primary key). It is read-write:
-  GET responses include it; PUT requests may include it.
-- `rate_id` must be declared as an explicit field (not rely on the
-  custom `to_internal_value()` passthrough, which is fragile).
-- `to_representation()` must explicitly include `rate_id` because the
-  existing implementation builds a fixed output dict from the JSON blob
-  and does not pass through arbitrary extra keys.
-- `rate_id` is injected into the JSON blob during dual-write (see
-  `_sync_rate_table` below), so it is available in `rate_obj` for
-  GET serialization.
+- koku-ui (main, 2026-11-04) selects rates by their position in the rates array and PUTs the whole array;
+  its only references to `rate_id` remove it before sending ("Workaround for cost models API's unsupported
+  rate_id").
+- The breakdown API labels costs by `custom_name`; IQE removes `rate_id` from rates as well.
+- An identifier nobody consumes is not exposed. [#6123](https://github.com/project-koku/koku/pull/6123)
+  first removed it from the price list and cost model rates; `GET /price-lists/{uuid}/rates/` was the last
+  place it appeared.
+
+#6123 cited SC-8 and SC-28; those controls cover protecting data in transit and at rest, so CM-7 is the
+control this decision rests on. Knowing a Rate UUID grants no access (tenant schema and RBAC enforce that);
+the reason is least functionality, not secrecy.
+
+**What it costs**: a rename loses Rate identity. `rates_to_usage.rate_id` is traceability only (nothing
+reads it): the cleanup task removes the old rate's rows and every rebuild of a month recomputes them, so no
+cost or breakdown figure depends on identity across a rename. The feature was not rolled out when
+`rate_id` was removed from `GET /price-lists/{uuid}/rates/`, so no client broke.
 
 **`custom_name` validation rules**:
 
@@ -204,25 +206,14 @@ class CostModelManager:
 
 **Diff-based sync design decisions**:
 
-- **Client recommendation: always round-trip `rate_id`**. Once a GET
-  response includes `rate_id`, clients (UI and API consumers) should
-  persist and send it back on every subsequent PUT. This enables
-  stable UUID matching, safe renames (the backend identifies the rate
-  by UUID, not name), and unlocks CASCADE + scoped recalculation in
-  later phases. Omitting `rate_id` should be treated as **legacy-only
-  behavior** — it triggers `custom_name` fallback matching, which
-  makes renames ambiguous (effectively delete + create) and prevents
-  the backend from distinguishing "rename" from "replace".
-- **Backward compatibility**: When `rate_id` is absent from the payload,
-  the backend matches by `custom_name` (using the existing
-  `unique_together` constraint). This preserves `Rate.uuid` for
-  unchanged rates even before the frontend ships `rate_id` support.
-  Renaming a rate without `rate_id` behaves as delete + create (the
-  old name is unmatched, the new name is created).
-- **Validation**: `rate_id` is validated for both existence AND
-  ownership — it must belong to the correct price_list. This prevents
-  a user from referencing a `rate_id` from a different cost model
-  within the same schema.
+- **Matching by `custom_name`** (superseded the "always round-trip `rate_id`" client recommendation,
+  2026-11-04; see [`RateSerializer`](#rateserializer--custom_name-no-rate_id)). API payloads never carry
+  `rate_id`, so the backend matches incoming rates by `custom_name` (unique per price list). This preserves
+  `Rate.uuid` for unchanged rates; renaming a rate behaves as delete + create (the old name is unmatched,
+  the new name is created).
+- **Internal `rate_id` matching**: the match-by-`rate_id` branch serves internal callers that pass stored
+  JSON. It only considers Rate rows of the price list being synced, so an ID from another price list never
+  matches; an unknown ID falls back to `custom_name`.
 - **Operation ordering**: Deletes run first, then updates, then creates.
   This avoids transient `UniqueConstraint` violations on
   `(price_list, custom_name)` when a rate is renamed and a new rate
@@ -236,8 +227,8 @@ class CostModelManager:
   optimization (see below).
 - **`rate_id` injection**: After sync, `rate_id` (as string UUID) is
   injected back into `rates_data` and saved to both `CostModel.rates`
-  and `PriceList.rates` JSON blobs. This ensures GET responses include
-  `rate_id` without changing the read path.
+  and `PriceList.rates` JSON blobs, for internal matching only. GET
+  responses do not include it.
 
 **Scoped recalculation — deferred optimization**:
 
@@ -649,3 +640,4 @@ CSV columns per PRD: `Project, Level 1 (Category), Level 2 (Sub-Category), Metri
 | v4.0 | 2026-04-02 | **Align with COST-575.** Update `_sync_rate_table` to use existing `PriceList` via `_get_or_create_price_list()` (COST-575 method). `related_name` is `rate_rows`. `@transaction.atomic` already present from COST-575. Update read path to query through `PriceListCostModelMap`. |
 | v4.1 | 2026-04-02 | **Migration write-freeze flag (R20).** Replace "No Feature Flags" section with Unleash write-freeze flag (`cost-management.backend.disable-cost-model-writes`). Add helper function, `CostModelManager` gating, HTTP 503 behavior, enable/disable windows, on-prem behavior. |
 | v4.2 | 2026-04-02 | **Critical review.** Move write-freeze gating from `CostModelManager` to `CostModelSerializer` — `validated_data` lacks schema context; serializer has `self.customer.schema_name`. Add `@transaction.atomic` to `create()` pseudocode. |
+| v5.0 | 2026-11-04 | **`rate_id` removed from the API (FedRAMP CM-7).** `RateSerializer` and `GET /price-lists/{uuid}/rates/` emit no `rate_id`; input drops it; `custom_name` is the rate identity and a rename creates a new Rate. Supersedes the read-write `rate_id` design and the "always round-trip `rate_id`" client recommendation. |
