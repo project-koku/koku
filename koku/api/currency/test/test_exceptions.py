@@ -5,8 +5,8 @@
 """Tests for currency-related exceptions."""
 from datetime import date
 
-from django.test import SimpleTestCase
 from django.test import override_settings
+from django.test import SimpleTestCase
 
 from api.currency.exceptions import ExchangeRateNotFound
 
@@ -53,9 +53,7 @@ class ExchangeRateNotFoundTest(SimpleTestCase):
         )
         detail = exc.detail["currency"]
         self.assertTrue(
-            detail.startswith(
-                "Exchange rate missing to convert costs into KPW for USD -> KPW for months: 2026-02."
-            )
+            detail.startswith("Exchange rate missing to convert costs into KPW for USD -> KPW for months: 2026-02.")
         )
         self.assertIn("preferred currency is the conversion target", detail)
         self.assertIn("source -> KPW pair (the reverse direction is not used).", detail)
