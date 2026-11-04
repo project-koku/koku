@@ -37,7 +37,7 @@ from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
 from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
-from cost_models.monthly_exchange_rate_utils import rematerialize_current_month_static_rates
+from cost_models.monthly_exchange_rate_utils import rematerialize_open_static_monthly_rates
 from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
 from koku.cache import build_enabled_currency_codes_key
@@ -388,7 +388,7 @@ class EnabledCurrencyView(APIView):
         if dynamic_fx_available():
             populate_dynamic_monthly_rates(code=code)
         else:
-            rematerialize_current_month_static_rates(code=code)
+            rematerialize_open_static_monthly_rates(code=code)
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         delete_value_from_cache(build_enabled_currency_codes_key(schema_name))
         LOG.info(log_json(msg="Currency enabled", currency=code))

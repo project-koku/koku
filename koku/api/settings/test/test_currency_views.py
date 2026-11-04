@@ -1316,7 +1316,7 @@ class EnabledCurrencyViewTest(IamTestCase):
             EnabledCurrency.objects.create(currency_code="EUR")
 
             with patch(
-                "api.settings.currency_views.rematerialize_current_month_static_rates"
+                "api.settings.currency_views.rematerialize_open_static_monthly_rates"
             ) as mock_rematerialize, patch(
                 "api.settings.currency_views.populate_dynamic_monthly_rates"
             ) as mock_populate:
