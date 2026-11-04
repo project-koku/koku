@@ -20,6 +20,11 @@ when it is enabled for the tenant.
 - **Exception:** currencies that appear as **base currencies in cloud provider
   billing data** (AWS, Azure, GCP) are **auto-enabled** after those providers’
   summary tables are updated for the processed date window.
+- When `CURRENCY_URL` is not configured, manual enablement is allowed only when
+  the currency has a **direct** conversion path to the system default currency
+  and the account display currency across the tenant retention window through
+  the **next month**. Coverage may come from persisted monthly exchange rates
+  and/or month-aligned static exchange-rate windows.
 - Presence of the currency in the tenant’s enabled set means “enabled”.
 - At least one currency must remain enabled.
 - Market discovery alone does **not** auto-enable currencies for the dropdown.
@@ -153,6 +158,12 @@ enablement: they are turned on when summarization finds them in provider cost
 data, then behave like any other enabled currency (including disable blocking
 while still used by cloud billing).
 
+When dynamic FX is unavailable, denomination-bearing APIs also enforce the same
+offline readiness rule before accepting a currency. Today that includes cost
+model create/update and price list create/update. Their validation requires the
+currency to be directly convertible to the system default and account display
+currencies across the retained reporting window through the next month.
+
 ---
 
 
@@ -215,6 +226,12 @@ If the dictionary is empty, that path fetches rates into ERD first when
 writes MER for the new schema only (it does not crawl every tenant). The daily
 job remains the refresh path. A failed fill is logged and does not roll back
 schema creation.
+
+For on-prem deployments without `CURRENCY_URL`, schema bootstrap first trims the
+migration-seeded enabled currencies down to the system default currency plus the
+account display currency, then runs the same monthly-rate populate/backfill
+path. This avoids exposing a broad pre-seeded enabled set that cannot actually
+convert until administrators define static rates.
 
 
 

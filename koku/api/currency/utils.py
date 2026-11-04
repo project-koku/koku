@@ -5,7 +5,9 @@
 import logging
 from decimal import Decimal
 
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.db import connection
 from django.db.models import Case
 from django.db.models import DecimalField
 from django.db.models import OuterRef
@@ -20,9 +22,133 @@ from api.currency.currencies import get_enabled_currency_codes
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.models import ExchangeRateDictionary
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
+from api.utils import to_date
 from cost_models.models import MonthlyExchangeRate
+from koku.settings import KOKU_DEFAULT_CURRENCY
 
 LOG = logging.getLogger(__name__)
+
+
+def dynamic_fx_available():
+    """Return True when dynamic market rates can be fetched via CURRENCY_URL."""
+    return bool((settings.CURRENCY_URL or "").strip())
+
+
+def restrict_enabled_currencies_for_onprem_offline(schema_name):
+    """Trim seeded enablement on new on-prem tenants without dynamic FX.
+
+    Migration 0014 seeds many currencies on every schema clone. On on-prem
+    installs without ``CURRENCY_URL``, those codes are not convertible until
+    static rates exist. Keep the system default and account display currency
+    only (see constant-currency Fix 1a).
+    """
+    from django_tenants.utils import schema_context
+
+    from cost_models.models import EnabledCurrency
+    from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
+    from koku.cache import build_enabled_currency_codes_key
+    from koku.cache import delete_value_from_cache
+    from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
+    from reporting.user_settings.models import UserSettings
+
+    keep = {KOKU_DEFAULT_CURRENCY}
+    removed = []
+
+    with schema_context(schema_name):
+        account_settings = UserSettings.objects.first()
+        if account_settings:
+            account_currency = (account_settings.settings or {}).get("currency")
+            if account_currency:
+                keep.add(str(account_currency).upper())
+
+        for code in keep:
+            EnabledCurrency.objects.get_or_create(currency_code=code)
+
+        removed = list(EnabledCurrency.objects.exclude(currency_code__in=keep).values_list("currency_code", flat=True))
+        if not removed:
+            return []
+
+        for code in removed:
+            remove_monthly_rates(code=code)
+        EnabledCurrency.objects.filter(currency_code__in=removed).delete()
+
+    delete_value_from_cache(build_enabled_currency_codes_key(schema_name))
+    invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+    LOG.info(
+        log_json(
+            msg="Restricted enabled currencies for on-prem offline deploy",
+            schema=schema_name,
+            kept=sorted(keep),
+            removed=removed,
+        )
+    )
+    return removed
+
+
+def _conversion_horizon_end():
+    """Last month included in offline enablement coverage checks (current + next)."""
+    current_month = DateHelper().this_month_start.date()
+    return current_month + relativedelta(months=1)
+
+
+def conversion_coverage(base_currency, target_currency, start_month, end_month):
+    """Stable API wrapper for monthly exchange-rate conversion coverage."""
+    from cost_models.monthly_exchange_rate_utils import conversion_coverage as monthly_rate_conversion_coverage
+
+    return monthly_rate_conversion_coverage(base_currency, target_currency, start_month, end_month)
+
+
+def required_targets_for_enablement():
+    """Report/display targets that must be reachable when enabling offline."""
+    targets = {KOKU_DEFAULT_CURRENCY}
+    from reporting.user_settings.models import UserSettings
+
+    account_settings = UserSettings.objects.first()
+    if account_settings:
+        account_currency = (account_settings.settings or {}).get("currency")
+        if account_currency:
+            targets.add(str(account_currency).upper())
+    return targets
+
+
+def currency_conversion_ready(code):
+    """True when enabling ``code`` can succeed without dynamic market rates."""
+    code = code.upper()
+    if dynamic_fx_available():
+        return True
+    retention_start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
+    end_month = _conversion_horizon_end()
+    for target in required_targets_for_enablement():
+        if target == code:
+            continue
+        if not conversion_coverage(code, target, retention_start, end_month):
+            return False
+    return True
+
+
+def enablement_blocked_detail(code):
+    """Actionable 400 message when offline enable lacks static rate coverage."""
+    code = code.upper()
+    targets = sorted(t for t in required_targets_for_enablement() if t != code)
+    target_phrase = " and ".join(targets) if targets else KOKU_DEFAULT_CURRENCY
+    return (
+        f"Cannot enable {code} without static exchange rates from {code} to "
+        f"{target_phrase} for the retention window. Create static rates via "
+        f"/settings/currency/static-rates/ then retry."
+    )
+
+
+def denomination_blocked_detail(code):
+    """Actionable validation message when offline denomination coverage is missing."""
+    code = code.upper()
+    targets = sorted(t for t in required_targets_for_enablement() if t != code)
+    target_phrase = " and ".join(targets) if targets else KOKU_DEFAULT_CURRENCY
+    return (
+        f"Cannot use {code} without static exchange rates from {code} to "
+        f"{target_phrase} for the retention window. Create static rates via "
+        f"/settings/currency/static-rates/ then retry."
+    )
 
 
 def build_exchange_dictionary(rates):

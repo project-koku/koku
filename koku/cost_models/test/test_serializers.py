@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
+import calendar
 import random
 from decimal import Decimal
 from itertools import combinations
@@ -11,6 +12,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import faker
+from dateutil.relativedelta import relativedelta
+from django.db.models import Q
+from django.test.utils import override_settings
 from django_tenants.utils import tenant_context
 from rest_framework import serializers
 
@@ -19,9 +23,15 @@ from api.metrics import constants as metric_constants
 from api.metrics.constants import DEFAULT_DISTRIBUTION_INFO
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
+from api.utils import DateHelper
 from api.utils import get_currency
+from api.utils import materialized_view_month_start
+from api.utils import to_date
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import StaticExchangeRate
+from cost_models.price_list_serializer import PriceListSerializer
 from cost_models.serializers import CostModelSerializer
 from cost_models.serializers import DistributionSerializer
 from cost_models.serializers import RateSerializer
@@ -970,3 +980,85 @@ class CostModelSerializerTest(IamTestCase):
                     self.assertIsNotNone(instance)
                     expected_distrib_obj = {**DEFAULT_DISTRIBUTION_INFO, **test_case}
                     self.assertEqual(instance.distribution_info, expected_distrib_obj)
+
+
+def _month_end(d):
+    return d.replace(day=calendar.monthrange(d.year, d.month)[1])
+
+
+class CostModelOfflineDenominationValidationTest(IamTestCase):
+    """Fix 3a: block cost models when offline conversion coverage is missing."""
+
+    @override_settings(CURRENCY_URL="")
+    def test_validate_offline_denomination_blocked_without_static_rates(self):
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(Q(base_currency="NOK") | Q(target_currency="NOK")).delete()
+            with self.assertRaises(serializers.ValidationError) as ctx:
+                CostModelSerializer.validate_offline_denomination_currency("NOK")
+            self.assertIn("static exchange rates", str(ctx.exception))
+
+    @override_settings(CURRENCY_URL="")
+    def test_validate_offline_denomination_allowed_with_static_rate_coverage(self):
+        date_helper = DateHelper()
+        retention_start = to_date(materialized_view_month_start(schema_name=self.schema_name))
+        horizon_end = date_helper.this_month_start.date() + relativedelta(months=1)
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="NOK",
+                target_currency="USD",
+                exchange_rate=Decimal("0.10"),
+                start_date=retention_start,
+                end_date=_month_end(horizon_end),
+            )
+            CostModelSerializer.validate_offline_denomination_currency("NOK")
+
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
+    def test_validate_offline_denomination_skipped_when_dynamic_fx_available(self):
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(Q(base_currency="NOK") | Q(target_currency="NOK")).delete()
+            CostModelSerializer.validate_offline_denomination_currency("NOK")
+
+
+class PriceListOfflineDenominationValidationTest(IamTestCase):
+    """Fix 3b: block price lists when offline conversion coverage is missing."""
+
+    def _price_list_data(self, currency):
+        date_helper = DateHelper()
+        start = date_helper.this_month_start.date()
+        return {
+            "name": "Offline denomination price list",
+            "effective_start_date": start,
+            "effective_end_date": _month_end(start + relativedelta(months=1)),
+            "currency": currency,
+        }
+
+    @override_settings(CURRENCY_URL="")
+    def test_price_list_blocked_without_static_rates_when_no_currency_url(self):
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(Q(base_currency="NOK") | Q(target_currency="NOK")).delete()
+            with self.assertRaises(serializers.ValidationError) as ctx:
+                PriceListSerializer(context=self.request_context).validate(self._price_list_data("NOK"))
+            self.assertIn("static exchange rates", str(ctx.exception))
+
+    @override_settings(CURRENCY_URL="")
+    def test_price_list_allowed_with_static_rate_coverage(self):
+        date_helper = DateHelper()
+        retention_start = to_date(materialized_view_month_start(schema_name=self.schema_name))
+        horizon_end = date_helper.this_month_start.date() + relativedelta(months=1)
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="NOK",
+                target_currency="USD",
+                exchange_rate=Decimal("0.10"),
+                start_date=retention_start,
+                end_date=_month_end(horizon_end),
+            )
+            data = self._price_list_data("NOK")
+            self.assertEqual(PriceListSerializer(context=self.request_context).validate(data), data)
+
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
+    def test_price_list_skips_offline_gate_when_dynamic_fx_available(self):
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(Q(base_currency="NOK") | Q(target_currency="NOK")).delete()
+            data = self._price_list_data("NOK")
+            self.assertEqual(PriceListSerializer(context=self.request_context).validate(data), data)
