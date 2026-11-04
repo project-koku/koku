@@ -647,6 +647,58 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 f"Distribution rows with NULL cost_model_id found for types: {null_types}",
             )
 
+    # ------------------------------------------------------------------
+    # Assertion 12: Per-rate distribution rows carry the source rate_id
+    # ------------------------------------------------------------------
+    def test_12_recipient_rows_carry_source_rate_id(self):
+        """Every per-rate distributed row has the rate_id of the source rows it was split from.
+
+        rate_id has no FK cascade (migration 0355); delete_rates_to_usage_rows removes a deleted
+        rate's rows by rate_id, so distributed rows without it would outlive the rate.
+        """
+        with schema_context(self.schema):
+            recipients = self._recipient_qs()
+            self.assertTrue(recipients.exists(), "distribution produced no per-rate rows")
+            self.assertFalse(
+                recipients.filter(rate_id__isnull=True).exists(),
+                "per-rate distributed rows without rate_id: "
+                f"{list(recipients.filter(rate_id__isnull=True).values_list('monthly_cost_type', flat=True).distinct())}",
+            )
+            for dist_type in recipients.values_list("monthly_cost_type", flat=True).distinct():
+                source_pairs = set(self._source_qs(dist_type).values_list("custom_name", "rate_id").distinct())
+                recipient_pairs = set(
+                    recipients.filter(monthly_cost_type=dist_type).values_list("custom_name", "rate_id").distinct()
+                )
+                self.assertLessEqual(
+                    recipient_pairs, source_pairs, f"{dist_type}: (custom_name, rate_id) not found in its source rows"
+                )
+            negations = self._distributed_qs().filter(custom_name="")
+            self.assertFalse(negations.filter(rate_id__isnull=False).exists(), "negation rows must not carry a rate_id")
+
+    # ------------------------------------------------------------------
+    # Assertion 13: Deleting a rate's rows removes its distributed rows too
+    # ------------------------------------------------------------------
+    def test_13_rate_cleanup_removes_distributed_rows(self):
+        """delete_rates_to_usage_rows for one rate removes its source and distributed rows, and only those."""
+        from masu.processor.tasks import delete_rates_to_usage_rows
+
+        with schema_context(self.schema):
+            rate_id = self._recipient_qs().values_list("rate_id", flat=True).first()
+            self.assertIsNotNone(rate_id, "distribution produced no per-rate rows")
+            in_window = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid, usage_start__gte=self.start_date, usage_start__lte=self.end_date
+            )
+            distributed_before = self._recipient_qs().filter(rate_id=rate_id).count()
+            others_before = in_window.exclude(rate_id=rate_id).count()
+            self.assertGreater(distributed_before, 0)
+
+        deleted = delete_rates_to_usage_rows(self.schema, rate_ids=[str(rate_id)])
+
+        with schema_context(self.schema):
+            self.assertGreaterEqual(deleted, distributed_before)
+            self.assertFalse(RatesToUsage.objects.filter(rate_id=rate_id).exists())
+            self.assertEqual(in_window.exclude(rate_id=rate_id).count(), others_before)
+
 
 class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
     """Regression test: GPU unallocated cost distribution for multi-model nodes.
