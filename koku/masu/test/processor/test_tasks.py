@@ -50,6 +50,7 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
+from masu.processor.tasks import UPDATE_OPENSHIFT_ON_CLOUD_TASK
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import delete_openshift_on_cloud_data
 from masu.processor.tasks import get_report_files
@@ -1332,6 +1333,38 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertIn("possible source/provider delete during processing", call_args[0][0]["message"])
         self.assertEqual(call_args[1]["exc_info"].__class__, ReportSummaryUpdaterProviderNotFoundError)
 
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.update_openshift_on_cloud")
+    @patch("masu.processor.tasks.WorkerCache")
+    @patch("masu.processor.tasks.ReportSummaryUpdater")
+    def test_trigger_ocp_on_cloud_summary_skips_duplicate_task(
+        self, mock_updater_cls, mock_cache_cls, mock_update_task, mock_chain
+    ):
+        """Do not enqueue update_openshift_on_cloud when the WorkerCache lock is already held."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.today.date()
+        ocp_uuid = str(self.ocpaws_provider_uuid)
+        infra_uuid = str(self.aws_provider_uuid)
+        updater = mock_updater_cls.return_value
+        updater.get_openshift_on_cloud_infra_map.return_value = {ocp_uuid: (infra_uuid, Provider.PROVIDER_AWS)}
+        updater._ocp_cloud_updater.determine_truncates_and_deletes.return_value = {}
+        mock_cache = mock_cache_cls.return_value
+
+        mock_cache.single_task_is_running.return_value = True
+        trigger_ocp_on_cloud_summary({}, self.schema, infra_uuid, 1, "tid", start_date, end_date)
+        mock_cache.lock_single_task.assert_not_called()
+        mock_update_task.si.assert_not_called()
+        mock_chain.assert_not_called()
+
+        mock_cache.reset_mock()
+        mock_update_task.reset_mock()
+        mock_chain.reset_mock()
+        mock_cache.single_task_is_running.return_value = False
+        trigger_ocp_on_cloud_summary({}, self.schema, infra_uuid, 1, "tid", start_date, end_date)
+        mock_cache.lock_single_task.assert_called_once()
+        mock_update_task.si.assert_called_once()
+        mock_chain.assert_called_once()
+
     @patch("masu.processor.tasks.LOG")
     def test_delete_openshift_on_cloud_data_provider_not_found_error(self, mock_log):
         """Test that delete_openshift_on_cloud_data handles ReportSummaryUpdaterProviderNotFoundError."""
@@ -1800,12 +1833,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock.side_effect = self.lock_single_task
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
 
-        task_name = "masu.processor.tasks.update_openshift_on_cloud"
+        task_name = UPDATE_OPENSHIFT_ON_CLOUD_TASK
         cache_args = [
             self.schema,
-            self.aws_provider_uuid,
-            self.ocpaws_provider_uuid,
-            str(start_date.strftime("%Y-%m")),
+            str(self.aws_provider_uuid),
+            str(self.ocpaws_provider_uuid),
+            start_date.strftime("%Y-%m"),
         ]
 
         manifest_dict = {
@@ -1826,53 +1859,39 @@ class TestWorkerCacheThrottling(MasuTestCase):
         )
         mock_model_update.assert_called_once()
         mock_delay.assert_not_called()
-        update_openshift_on_cloud(
-            self.schema,
-            self.ocpaws_provider_uuid,
-            self.aws_provider_uuid,
-            Provider.PROVIDER_AWS,
-            start_date,
-            end_date,
-        )
-        update_openshift_on_cloud(
-            self.schema,
-            self.ocpaws_provider_uuid,
-            self.aws_provider_uuid,
-            Provider.PROVIDER_AWS,
-            start_date,
-            end_date,
-        )
-        mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))
         # Let the cache entry expire
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
-            with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
-                mock_rate_limit.return_value = False
-                mock_delay.reset_mock()
-                update_openshift_on_cloud(
-                    self.schema,
-                    self.ocpaws_provider_uuid,
-                    self.aws_provider_uuid,
-                    Provider.PROVIDER_AWS,
-                    start_date,
-                    end_date,
-                )
-                mock_delay.assert_not_called()
+        with (
+            patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL),
+            patch("masu.processor.tasks.is_rate_limit_customer_large", return_value=True),
+            patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit,
+        ):
+            mock_rate_limit.return_value = False
+            mock_delay.reset_mock()
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocpaws_provider_uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+            )
+            mock_delay.assert_not_called()
 
-                mock_rate_limit.return_value = True
+            mock_rate_limit.return_value = True
 
-                update_openshift_on_cloud(
-                    self.schema,
-                    self.ocpaws_provider_uuid,
-                    self.aws_provider_uuid,
-                    Provider.PROVIDER_AWS,
-                    start_date,
-                    end_date,
-                )
-                mock_delay.assert_called()
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocpaws_provider_uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+            )
+            mock_delay.assert_called()
 
     @patch("masu.processor.tasks.chain")
     def test_unleash_disable_source(self, mock_chain):

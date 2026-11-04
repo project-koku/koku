@@ -4,6 +4,7 @@
 #
 """Test view caching functions."""
 import random
+from unittest.mock import patch
 
 from django.core.cache import caches
 from django.test.utils import override_settings
@@ -13,10 +14,11 @@ from api.provider.models import Provider
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import build_enabled_currency_codes_key
-from koku.cache import build_matching_tags_key
+from koku.cache import build_ocp_on_cloud_matched_tags_key
 from koku.cache import CacheEnum
 from koku.cache import delete_value_from_cache
 from koku.cache import get_cached_infra_map
+from koku.cache import get_cached_ocp_on_cloud_matched_tags
 from koku.cache import get_cached_tag_rate_map
 from koku.cache import get_value_from_cache
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
@@ -30,6 +32,7 @@ from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import set_cached_infra_map
+from koku.cache import set_cached_ocp_on_cloud_matched_tags
 from koku.cache import set_cached_tag_rate_map
 from koku.cache import set_value_in_cache
 
@@ -288,6 +291,29 @@ class KokuCacheTest(IamTestCase):
         cached = get_cached_infra_map(schema, provider_type, p_uuid)
         self.assertEqual(cached, infra_map)
 
+    def test_build_ocp_on_cloud_matched_tags_key(self):
+        """Test the month-wide matched-tags cache key."""
+        expected = "ocp-on-cloud-matched-tags:org1234567:ocp-uuid:2026-09"
+        actual = build_ocp_on_cloud_matched_tags_key("org1234567", "ocp-uuid", "2026-09")
+        self.assertEqual(actual, expected)
+
+    @patch("koku.cache.caches")
+    def test_ocp_on_cloud_matched_tags_cache_roundtrip(self, mock_caches):
+        """Test that month-wide matched tags can be stored and read, including empty lists."""
+        store = {}
+        cache = mock_caches.__getitem__.return_value
+        cache.get.side_effect = lambda key: store.get(key)
+
+        def _set(key, value, timeout=None):
+            store[key] = value
+
+        cache.set.side_effect = _set
+        self.assertIsNone(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09"))
+        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09", ['"app": "x"'])
+        self.assertEqual(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09"), ['"app": "x"'])
+        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09", [])
+        self.assertEqual(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09"), [])
+
     def test_tag_rate_map_cache(self):
         """Test that getting/setting tag rate map works."""
         schema = "org1234567"
@@ -296,13 +322,6 @@ class KokuCacheTest(IamTestCase):
         self.assertIsNone(initial)
         cached = get_cached_tag_rate_map(schema)
         self.assertEqual(cached, tag_map)
-
-    def test_build_matching_tags_key(self):
-        """Test that the matching tags key is constructed properly."""
-        provider_type = Provider.PROVIDER_AWS
-        expected = f"OCP-on-{provider_type}:{self.schema_name}:matching-tags"
-        actual = build_matching_tags_key(self.schema_name, provider_type)
-        self.assertEqual(expected, actual)
 
     def test_build_enabled_currency_codes_key(self):
         """Test that the enabled currency codes key is constructed properly."""

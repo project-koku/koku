@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
+import datetime
+import json
 import logging
 import os
 import pkgutil
@@ -23,7 +25,9 @@ from api.common import log_json
 from api.utils import DateHelper
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
+from koku.cache import get_cached_ocp_on_cloud_matched_tags
 from koku.cache import get_value_from_cache
+from koku.cache import set_cached_ocp_on_cloud_matched_tags
 from koku.cache import set_value_in_cache
 from koku.database_exc import ExtendedDeadlockDetected
 from koku.database_exc import get_extended_exception_by_type
@@ -33,11 +37,16 @@ from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
 from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import is_tag_processing_disabled
 from masu.processor import OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.processor.parquet.summary_sql_metadata import trino_safe_array_literal
+from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
+
+MATCHED_TAGS_TRINO_TASK = "masu.database.ocp_on_cloud_matched_tags_trino"
+MATCHED_TAGS_LOCK_POLL_SECONDS = 5
 
 
 class ReportDBAccessorException(Exception):
@@ -116,6 +125,86 @@ class ReportDBAccessorBase:
     @staticmethod
     def extract_context_from_sql_params(sql_params: dict):
         return extract_context_from_sql_params(sql_params)
+
+    @staticmethod
+    def _as_date(value):
+        """Return a date from a date or datetime."""
+        if isinstance(value, datetime.datetime):
+            return value.date()
+        return value
+
+    @staticmethod
+    def _matched_tags_to_strings(matched_tags):
+        """Serialize matched tag dicts the way OCP-on-cloud SQL expects."""
+        if not matched_tags:
+            return []
+        return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
+
+    def _month_wide_trino_matched_tag_strings(self, cloud_provider_uuid, ocp_provider_uuid, start_date, ctx):
+        """Return month-wide Trino matched tags, cached and single-flighted per cluster/month."""
+        if is_tag_processing_disabled(self.schema):
+            LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
+            return []
+
+        month_start = self._as_date(self.date_helper.month_start(start_date))
+        month_end = self._as_date(self.date_helper.month_end(start_date))
+        month_key = month_start.strftime("%Y-%m")
+        ocp_uuid = str(ocp_provider_uuid)
+        cache_args = [self.schema, ocp_uuid, month_key]
+        trino_ctx = {**ctx, "month_start": month_start, "month_end": month_end}
+
+        cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, month_key)
+        if cached is not None:
+            LOG.info(log_json(msg="using cached matched tags", context=trino_ctx))
+            return cached
+
+        worker_cache = WorkerCache()
+        if worker_cache.single_task_is_running(MATCHED_TAGS_TRINO_TASK, cache_args):
+            LOG.info(log_json(msg="waiting for in-flight matched tags Trino query", context=trino_ctx))
+            cached = self._wait_for_cached_matched_tags(ocp_uuid, month_key, cache_args)
+            if cached is not None:
+                return cached
+
+        worker_cache.lock_single_task(
+            MATCHED_TAGS_TRINO_TASK, cache_args, timeout=settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        )
+        try:
+            cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, month_key)
+            if cached is not None:
+                LOG.info(log_json(msg="using cached matched tags", context=trino_ctx))
+                return cached
+            LOG.info(log_json(msg="getting matching tags from Trino", context=trino_ctx))
+            matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
+                cloud_provider_uuid,
+                [ocp_provider_uuid],
+                month_start,
+                month_end,
+                invoice_month_date=month_start,
+            )
+            tag_strings = self._matched_tags_to_strings(matched_tags)
+            set_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, month_key, tag_strings)
+            return tag_strings
+        finally:
+            worker_cache.release_single_task(MATCHED_TAGS_TRINO_TASK, cache_args)
+
+    def _wait_for_cached_matched_tags(self, ocp_uuid, month_key, cache_args):
+        """Poll Valkey until the in-flight Trino worker publishes matched tags."""
+        deadline = time.monotonic() + settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        worker_cache = WorkerCache()
+        while time.monotonic() < deadline:
+            cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, month_key)
+            if cached is not None:
+                LOG.info(
+                    log_json(
+                        msg="using cached matched tags after wait",
+                        context={"schema": self.schema, "ocp_provider_uuid": ocp_uuid, "month": month_key},
+                    )
+                )
+                return cached
+            if not worker_cache.single_task_is_running(MATCHED_TAGS_TRINO_TASK, cache_args):
+                break
+            time.sleep(MATCHED_TAGS_LOCK_POLL_SECONDS)
+        return get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, month_key)
 
     @property
     def trino_sql_folder_name(self):

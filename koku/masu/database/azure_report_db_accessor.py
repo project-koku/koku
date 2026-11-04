@@ -23,7 +23,6 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_schema
-from masu.processor import is_tag_processing_disabled
 from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
@@ -444,15 +443,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             enabled_tags = self.check_for_matching_enabled_keys()
             if EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).exists() and enabled_tags:
                 matched_tags = self.get_openshift_on_cloud_matched_tags(bill_id)
-        if not matched_tags and enabled_tags:
-            LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
-            if is_tag_processing_disabled(self.schema):
-                LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
-                return []
-            LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
-            matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
-                azure_provider_uuid, [ocp_provider_uuid], start_date, end_date, invoice_month=None
-            )
         if matched_tags:
-            return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-        return matched_tags
+            return self._matched_tags_to_strings(matched_tags)
+        if not enabled_tags:
+            return []
+        LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+        return self._month_wide_trino_matched_tag_strings(azure_provider_uuid, ocp_provider_uuid, start_date, ctx)

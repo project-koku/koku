@@ -146,11 +146,6 @@ def is_key_in_cache(cache_key, cache_choice=CacheEnum.default):
     return cache.has_key(cache_key)
 
 
-def build_matching_tags_key(schema_name, provider_type):
-    """Return the key for matching tags"""
-    return f"OCP-on-{provider_type}:{schema_name}:matching-tags"
-
-
 def build_trino_schema_exists_key(schema_name):
     return f"schema-exists-trino-{schema_name}"
 
@@ -164,18 +159,25 @@ def build_enabled_currency_codes_key(schema_name):
     return f"enabled-currency-codes-{schema_name}"
 
 
-def get_cached_matching_tags(schema_name, provider_type):
-    """Return cached OCP on Cloud matched tags if exists."""
-    cache = caches[CacheEnum.default]
-    cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
-    return cache.get(cache_key)
+def build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, month):
+    """Return the Valkey key for month-wide OCP-on-cloud matched tags."""
+    return f"ocp-on-cloud-matched-tags:{schema_name}:{ocp_provider_uuid}:{month}"
 
 
-def set_cached_matching_tags(schema_name, provider_type, matched_tags):
-    """Return cached OCP on Cloud matched tags if exists."""
+def get_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, month):
+    """Return cached month-wide OCP-on-cloud matched tags, or None on a miss."""
     cache = caches[CacheEnum.default]
-    cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
-    cache.set(cache_key, matched_tags)
+    return cache.get(build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, month))
+
+
+def set_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, month, matched_tags):
+    """Cache month-wide OCP-on-cloud matched tags, including an empty list."""
+    cache = caches[CacheEnum.default]
+    cache.set(
+        build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, month),
+        matched_tags,
+        timeout=settings.WORKER_CACHE_TIMEOUT,
+    )
 
 
 def get_cached_infra_map(schema_name, provider_type, provider_uuid):
