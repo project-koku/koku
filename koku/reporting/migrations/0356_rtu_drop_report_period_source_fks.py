@@ -9,9 +9,11 @@
 # from Provider.delete and both OCP retention purges). The Django state switches to
 # DO_NOTHING + db_constraint=False so cascade_delete() and the ORM do not cascade either.
 #
-# Deploy order: the explicit deletes must ship in the release before this migration. The
-# previous release's retention purges still cascade through the Django relation, but its
-# Provider.delete relies on the database cascade. Columns and indexes stay.
+# Deploy order: the explicit deletes ship in the release before this migration. The previous
+# release's retention purges still cascade through the Django relation, but its Provider.delete
+# relies on the database cascade. This matters only once the RTU pipeline flag
+# (cost-management.backend.cost_breakdown_rates_to_usage) is on; while it is off,
+# rates_to_usage is empty. Columns and indexes stay.
 import django.db.models.deletion
 from django.db import migrations
 from django.db import models
