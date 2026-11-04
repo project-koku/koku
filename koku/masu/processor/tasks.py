@@ -126,6 +126,44 @@ def _try_lock_openshift_on_cloud_task(
     return True
 
 
+def _queue_openshift_on_cloud_summaries(
+    schema,
+    ocp_on_cloud_infra_map,
+    start_date,
+    end_date,
+    manifest_id,
+    tracing_id,
+    queue_name,
+    synchronous,
+    fallback_queue,
+):
+    """Build update_openshift_on_cloud signatures, skipping work already locked."""
+    signature_list = []
+    worker_cache = None if synchronous else WorkerCache()
+    for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
+        infra_provider_uuid = infrastructure_tuple[0]
+        infra_provider_type = infrastructure_tuple[1]
+        if worker_cache is not None and not _try_lock_openshift_on_cloud_task(
+            worker_cache, schema, infra_provider_uuid, openshift_provider_uuid, start_date, tracing_id
+        ):
+            continue
+        signature_list.append(
+            update_openshift_on_cloud.si(
+                schema,
+                openshift_provider_uuid,
+                infra_provider_uuid,
+                infra_provider_type,
+                str(start_date),
+                str(end_date),
+                manifest_id=manifest_id,
+                queue_name=queue_name,
+                synchronous=synchronous,
+                tracing_id=tracing_id,
+            ).set(queue=fallback_queue)
+        )
+    return signature_list
+
+
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
     """Take a list of reports to summarize and deduplicate them."""
     reports_by_source = defaultdict(list)
@@ -223,29 +261,17 @@ def trigger_ocp_on_cloud_summary(
                 tracing_id=tracing_id,
             ).set(queue=delete_truncate_queue)
         )
-    signature_list = []
-    worker_cache = None if synchronous else WorkerCache()
-    for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
-        infra_provider_uuid = infrastructure_tuple[0]
-        infra_provider_type = infrastructure_tuple[1]
-        if worker_cache is not None and not _try_lock_openshift_on_cloud_task(
-            worker_cache, schema, infra_provider_uuid, openshift_provider_uuid, start_date, tracing_id
-        ):
-            continue
-        signature_list.append(
-            update_openshift_on_cloud.si(
-                schema,
-                openshift_provider_uuid,
-                infra_provider_uuid,
-                infra_provider_type,
-                str(start_date),
-                str(end_date),
-                manifest_id=manifest_id,
-                queue_name=queue_name,
-                synchronous=synchronous,
-                tracing_id=tracing_id,
-            ).set(queue=fallback_update_summary_tables_queue)
-        )
+    signature_list = _queue_openshift_on_cloud_summaries(
+        schema,
+        ocp_on_cloud_infra_map,
+        start_date,
+        end_date,
+        manifest_id,
+        tracing_id,
+        queue_name,
+        synchronous,
+        fallback_update_summary_tables_queue,
+    )
 
     # Apply OCP on Cloud tasks
     if signature_list:

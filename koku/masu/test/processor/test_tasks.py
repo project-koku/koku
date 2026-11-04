@@ -50,7 +50,6 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
-from masu.processor.tasks import UPDATE_OPENSHIFT_ON_CLOUD_TASK
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import delete_openshift_on_cloud_data
 from masu.processor.tasks import get_report_files
@@ -66,6 +65,7 @@ from masu.processor.tasks import trigger_ocp_on_cloud_summary
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
+from masu.processor.tasks import UPDATE_OPENSHIFT_ON_CLOUD_TASK
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import validate_daily_data
 from masu.processor.worker_cache import create_single_task_cache_key
