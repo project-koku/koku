@@ -1,6 +1,6 @@
 # RTU hardening: test plan
 
-Branch `mpovolny/rtu-hardening` (draft PR [#6425](https://github.com/project-koku/koku/pull/6425), image builds only). Covers work log items 1, 1b, 1c, 2, 3 and 5 of [`rtu-race-map.md`](rtu-race-map.md); later items add their rows here. How to run everything: [`README.md`](README.md).
+Branch `mpovolny/rtu-hardening` (draft PR [#6425](https://github.com/project-koku/koku/pull/6425), image builds only). Covers work log items 1, 1b, 1c, 2, 3, 5 and 6 of [`rtu-race-map.md`](rtu-race-map.md); later items add their rows here. How to run everything: [`README.md`](README.md).
 
 Out of scope: correctness of the cost breakdown API and of the breakdown tree itself. That is the QE plan "Cost Breakdown and Rate Filtering" (`docs/tests/COST-7249/qe-test-plan-cost-breakdown.md`, added by #6102). Phase 1 schema normalization (Rate table, diff-based `sync_rate_table`, write freeze) is `docs/architecture/cost-breakdown/test-plan.md`.
 
@@ -14,6 +14,7 @@ Out of scope: correctness of the cost breakdown API and of the breakdown tree it
 | 2 | A price list PUT saves the price list and syncs its Rate rows in one transaction; a cost model PUT changes sources and rates in one transaction |
 | 3 | `rates_to_usage` has no FK at all to its report period or source (migration `0356`); `Provider.delete()` and both OCP retention purges delete its rows explicitly first |
 | 5 | Retention purges by date drop expired partitions with one statement per parent table (all four providers) |
+| 6 | `GET /price-lists/<uuid>/rates/` never writes and matches JSON to Rate rows read-only; `sync_rate_table` keeps Rate identity and names for JSON without `rate_id` / `custom_name` |
 
 ## Invariants
 
@@ -30,6 +31,8 @@ Out of scope: correctness of the cost breakdown API and of the breakdown tree it
 | I9 | A failed rate sync leaves the price list or cost model exactly as before: name, version, rates JSON, source mapping, and no recalculation dispatched |
 | I10 | Deleting a provider, or purging report periods by provider or by date, removes exactly their RTU rows (in every partition) and no others; inserts referencing a missing source or report period succeed |
 | I11 | A purge by date never holds ACCESS EXCLUSIVE on two parent tables at once: one autocommitted statement per table, dropping exactly the expired non-default partitions of the listed tables |
+| I12 | The rates GET issues no write statements and returns the same rates (UUIDs, tiered and tag rates) whether or not the JSON carries `rate_id` / `custom_name` |
+| I13 | Syncing JSON without `rate_id` / `custom_name` (the pre-0013 shape) keeps every Rate's UUID and name |
 
 ## Unit tests (local, `koku-db` on :15432)
 
@@ -38,7 +41,7 @@ python koku/manage.py test --noinput reporting.provider.ocp.test.test_rtu_migrat
   masu.test.processor.test_delete_rates_to_usage_rows cost_models.test.test_rtu_cleanup \
   masu.test.processor.ocp.test_phase4_distribution cost_models.test.test_atomic_updates \
   reporting.provider.ocp.test.test_rtu_parent_deletes masu.test.processor.ocp.test_ocp_report_db_cleaner \
-  koku.test.test_drop_expired_partitions
+  koku.test.test_drop_expired_partitions cost_models.test.test_price_list_view
 ```
 
 | Test | Invariants | Red before the fix |
@@ -60,6 +63,9 @@ python koku/manage.py test --noinput reporting.provider.ocp.test.test_rtu_migrat
 | `test_ocp_report_db_cleaner.test_purge_expired_report_data_for_provider_deletes_rtu` (existing) | I10 | yes, same |
 | `test_drop_expired_partitions.test_one_statement_per_parent_table` | I11 | yes (1 statement for 2 tables) |
 | `test_drop_expired_partitions.test_drops_only_expired_partitions_of_listed_tables`, `CleanersUseDropExpiredPartitionsTest` (OCP, AWS, Azure, GCP) | I11 | the cleaner tests yes (helper missing) |
+| `test_price_list_view.test_rates_endpoint_reads_without_writes_when_rate_id_missing` (replaces TC-124) | I12 | yes (UUIDs changed, writes issued) |
+| `test_price_list_view.test_sync_rate_table_keeps_rates_of_json_without_rate_id` | I13 | yes (every Rate replaced, `-2` names) |
+| `test_price_list_view.test_match_rates_to_json_*` (replace TC-112 to TC-114) | I12 | yes (function missing) |
 | `test_phase4_distribution` existing tests 01–11 (proportionality, sum consistency, cost conservation, sign, idempotency, multi-rate, two-phase equivalence) | I6 (totals) | n/a, must stay green |
 
 Known local failures not caused by this work (identical on `main`): 15 tests in `masu.test.processor.ocp.test_phase2_rates_to_usage` and `test_phase4_distribution.test_worker_zero_rate_pool_is_distributed_and_negated_exactly` (work log item 8). `api.provider.test.test_provider_manager.test_provider_statistics` and `_ocp_on_cloud` fail when the cached test database predates the current month (no report period for it). So do 5 AWS/Azure/GCP parquet summary updater tests (same on the unchanged commit), and `koku.test_pg_partition.test_skips_locked_table_and_succeeds_later` is timing-flaky in combined runs (200 ms `lock_timeout`; passes alone).
