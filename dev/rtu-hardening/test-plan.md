@@ -73,7 +73,7 @@ python koku/manage.py test --noinput reporting.provider.ocp.test.test_rtu_migrat
 | `test_rtu_writer_lock.RatesToUsageWriterLockDecoratorTest` (RTU locks, legacy does not, all seven writers wrapped) | I14 | yes (decorator missing) |
 | `test_phase4_distribution` existing tests 01–11 (proportionality, sum consistency, cost conservation, sign, idempotency, multi-rate, two-phase equivalence) | I6 (totals) | n/a, must stay green |
 
-Known local failures not caused by this work (identical on `main`): 15 tests in `masu.test.processor.ocp.test_phase2_rates_to_usage` and `test_phase4_distribution.test_worker_zero_rate_pool_is_distributed_and_negated_exactly` (work log item 8). `api.provider.test.test_provider_manager.test_provider_statistics` and `_ocp_on_cloud` fail when the cached test database predates the current month (no report period for it). So do 5 AWS/Azure/GCP parquet summary updater tests (same on the unchanged commit), and `koku.test_pg_partition.test_skips_locked_table_and_succeeds_later` is timing-flaky in combined runs (200 ms `lock_timeout`; passes alone).
+Local test runs: none fail. The failures listed here earlier (15 in `test_phase2_rates_to_usage`, the worker zero-rate test, the parquet summary updaters, provider statistics) came from a stale kept test DB built before the month changed; rebuilt with `KEEPDB=False`, the full suite passes (2026-11-04: 4,935 tests, 43 skipped). See `docs/agent/testing.md`. `koku.test_pg_partition.test_skips_locked_table_and_succeeds_later` is timing-sensitive (200 ms `lock_timeout`) and failed once in a combined run; it passed alone and in the full suite.
 
 ## Database-only measurement (local)
 
