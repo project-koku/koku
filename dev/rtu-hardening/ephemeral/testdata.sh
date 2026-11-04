@@ -22,6 +22,12 @@
 # RTU_ORG_ID (default 7654321).
 set -euo pipefail
 
+# Pin every oc call to the ephemeral cluster's context (OC_CONTEXT, default "eph" as created by
+# ~/bin/oc-token.sh eph --setup-context), so another tool switching the kubeconfig's current
+# context cannot point these steps at a different cluster.
+OC_CONTEXT="${OC_CONTEXT:-eph}"
+oc() { command oc --context "${OC_CONTEXT}" "$@"; }
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${HERE}/../../.." && pwd)"
 NS="$(cat "${HERE}/.namespace")"
@@ -87,6 +93,12 @@ verify)
                   count(DISTINCT r.rate_id) AS rates, sum(r.calculated_cost)::numeric(18,2) AS cost
            FROM ${SCHEMA}.rates_to_usage r LEFT JOIN public.api_provider p ON p.uuid = r.source_uuid
            GROUP BY 1, 2 ORDER BY 1, 2;"
+    db -c "SELECT r.monthly_cost_type AS distributed_type, count(*) FILTER (WHERE r.rate_id IS NOT NULL) AS with_rate_id,
+                  count(*) FILTER (WHERE r.rate_id IS NULL) AS without_rate_id
+           FROM ${SCHEMA}.rates_to_usage r
+           WHERE r.custom_name <> '' AND r.monthly_cost_type IN
+                 ('platform_distributed', 'worker_distributed', 'gpu_distributed', 'unattributed_storage', 'unattributed_network')
+           GROUP BY 1 ORDER BY 1;"
     db -At -c "SELECT 'RTU rows whose rate no longer exists: ' || count(*) FROM ${SCHEMA}.rates_to_usage r
                WHERE r.rate_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${SCHEMA}.cost_model_rate cr WHERE cr.uuid = r.rate_id);"
     ;;

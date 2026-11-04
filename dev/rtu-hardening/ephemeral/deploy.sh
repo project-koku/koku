@@ -21,6 +21,11 @@
 # The reserved namespace is remembered in dev/rtu-hardening/ephemeral/.namespace (git-ignored).
 set -euo pipefail
 
+# Pin oc calls to the ephemeral cluster's context (OC_CONTEXT, default "eph"). bonfire itself uses
+# the kubeconfig's current context, so reserve/release also need `oc config use-context eph` first.
+OC_CONTEXT="${OC_CONTEXT:-eph}"
+oc() { command oc --context "${OC_CONTEXT}" "$@"; }
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${HERE}/../../.." && pwd)"
 NS_FILE="${HERE}/.namespace"
