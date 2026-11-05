@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Unit tests for ISO currency helper functions."""
-from django.test import SimpleTestCase
 from django.test import override_settings
+from django.test import SimpleTestCase
 
 from api.currency.currencies import get_active_iso_currency_codes
 from api.currency.currencies import is_active_iso_currency
