@@ -9,6 +9,7 @@ from copy import deepcopy
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from rest_framework import serializers
 
 from api.common import error_obj
@@ -635,17 +636,16 @@ class CostModelSerializer(BaseSerializer):
         source_uuids = validated_data.pop("source_uuids", [])
         price_list_uuids = validated_data.pop("price_list_uuids", [])
         validated_data.update({"provider_uuids": source_uuids})
-        try:
-            cost_model = CostModelManager().create(**validated_data)
-        except CostModelException as error:
-            raise serializers.ValidationError(error_obj("cost-models", str(error)))
-        if price_list_uuids:
-            from cost_models.price_list_manager import PriceListException
+        from cost_models.price_list_manager import PriceListException
 
-            try:
-                PriceListManager.attach_price_lists_to_cost_model(cost_model.uuid, price_list_uuids)
-            except PriceListException as error:
-                raise serializers.ValidationError(error_obj("cost-models", str(error)))
+        try:
+            # One transaction: if a price list cannot be attached, no cost model is created.
+            with transaction.atomic():
+                cost_model = CostModelManager().create(**validated_data)
+                if price_list_uuids:
+                    PriceListManager.attach_price_lists_to_cost_model(cost_model.uuid, price_list_uuids)
+        except (CostModelException, PriceListException) as error:
+            raise serializers.ValidationError(error_obj("cost-models", str(error)))
         return cost_model
 
     def update(self, instance, validated_data, *args, **kwargs):
@@ -656,19 +656,20 @@ class CostModelSerializer(BaseSerializer):
         new_providers_for_instance = []
         for uuid in source_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
+        from cost_models.price_list_manager import PriceListException
+
         try:
             manager = CostModelManager(cost_model_uuid=instance.uuid)
-            manager.update_provider_uuids(new_providers_for_instance)
-            manager.update(**validated_data)
-        except CostModelException as error:
+            # One transaction: if the rate update or the price list attachment fails, the source
+            # mapping changes roll back too, and update_provider_uuids' on_commit recalculation runs
+            # only when everything succeeds.
+            with transaction.atomic():
+                manager.update_provider_uuids(new_providers_for_instance)
+                manager.update(**validated_data)
+                if price_list_uuids is not None:
+                    PriceListManager.attach_price_lists_to_cost_model(instance.uuid, price_list_uuids)
+        except (CostModelException, PriceListException) as error:
             raise serializers.ValidationError(error_obj("cost-models", str(error)))
-        if price_list_uuids is not None:
-            from cost_models.price_list_manager import PriceListException
-
-            try:
-                PriceListManager.attach_price_lists_to_cost_model(instance.uuid, price_list_uuids)
-            except PriceListException as error:
-                raise serializers.ValidationError(error_obj("cost-models", str(error)))
         return manager.instance
 
     def to_representation(self, cost_model_obj):
