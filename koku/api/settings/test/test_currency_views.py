@@ -991,7 +991,10 @@ class EnabledCurrencyViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="GBP").exists())
 
-    @override_settings(CACHES=CACHE_OVERRIDE)
+    @override_settings(
+        CACHES=CACHE_OVERRIDE,
+        CURRENCY_URL="https://exchange-rates.example/v6/latest/USD",
+    )
     def test_enable_currency_invalidates_enabled_codes_cache(self):
         """Enabling a currency should invalidate the cached enabled-codes set."""
         with tenant_context(self.tenant):
@@ -1106,6 +1109,7 @@ class EnabledCurrencyViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="GBP").exists())
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_disable_reenable_restores_current_month_static_mer(self):
         """Re-enable rematerializes covering static definitions for the current month."""
         date_helper = DateHelper()
@@ -1190,6 +1194,7 @@ class EnabledCurrencyViewTest(IamTestCase):
 
             self.assertEqual(StaticExchangeRate.objects.filter(uuid=static_rate.uuid).count(), 1)
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_reenable_without_static_definition_writes_dynamic_only(self):
         """Re-enable with no covering static definition only writes dynamic MER rows."""
         date_helper = DateHelper()

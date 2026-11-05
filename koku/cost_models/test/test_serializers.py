@@ -795,6 +795,7 @@ class CostModelSerializerTest(IamTestCase):
 
             self.assertEqual(instance.currency, get_currency(self.request_context["request"]))
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_cost_model_currency(self):
         """Test if currency is set in cost model."""
         self.ocp_data["currency"] = "AUD"

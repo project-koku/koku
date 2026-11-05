@@ -7,6 +7,7 @@ import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from django.test.utils import override_settings
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
@@ -302,6 +303,7 @@ class PriceListViewTests(IamTestCase):
             rate = Rate.objects.get(price_list__uuid=pl_uuid)
             self.assertEqual(rate.description, "updated rate description")
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_update_currency_fails(self):
         """Test that updating currency fails - currency is immutable."""
         create_response = self._create_price_list(currency="USD")
@@ -468,6 +470,7 @@ class PriceListViewTests(IamTestCase):
         enabled_values = {r["enabled"] for r in results}
         self.assertEqual(enabled_values, {True, False})
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_filter_by_currency(self):
         """Test filtering by currency."""
         self._create_price_list(name="USD PL", currency="USD")
@@ -518,6 +521,7 @@ class PriceListViewTests(IamTestCase):
         dates = [r["effective_end_date"] for r in results]
         self.assertEqual(dates, sorted(dates))
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_order_by_currency(self):
         """Test ordering by currency."""
         self._create_price_list(name="USD PL", currency="USD")
