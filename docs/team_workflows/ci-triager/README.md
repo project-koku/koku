@@ -38,7 +38,7 @@ Scheduled session (every 2 hours at minute 13 — cron: "13 */2 * * *")
 
 | Check | What it detects | Agent action |
 |-------|----------------|-------------|
-| `Units - 3.11` | Assertion mismatch, import errors, missing mocks, typos | Inline suggestion |
+| `Units - 3.12` | Assertion mismatch, import errors, missing mocks, typos | Inline suggestion |
 | `Sanity` | flake8, black, import ordering, trailing whitespace | Inline suggestion |
 | `codecov/patch` | New code with insufficient test coverage | Comment with new test file |
 | `Red Hat Konflux / koku-ci / koku` | IQE smoke test failures, build errors, `smokes-required` label blocks | Diagnosis comment with log excerpt |

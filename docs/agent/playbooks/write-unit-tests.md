@@ -18,7 +18,7 @@ You are adding or extending **Python unit tests** in the Koku backend. Follow pr
 ## Implementation rules
 
 - Prefer **`model_bakery`** (`baker.make(...)`) for ORM objects over hand-built `create()` unless the test needs very specific fields.
-- Use **`subTest()`** for multiple scenarios in one method; avoid `self.skipTest()` inside `subTest` on Python 3.11 (it skips the whole test).
+- Use **`subTest()`** for multiple scenarios in one method; avoid `self.skipTest()` inside `subTest` on Python 3.11 (it skips the whole test); on Python 3.12+ this interpreter bug is fixed.
 - **Mock external services** not available in unit tests (Trino, Unleash, etc.). **Mock at the import site** used by the code under test (e.g. `patch("masu.database.ocp_report_db_accessor.trino_table_exists", ...)` not a deep util path unless that is what the module imports).
 - Use parenthesized context managers for multiple patch context managers: with (patch(...), patch(...)):
 - Match existing naming: `test_*.py`, classes `Test*` or `*Test`, methods `test_*` with descriptive names.
