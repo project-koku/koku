@@ -33,7 +33,10 @@ class KafkaMessageWatchdogTest(SimpleTestCase):
             ),
         ):
             watchdog._monitor()
-        emit_diagnostic.assert_called_once_with(watchdog.timeout_seconds)
+        emit_diagnostic.assert_called_once()
+        # The watchdog reports monotonic() - start; with a large start (long runner uptime) that
+        # float subtraction is not exactly timeout_seconds, so compare approximately.
+        self.assertAlmostEqual(emit_diagnostic.call_args.args[0], watchdog.timeout_seconds)
 
     @patch("masu.external.kafka_msg_handler.sentry_sdk.capture_message")
     @patch("masu.external.kafka_msg_handler.KAFKA_LISTENER_WATCHDOG_DIAGNOSTICS_COUNTER")
