@@ -7,7 +7,8 @@
 Full ISO 4217 validation uses babel's complete registry
 (``is_valid_iso_currency`` / ``get_all_iso_currency_codes``). The Settings
 catalog uses current tender codes from babel territory data
-(``is_active_iso_currency`` / ``get_active_iso_currency_codes``).
+(``is_active_iso_currency`` / ``get_active_iso_currency_codes``), minus
+``settings.CURRENCY_CATALOG_DENYLIST``.
 
 Only currencies that an administrator has explicitly enabled are stored in
 the ``EnabledCurrency`` table (tenant schema).
@@ -18,6 +19,7 @@ from babel.core import get_global
 from babel.numbers import get_currency_name
 from babel.numbers import get_currency_symbol
 from babel.numbers import get_territory_currencies
+from django.conf import settings
 from django.db import connection
 from rest_framework import serializers
 
@@ -89,13 +91,27 @@ def is_valid_iso_currency(code):
     return code.upper() in get_all_iso_currency_codes()
 
 
+def get_currency_catalog_denylist():
+    """Return uppercase currency codes excluded from the Settings enablement catalog."""
+    return {
+        str(code).strip().upper()
+        for code in getattr(settings, "CURRENCY_CATALOG_DENYLIST", ())
+        if code and str(code).strip()
+    }
+
+
 def get_active_iso_currency_codes():
-    """Return current tender ISO 4217 codes from babel territory data."""
-    return set(_ACTIVE_ISO_4217_CURRENCIES)
+    """Return current tender ISO 4217 codes from babel, minus the catalog denylist.
+
+    The babel tender set is built once at import. The denylist is read from
+    settings on each call so ``override_settings`` works in tests and so
+    deploy-time env changes do not require rebuilding the babel cache.
+    """
+    return set(_ACTIVE_ISO_4217_CURRENCIES) - get_currency_catalog_denylist()
 
 
 def is_active_iso_currency(code):
-    """Check whether *code* is a current tender ISO 4217 currency."""
+    """Check whether *code* is a current tender currency available for enablement."""
     return code.upper() in get_active_iso_currency_codes()
 
 
