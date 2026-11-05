@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
+        "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).\n\nOn-prem (ONPREM=true): allow-listed Masu admin paths require `Authorization: Bearer <MASU_ADMIN_TOKEN>` (shared secret from the Operator). Requests without a valid token return 401. `/status/` remains open for health checks. Support/runbook details for obtaining the token and calling via `oc port-forward` may live with COST-7844.\n\nThis document is shared by SaaS and on-prem deployments, and OpenAPI cannot express environment-conditional security. The on-prem Bearer requirement is therefore documented here and on the 401 responses instead of being declared as an operation-level security scheme; in SaaS these operations are reached without a token and rely on network isolation.",
         "version": "1.0.0",
         "title": "Cost Management Admin",
         "license": {
@@ -515,6 +515,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -975,6 +978,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1029,6 +1035,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1091,6 +1100,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1113,6 +1125,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1163,6 +1178,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1182,6 +1200,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1236,6 +1257,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1316,6 +1340,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1370,6 +1397,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1424,6 +1454,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1443,6 +1476,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1487,6 +1523,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
