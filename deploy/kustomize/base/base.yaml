@@ -294,6 +294,9 @@ parameters:
 - name: CURRENCY_URL
   description: Exchange rate API URL for dynamic currency rates. Empty disables the daily currency beat.
   value: ""
+- name: CURRENCY_CATALOG_DENYLIST
+  description: Comma-separated ISO currency codes excluded from the Settings enablement catalog (babel tender minus these). Already-enabled codes remain visible so they can be disabled.
+  value: ""
 - description: Image tag
   name: IMAGE_TAG
   required: true
