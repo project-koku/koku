@@ -13,6 +13,7 @@ from psycopg2.extras import RealDictCursor
 from sqlparse import format as sql_format
 from sqlparse import parse as sql_parse
 from sqlparse import split as sql_split
+from sqlparse.exceptions import SQLParseError
 
 RELEASE = 0
 MAJOR = 1
@@ -332,10 +333,14 @@ select datname as "dbname",
                 LOG.warning(self._prep_log_message(f"Refusing to process statement type: {sql_type}"))
                 raise ProgrammingError(f"Refusing to process statement {sql_type}")
 
-            target_sql = sql_format(
-                target_sql, strip_comments=True, keyword_case="lower", identifier_case="lower"
-            ).strip()
-            if target_sql.startswith("commit") or target_sql.startswith("rollback"):
+            try:
+                target_sql = sql_format(
+                    target_sql, strip_comments=True, keyword_case="lower", identifier_case="lower"
+                ).strip()
+            except SQLParseError:
+                # sqlparse>=0.6.1 may refuse oversized statements (MAX_GROUPING_TOKENS).
+                target_sql = target_sql.strip()
+            if target_sql.lower().startswith("commit") or target_sql.lower().startswith("rollback"):
                 raise ProgrammingError("Refusing to process statement;")
             plan = os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(f"EXPLAIN VERBOSE {target_sql}"))
             res.append({"query_plan": plan, "query_text": target_sql})

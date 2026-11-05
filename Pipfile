@@ -43,7 +43,7 @@ statsmodels = ">=0.12"
 trino = "*"
 whitenoise = ">=5.0"
 pydantic = ">=2"
-sqlparse = "*"
+sqlparse = ">=0.6.1"  # floor: CVE-2026-112307 (fixed in 0.6.1)
 packaging = "*"
 psycopg2-binary = "*"
 watchtower = "*"
