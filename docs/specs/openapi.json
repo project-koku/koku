@@ -13020,7 +13020,7 @@
                                             ]
                                         },
                                         "value": {
-                                            "type": "string"
+                                            "type": "number"
                                         },
                                         "description": {
                                             "type": "string"

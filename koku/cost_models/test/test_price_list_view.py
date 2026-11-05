@@ -1105,6 +1105,39 @@ class PriceListRatesIntegrationTest(IamTestCase):
                 set(rate["metric"]), set(schemas["PriceListRateOut"]["properties"]["metric"]["properties"])
             )
 
+        # Prices on the wire have the JSON type the schema documents.
+        json_types = {"number": (int, float), "string": str}
+        properties = schemas["PriceListRateOut"]["properties"]
+        tier_type = json_types[properties["tiered_rates"]["items"]["properties"]["value"]["type"]]
+        tag_value_schema = properties["tag_rates"]["properties"]["tag_values"]["items"]["properties"]["value"]
+        tag_type = json_types[tag_value_schema["type"]]
+        checked = 0
+        for rate in response.json()["data"]:
+            for tier in rate.get("tiered_rates", []):
+                self.assertIsInstance(tier["value"], tier_type, rate["custom_name"])
+                checked += 1
+            for tag_value in rate.get("tag_rates", {}).get("tag_values", []):
+                self.assertIsInstance(tag_value["value"], tag_type, rate["custom_name"])
+                checked += 1
+        self.assertEqual(checked, len(self.DIVERSE_RATES))
+
+    def test_rates_endpoint_returns_prices_as_numbers(self):
+        """Prices stored as decimal strings are returned as JSON numbers, as in the price list detail."""
+        pl_uuid = self._create_diverse_price_list()
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(url, {"limit": "100"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        by_name = {rate["custom_name"]: rate for rate in response.json()["data"]}
+        self.assertEqual(by_name["CPU Usage Rate"]["tiered_rates"][0]["value"], 1.5)
+        self.assertEqual(by_name["Node Count Rate"]["tiered_rates"][0]["value"], 100.0)
+        self.assertEqual(by_name["CPU Tag Rate"]["tag_rates"]["tag_values"][0]["value"], 3.0)
+
+        detail = self.client.get(reverse("price-lists-detail", kwargs={"uuid": pl_uuid}), **self.headers).json()
+        detail_by_name = {rate["custom_name"]: rate for rate in detail["rates"]}
+        for name, rate in by_name.items():
+            self.assertEqual(rate.get("tiered_rates"), detail_by_name[name].get("tiered_rates"), name)
+            self.assertEqual(rate.get("tag_rates"), detail_by_name[name].get("tag_rates"), name)
+
     def test_documented_query_parameters_are_accepted(self):
         """Every query parameter openapi.json documents for the price list list and rates endpoints returns 200."""
         import json
