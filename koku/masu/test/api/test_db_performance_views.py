@@ -172,6 +172,12 @@ class TestDBPerformance(IamTestCase):
             self.assertIn('id="stmt_stats_table"', html)
             self.assertIn("select oversized_token_limit_query", html)
 
+    def test_safe_format_sql_none(self):
+        """None SQL is returned unchanged (lock/activity rows can have null queries)."""
+        from masu.api.db_performance.dbp_views import _safe_format_sql
+
+        self.assertIsNone(_safe_format_sql(None, keyword_case="upper"))
+
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_pg_ver(self, mok_middl):
         """Test the db version view."""

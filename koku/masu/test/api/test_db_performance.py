@@ -217,6 +217,18 @@ class TestDBPerformanceClass(IamTestCase):
         ):
             dbp.explain_sql("select 1")
 
+    @patch(
+        "masu.api.db_performance.db_performance.sql_format",
+        side_effect=SQLParseError("Maximum number of tokens exceeded (10000)."),
+    )
+    def test_explain_sql_format_token_limit(self, _mock_format):
+        """Format token-limit errors fall back to raw SQL and still EXPLAIN."""
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            res = dbp.explain_sql("select 1")
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["query_text"], "select 1")
+        self.assertIn("query_plan", res[0])
+
     def test_get_databases(self):
         with connection.cursor() as cur:
             cur.execute("select datname from pg_database where datname !~ '^templ';")
