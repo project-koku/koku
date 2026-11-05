@@ -14,7 +14,16 @@ pipenv run python koku/manage.py test masu.test.path.to.test_module --no-input -
 ```
 
 Requires PostgreSQL 16 on `localhost:15432` (`postgres` / `postgres`). Test DB:
-`test_postgres`. Set `KEEPDB=True` in `.env` to preserve between runs.
+`test_postgres`, kept between runs (`KEEPDB` defaults to `True` in `koku/koku/settings.py`).
+
+The test runner loads its fixture data, dated relative to today, only when it creates the test
+DB, so a kept DB goes stale at a month boundary (tests that expect current-month data fail, e.g.
+`test_provider_statistics`, the parquet summary updaters, many OCP processor tests).
+`KokuTestRunner` detects this: when the newest fixture report period predates the current month,
+it prints "Kept test DB is stale ..." and recreates the DB for that run, and it drops stale
+parallel clones (`test_postgres_<n>`). To force a rebuild anyway, run the tests once with
+`KEEPDB=False pipenv run python koku/manage.py test --noinput <tests>` (tox does not pass
+`KEEPDB` through to the test process).
 
 ```bash
 podman run -d --name koku-test-db -p 15432:5432 -e POSTGRES_PASSWORD=postgres postgres:16

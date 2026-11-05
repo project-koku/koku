@@ -4,16 +4,20 @@
 #
 # flake8: noqa
 """Koku Test Runner."""
+import datetime
 import logging
 import os
+import re
 import sys
 
+import psycopg2
 from dev.scripts.insert_org_tree import UploadAwsTree
 from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.runner import ParallelTestSuite
 from django.test.utils import get_unique_databases_and_mirrors
+from psycopg2 import sql as psycopg2_sql
 
 from api.models import Customer
 from api.models import Provider
@@ -57,13 +61,110 @@ class KokuTestRunner(DiscoverRunner):
         return setup_databases(self.verbosity, self.interactive, self.keepdb, self.debug_sql, self.parallel, **kwargs)
 
 
+def fixture_data_is_stale(newest_report_period_start, today):
+    """Return True if kept fixture data predates the current month.
+
+    The fixture loader creates last month and the current month, dated relative to the day the test
+    DB is built, and only when it is built. A kept DB (KEEPDB) built in an earlier month lacks the
+    current month, and every test that expects it fails. No report period at all also means stale.
+    """
+    if newest_report_period_start is None:
+        return True
+    return newest_report_period_start < today.replace(day=1)
+
+
+def _connect(connection, dbname):
+    """Connect to dbname with the parameters Django uses for this alias (TLS options included)."""
+    params = connection.get_connection_params()
+    params["dbname"] = dbname
+    return psycopg2.connect(**params)
+
+
+def fixture_state(connection, dbname, schema):
+    """Return (db_exists, newest OCP report period start as a UTC date or None) of a test DB.
+
+    (False, None) when the DB does not exist yet; Django and setup_databases create it.
+    (True, None) when it exists without fixture data: no fixture table or an empty one, e.g. after
+    an earlier setup failed halfway. Django keeps an existing DB under KEEPDB and setup skips
+    loading for an existing tenant, so such a DB must be rebuilt.
+    """
+    try:
+        test_db = _connect(connection, dbname)
+    except psycopg2.OperationalError as error:
+        LOG.info(f"No kept test DB {dbname} to check for stale fixture data: {error}")
+        return False, None
+    try:
+        with test_db.cursor() as cursor:
+            cursor.execute("SELECT to_regclass(%s)", [f"{schema}.reporting_ocpusagereportperiod"])
+            if cursor.fetchone()[0] is None:
+                return True, None
+            cursor.execute(
+                f"SELECT max(report_period_start AT TIME ZONE 'UTC')::date FROM {schema}.reporting_ocpusagereportperiod"
+            )
+            return True, cursor.fetchone()[0]
+    finally:
+        test_db.close()
+
+
+def drop_stale_clones(connection, test_db_name, schema, today, drop_all):
+    """Drop the parallel test DB clones (<test DB>_<n>) that are stale or incomplete, or all of them.
+
+    Under KEEPDB, Django reuses existing clones and recreates missing ones from the primary test DB,
+    so a dropped clone comes back as a fresh copy on the next parallel run. drop_all is set when the
+    primary test DB is being rebuilt; otherwise each clone is checked like the primary.
+    """
+    maintenance = _connect(connection, connection.settings_dict["NAME"])
+    maintenance.autocommit = True
+    try:
+        with maintenance.cursor() as cursor:
+            cursor.execute(
+                "SELECT datname FROM pg_database WHERE datname ~ %s ORDER BY datname",
+                [f"^{re.escape(test_db_name)}_[0-9]+$"],
+            )
+            for (clone,) in cursor.fetchall():
+                if not drop_all:
+                    _, newest = fixture_state(connection, clone, schema)
+                    if not fixture_data_is_stale(newest, today):
+                        continue
+                print(f"Dropping stale parallel test DB clone {clone}.", file=sys.stderr)
+                cursor.execute(psycopg2_sql.SQL("DROP DATABASE {}").format(psycopg2_sql.Identifier(clone)))
+    finally:
+        maintenance.close()
+
+
+def check_kept_test_dbs(keepdb, today):
+    """Decide whether a kept test DB is reused; drop stale parallel clones.
+
+    Returns (keepdb, stale_rebuild): keepdb becomes False when the kept primary test DB has stale or
+    missing fixture data, and stale_rebuild tells setup_databases to rebuild it without prompting.
+    """
+    if not keepdb:
+        return keepdb, False
+    default = connections["default"]
+    test_db_name = default.creation._get_test_db_name()
+    db_exists, newest = fixture_state(default, test_db_name, KokuTestRunner.schema)
+    stale_rebuild = db_exists and fixture_data_is_stale(newest, today)
+    if stale_rebuild:
+        print(
+            f"Kept test DB is stale (newest fixture report period {newest or 'none'}, current month "
+            f"{today:%Y-%m}): recreating it and its fixture data.",
+            file=sys.stderr,
+        )
+    drop_stale_clones(default, test_db_name, KokuTestRunner.schema, today, drop_all=stale_rebuild)
+    return not stale_rebuild, stale_rebuild
+
+
 def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):
     """Create the test databases.
 
     This function is a copy of the Django setup_databases with one addition.
     A Tenant object is created and saved when setting up the database.
+    A kept test DB whose fixture data predates the current month (or is missing) is recreated,
+    and stale parallel clones are dropped.
     """
     test_databases, mirrored_aliases = get_unique_databases_and_mirrors(aliases)
+
+    keepdb, stale_rebuild = check_kept_test_dbs(keepdb, datetime.datetime.now(datetime.timezone.utc).date())
 
     old_names = []
 
@@ -78,7 +179,8 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                 first_alias = alias
                 test_db_name = connection.creation.create_test_db(
                     verbosity=verbosity,
-                    autoclobber=not interactive,
+                    # A stale kept DB is rebuilt without asking; other rebuilds keep Django's prompt.
+                    autoclobber=not interactive or stale_rebuild,
                     keepdb=keepdb,
                     serialize=connection.settings_dict.get("TEST", {}).get("SERIALIZE", True),
                 )
