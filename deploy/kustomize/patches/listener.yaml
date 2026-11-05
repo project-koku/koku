@@ -63,6 +63,8 @@
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
