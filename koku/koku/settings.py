@@ -183,6 +183,16 @@ MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
 # When unset, the daily get_daily_currency_rates Celery beat is not scheduled.
 CURRENCY_URL = (ENVIRONMENT.get_value("CURRENCY_URL", default="") or "").strip()
 
+### Currency catalog denylist
+# Comma-separated ISO codes excluded from the Settings enablement catalog and
+# from new enablement (babel tender list minus this set). Already-enabled
+# denylisted codes remain visible so admins can disable them. Example: KPW.
+CURRENCY_CATALOG_DENYLIST = frozenset(
+    code.strip().upper()
+    for code in ENVIRONMENT.list("CURRENCY_CATALOG_DENYLIST", default=[])
+    if code and str(code).strip()
+)
+
 ### End Middleware
 
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.AllowAllUsersModelBackend"]

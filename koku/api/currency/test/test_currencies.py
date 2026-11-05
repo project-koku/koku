@@ -4,6 +4,7 @@
 #
 """Unit tests for ISO currency helper functions."""
 from django.test import SimpleTestCase
+from django.test import override_settings
 
 from api.currency.currencies import get_active_iso_currency_codes
 from api.currency.currencies import is_active_iso_currency
@@ -23,3 +24,17 @@ class ActiveIsoCurrencyHelpersTest(SimpleTestCase):
         self.assertFalse(is_active_iso_currency("FRF"))
         self.assertTrue(is_active_iso_currency("USD"))
         self.assertTrue(is_valid_iso_currency("XXX"))
+
+    @override_settings(CURRENCY_CATALOG_DENYLIST=frozenset({"KPW"}))
+    def test_catalog_denylist_excludes_codes_from_active_set(self):
+        """Denylisted tender codes are omitted from enablement helpers."""
+        self.assertNotIn("KPW", get_active_iso_currency_codes())
+        self.assertFalse(is_active_iso_currency("KPW"))
+        self.assertTrue(is_valid_iso_currency("KPW"))
+        self.assertIn("USD", get_active_iso_currency_codes())
+
+    @override_settings(CURRENCY_CATALOG_DENYLIST=frozenset({"kpw", " chf "}))
+    def test_catalog_denylist_normalizes_case_and_whitespace(self):
+        """Denylist entries are matched case-insensitively after stripping."""
+        self.assertFalse(is_active_iso_currency("KPW"))
+        self.assertFalse(is_active_iso_currency("CHF"))

@@ -70,6 +70,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -273,6 +275,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -528,6 +532,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -694,6 +700,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -866,6 +874,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1044,6 +1054,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: GUNICORN_WORKERS
@@ -1207,6 +1219,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -1355,6 +1369,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1549,6 +1565,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1748,6 +1766,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1947,6 +1967,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2146,6 +2168,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2349,6 +2373,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2552,6 +2578,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2755,6 +2783,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2966,6 +2996,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3177,6 +3209,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3376,6 +3410,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3572,6 +3608,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3768,6 +3806,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3964,6 +4004,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4152,6 +4194,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4340,6 +4384,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4549,6 +4595,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4763,6 +4811,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4977,6 +5027,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -5170,6 +5222,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: ENABLE_HCS_DEBUG
           value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5360,6 +5414,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5542,6 +5598,8 @@ objects:
           value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5903,6 +5961,11 @@ parameters:
 - description: Exchange rate API URL for dynamic currency rates. Empty disables the
     daily currency beat.
   name: CURRENCY_URL
+  value: ""
+- description: Comma-separated ISO currency codes excluded from the Settings
+    enablement catalog (babel tender minus these). Already-enabled codes remain
+    visible so they can be disabled.
+  name: CURRENCY_CATALOG_DENYLIST
   value: ""
 - description: Image tag
   name: IMAGE_TAG
