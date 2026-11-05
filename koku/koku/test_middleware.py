@@ -37,7 +37,10 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from koku import middleware as MD
 from koku.cache import CacheEnum
+from koku.middleware import _extract_masu_admin_token
+from koku.middleware import _path_after_api_prefix
 from koku.middleware import capture_soft_timeout_exception
+from koku.middleware import check_masu_admin_token
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
@@ -45,6 +48,7 @@ from koku.middleware import KokuTenantSchemaExistsMiddleware
 from koku.middleware import RequestTimeoutError
 from koku.middleware import RequestTimeoutMiddleware
 from koku.middleware import RequestTimingMiddleware
+from koku.middleware import requires_masu_admin_token
 from koku.middleware import sentry_before_send
 from koku.test_rbac import mocked_requests_get_500_text
 
@@ -814,3 +818,201 @@ class SentryBeforeSendTest(IamTestCase):
         hint = {}
         result = sentry_before_send(event, hint)
         self.assertEqual(result, event)
+
+
+class MasuAdminTokenGateTest(IamTestCase):
+    """On-prem Masu shared-secret gate (COST-8059)."""
+
+    def setUp(self):
+        """Set up middleware tests."""
+        super().setUp()
+        self.mock_get_response = Mock()
+
+    @classmethod
+    def tearDownClass(cls):
+        """Reload masu URLconf so ONPREM imports do not strip SaaS routes for later tests.
+
+        ``masu.api.urls`` builds ``urlpatterns`` at import time from ``settings.ONPREM``.
+        Client tests that set ``ONPREM=True`` + ``ROOT_URLCONF='masu.urls'`` can leave a
+        truncated module cached in ``sys.modules``, breaking later ``reverse()`` calls.
+        """
+        import importlib
+        import sys
+
+        from django.urls import clear_url_caches
+
+        for name in ("masu.api.urls", "masu.urls"):
+            sys.modules.pop(name, None)
+        clear_url_caches()
+        # Re-import under default settings (ONPREM=False) so SaaS routes are restored.
+        importlib.import_module("masu.api.urls")
+        super().tearDownClass()
+
+    def _request(self, path, authorization=None):
+        request = Mock(path=path, META={})
+        if authorization is not None:
+            request.META["HTTP_AUTHORIZATION"] = authorization
+        return request
+
+    @override_settings(ONPREM=True)
+    @patch("koku.middleware.MASU", True)
+    def test_requires_token_for_admin_paths(self):
+        """Allow-listed admin paths require the token when ONPREM+MASU."""
+        for path in (
+            "/api/cost-management/v1/report_data/",
+            "/api/cost-management/v1/running_celery_tasks/",
+            "/api/cost-management/v1/celery_queue_tasks/",
+            "/api/cost-management/v1/celery_queue_lengths/",
+            "/api/cost-management/v1/db-performance/db-settings/",
+        ):
+            self.assertTrue(requires_masu_admin_token(self._request(path)), path)
+
+    @override_settings(ONPREM=True)
+    @patch("koku.middleware.MASU", True)
+    def test_exempts_status_and_probes(self):
+        """Health and probe paths stay open without a token."""
+        for path in (
+            "/api/cost-management/v1/status/",
+            "/api/cost-management/v1/openapi.json",
+            "/livez",
+            "/readyz",
+        ):
+            self.assertFalse(requires_masu_admin_token(self._request(path)), path)
+
+    @override_settings(ONPREM=True, API_PATH_PREFIX="/api/status")
+    @patch("koku.middleware.MASU", True)
+    def test_exempt_substring_in_prefix_does_not_bypass_gate(self):
+        """Exempt text inside API_PATH_PREFIX must not skip the token on admin routes."""
+        self.assertTrue(requires_masu_admin_token(self._request("/api/status/v1/report_data/")))
+        self.assertFalse(requires_masu_admin_token(self._request("/api/status/v1/status/")))
+
+    def test_path_after_api_prefix_edge_cases(self):
+        """Cover prefix strip branches used by exempt matching (codecov patch)."""
+        with override_settings(API_PATH_PREFIX=""):
+            self.assertEqual(_path_after_api_prefix("/livez"), "/livez")
+        with override_settings(API_PATH_PREFIX="api/cost-management"):
+            self.assertEqual(
+                _path_after_api_prefix("/api/cost-management/v1/report_data/"),
+                "/v1/report_data/",
+            )
+        with override_settings(API_PATH_PREFIX="/api/cost-management"):
+            self.assertEqual(_path_after_api_prefix("/api/cost-management"), "/")
+            self.assertEqual(
+                _path_after_api_prefix("/api/cost-management/v1/status/"),
+                "/v1/status/",
+            )
+            # Path outside the configured prefix is left unchanged.
+            self.assertEqual(_path_after_api_prefix("/livez"), "/livez")
+
+    def test_extract_masu_admin_token_edge_cases(self):
+        """Cover Bearer parsing branches (missing / non-bearer / empty value)."""
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/")))
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/", authorization="Basic abc")))
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/", authorization="Bearer ")))
+        self.assertEqual(
+            _extract_masu_admin_token(self._request("/report_data/", authorization="bearer  tok  ")),
+            "tok",
+        )
+
+    @override_settings(ONPREM=False)
+    @patch("koku.middleware.MASU", True)
+    def test_saas_does_not_require_token(self):
+        """SaaS Masu keeps relying on network isolation (no token gate)."""
+        self.assertFalse(requires_masu_admin_token(self._request("/api/cost-management/v1/report_data/")))
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    def test_check_accepts_valid_bearer_token(self):
+        """Valid Bearer token is accepted."""
+        request = self._request("/report_data/", authorization="Bearer secret-token")
+        self.assertIsNone(check_masu_admin_token(request))
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token\n")
+    def test_check_accepts_token_when_configured_has_trailing_whitespace(self):
+        """Configured MASU_ADMIN_TOKEN is stripped so k8s Secret newlines do not 401."""
+        request = self._request("/report_data/", authorization="Bearer secret-token")
+        self.assertIsNone(check_masu_admin_token(request))
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    def test_check_rejects_missing_invalid_and_empty_config(self):
+        """Missing/invalid tokens and empty configured secret fail closed."""
+        cases = [
+            self._request("/report_data/"),
+            self._request("/report_data/", authorization="Bearer wrong"),
+            self._request("/report_data/", authorization="Basic secret-token"),
+        ]
+        for request in cases:
+            response = check_masu_admin_token(request)
+            self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+        with override_settings(MASU_ADMIN_TOKEN=""):
+            response = check_masu_admin_token(self._request("/report_data/", authorization="Bearer anything"))
+            self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    @patch("koku.middleware.MASU", True)
+    def test_process_request_returns_401_without_token(self):
+        """Middleware short-circuits with 401 when the token is missing."""
+        middleware = IdentityHeaderMiddleware(self.mock_get_response)
+        response = middleware.process_request(self._request("/api/cost-management/v1/report_data/"))
+        self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+    # IQE_TEST_RUN=True keeps the full masu.api.urls surface when ONPREM reloads
+    # the URLconf (avoids stripping SaaS-only routes from the cached module).
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_missing_token_returns_401(self):
+        """High-risk path /report_data/ rejects requests without a token."""
+        response = self.client.get(reverse("report_data"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_invalid_token_returns_401(self):
+        """High-risk path /report_data/ rejects an invalid token."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer wrong")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_valid_token_passes_gate(self):
+        """Valid token clears the gate (missing query params yield 400, not 401)."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer secret-token")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_empty_secret_fails_closed(self):
+        """Empty MASU_ADMIN_TOKEN in on-prem mode denies even with a Bearer header."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer anything")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    @patch("koku.middleware.MASU", True)
+    def test_status_remains_open_without_token(self):
+        """/status/ is exempt from the admin-token gate."""
+        middleware = IdentityHeaderMiddleware(self.mock_get_response)
+        request = self._request("/api/cost-management/v1/status/")
+        response = middleware.process_request(request)
+        # Exempt path continues the MASU no-auth flow (sets anonymous user, no 401).
+        self.assertIsNone(response)
+        self.assertTrue(hasattr(request, "user"))
+
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    @patch("masu.api.running_celery_tasks.CELERY_INSPECT")
+    def test_gate_applies_across_allow_list(self, mock_celery):
+        """Shared gate covers the full on-prem allow list, not only report_data."""
+        mock_celery.active.return_value = {}
+        allow_list = (
+            "running_celery_tasks",
+            "celery_queue_tasks",
+            "celery_queue_lengths",
+            "db_settings",
+        )
+        for name in allow_list:
+            denied = self.client.get(reverse(name))
+            self.assertEqual(denied.status_code, status.HTTP_401_UNAUTHORIZED, name)
+
+        # Valid token: exercise one allow-listed view end-to-end (others need Redis on host).
+        allowed = self.client.get(reverse("running_celery_tasks"), HTTP_AUTHORIZATION="Bearer secret-token")
+        self.assertEqual(allowed.status_code, status.HTTP_200_OK)
