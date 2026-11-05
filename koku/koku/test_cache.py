@@ -292,9 +292,9 @@ class KokuCacheTest(IamTestCase):
         self.assertEqual(cached, infra_map)
 
     def test_build_ocp_on_cloud_matched_tags_key(self):
-        """Test the month-wide matched-tags cache key."""
-        expected = "ocp-on-cloud-matched-tags:org1234567:ocp-uuid:2026-09"
-        actual = build_ocp_on_cloud_matched_tags_key("org1234567", "ocp-uuid", "2026-09")
+        """Test the month-wide matched-tags cache key includes the cloud source."""
+        expected = "ocp-on-cloud-matched-tags:org1234567:ocp-uuid:cloud-uuid:2026-09"
+        actual = build_ocp_on_cloud_matched_tags_key("org1234567", "ocp-uuid", "cloud-uuid", "2026-09")
         self.assertEqual(actual, expected)
 
     @patch("koku.cache.caches")
@@ -308,11 +308,20 @@ class KokuCacheTest(IamTestCase):
             store[key] = value
 
         cache.set.side_effect = _set
-        self.assertIsNone(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09"))
-        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09", ['"app": "x"'])
-        self.assertEqual(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09"), ['"app": "x"'])
-        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09", [])
-        self.assertEqual(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "2026-09"), [])
+        self.assertIsNone(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09"))
+        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09", ['"app": "x"'])
+        self.assertEqual(
+            get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09"),
+            ['"app": "x"'],
+        )
+        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09", [])
+        self.assertEqual(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09"), [])
+        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "other-cloud", "2026-09", ['"app": "other"'])
+        self.assertEqual(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09"), [])
+        self.assertEqual(
+            get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "other-cloud", "2026-09"),
+            ['"app": "other"'],
+        )
 
     def test_tag_rate_map_cache(self):
         """Test that getting/setting tag rate map works."""

@@ -389,6 +389,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         self.assertEqual(tags, result)
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
     @patch("masu.database.report_db_accessor_base.WorkerCache")
     @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
@@ -414,6 +418,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         mock_get_cache,
         mock_worker_cache,
         _mock_flag,
+        _mock_month_flag,
     ):
         """Empty Postgres falls through to one month-wide Trino query and caches it."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False
@@ -435,6 +440,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
         mock_worker_cache.return_value.lock_single_task.assert_called_once()
         mock_worker_cache.return_value.release_single_task.assert_called_once()
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
     @patch("masu.database.report_db_accessor_base.WorkerCache")
     @patch(
@@ -451,7 +460,14 @@ class AzureReportDBAccessorTest(MasuTestCase):
     )
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
     def test_get_matched_tags_strings_cache_hit_skips_trino(
-        self, mock_trino_tags, mock_postgres_tags, _mock_keys, mock_get_cache, mock_worker_cache, _mock_flag
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
     ):
         """A Valkey hit for the cluster/month must not re-query Trino."""
         start = self.dh.this_month_start
@@ -464,6 +480,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
         mock_worker_cache.return_value.lock_single_task.assert_not_called()
 
     @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
     @patch("masu.database.report_db_accessor_base.WorkerCache")
     @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags")
@@ -484,6 +504,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         mock_get_cache,
         mock_worker_cache,
         _mock_flag,
+        _mock_month_flag,
         mock_sleep,
     ):
         """Another worker holding the lock should wait for the cached month-wide result."""
@@ -519,6 +540,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.assertEqual([], result)
         mock_trino_tags.assert_not_called()
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
     @patch("masu.database.report_db_accessor_base.WorkerCache")
     @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
@@ -544,6 +569,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         mock_get_cache,
         mock_worker_cache,
         _mock_flag,
+        _mock_month_flag,
     ):
         """Test fetching match tag with no tags returned from Postgres or Trino."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False

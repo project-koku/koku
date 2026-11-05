@@ -5,6 +5,7 @@
 """Test the GCPReportDBAccessor utility object."""
 import datetime
 import decimal
+import pkgutil
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -487,6 +488,10 @@ class GCPReportDBAccessorTest(MasuTestCase):
             ).count()
             self.assertEqual(0, actual_child_count)
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
     @patch("masu.database.report_db_accessor_base.WorkerCache")
     @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
@@ -512,6 +517,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_get_cache,
         mock_worker_cache,
         _mock_flag,
+        _mock_month_flag,
     ):
         """Empty Postgres falls through to one month-wide Trino query and caches it."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False
@@ -532,6 +538,10 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_worker_cache.return_value.lock_single_task.assert_called_once()
         mock_worker_cache.return_value.release_single_task.assert_called_once()
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
     @patch("masu.database.report_db_accessor_base.WorkerCache")
     @patch(
@@ -548,7 +558,14 @@ class GCPReportDBAccessorTest(MasuTestCase):
     )
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
     def test_get_matched_tags_strings_cache_hit_skips_trino(
-        self, mock_trino_tags, mock_postgres_tags, _mock_keys, mock_get_cache, mock_worker_cache, _mock_flag
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
     ):
         """A Valkey hit for the cluster/month must not re-query Trino."""
         start = self.dh.this_month_start
@@ -559,6 +576,10 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_worker_cache.return_value.lock_single_task.assert_not_called()
 
     @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
     @patch("masu.database.report_db_accessor_base.WorkerCache")
     @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags")
@@ -579,6 +600,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_get_cache,
         mock_worker_cache,
         _mock_flag,
+        _mock_month_flag,
         mock_sleep,
     ):
         """Another worker holding the lock should wait for the cached month-wide result."""
@@ -612,6 +634,10 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.assertEqual([], result)
         mock_trino_tags.assert_not_called()
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
     @patch("masu.database.report_db_accessor_base.WorkerCache")
     @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
@@ -637,6 +663,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_get_cache,
         mock_worker_cache,
         _mock_flag,
+        _mock_month_flag,
     ):
         """Test fetching match tag with no tags returned from Postgres or Trino."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False
@@ -646,3 +673,13 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.assertEqual([], result)
         mock_trino_tags.assert_called_once()
         mock_set_cache.assert_called_once()
+
+    def test_matched_tags_sql_filters_gcp_dates_through_end_date(self):
+        """GCP cloud tag scan must use end_date, not a one-day start_date window."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql",
+        ).decode("utf-8")
+        self.assertIn("usage_start_time >= {{start_date}}", sql_template)
+        self.assertIn("date_add('day', 1, {{end_date}})", sql_template)
+        self.assertNotIn("date_add('day', 1, {{start_date}})", sql_template)

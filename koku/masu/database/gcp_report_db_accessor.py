@@ -275,7 +275,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if not enabled_tags:
             return []
         LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
-        return self._month_wide_trino_matched_tag_strings(gcp_provider_uuid, ocp_provider_uuid, start_date, ctx)
+        return self._trino_matched_tag_strings(gcp_provider_uuid, ocp_provider_uuid, start_date, end_date, ctx)
 
     def populate_ocp_on_gcp_cost_daily_summary_trino(
         self,

@@ -159,22 +159,24 @@ def build_enabled_currency_codes_key(schema_name):
     return f"enabled-currency-codes-{schema_name}"
 
 
-def build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, month):
+def build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month):
     """Return the Valkey key for month-wide OCP-on-cloud matched tags."""
-    return f"ocp-on-cloud-matched-tags:{schema_name}:{ocp_provider_uuid}:{month}"
+    return f"ocp-on-cloud-matched-tags:{schema_name}:{ocp_provider_uuid}:{cloud_provider_uuid}:{month}"
 
 
-def get_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, month):
+def get_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_provider_uuid, month):
     """Return cached month-wide OCP-on-cloud matched tags, or None on a miss."""
     cache = caches[CacheEnum.default]
-    return cache.get(build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, month))
+    return cache.get(
+        build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month)
+    )
 
 
-def set_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, month, matched_tags):
+def set_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_provider_uuid, month, matched_tags):
     """Cache month-wide OCP-on-cloud matched tags, including an empty list."""
     cache = caches[CacheEnum.default]
     cache.set(
-        build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, month),
+        build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month),
         matched_tags,
         timeout=settings.WORKER_CACHE_TIMEOUT,
     )

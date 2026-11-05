@@ -82,88 +82,6 @@ APPLY_TAG_MAPPINGS_TASK = "masu.processor.tasks.apply_tag_mappings"
 UPDATE_OPENSHIFT_ON_CLOUD_TASK = "masu.processor.tasks.update_openshift_on_cloud"
 
 
-def _openshift_on_cloud_cache_args(schema_name, infrastructure_provider_uuid, openshift_provider_uuid, start_date):
-    """Return WorkerCache args for one OCP-on-cloud summary (schema, providers, billing month)."""
-    if isinstance(start_date, str):
-        cache_arg_date = start_date[:-3]
-    else:
-        cache_arg_date = start_date.strftime("%Y-%m")
-    return [schema_name, str(infrastructure_provider_uuid), str(openshift_provider_uuid), cache_arg_date]
-
-
-def _openshift_on_cloud_lock_timeout(schema_name):
-    """Return the WorkerCache lock TTL for an OCP-on-cloud summary task."""
-    timeout = settings.WORKER_CACHE_TIMEOUT
-    if get_customer_queue(schema_name, SummaryQueue) != SummaryQueue.DEFAULT:
-        timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
-    return timeout
-
-
-def _try_lock_openshift_on_cloud_task(
-    worker_cache, schema_name, infrastructure_provider_uuid, openshift_provider_uuid, start_date, tracing_id
-):
-    """Acquire the OCP-on-cloud lock, or return False if that work is already queued or running."""
-    cache_args = _openshift_on_cloud_cache_args(
-        schema_name, infrastructure_provider_uuid, openshift_provider_uuid, start_date
-    )
-    if worker_cache.single_task_is_running(UPDATE_OPENSHIFT_ON_CLOUD_TASK, cache_args):
-        LOG.info(
-            log_json(
-                tracing_id,
-                msg="skipping duplicate OCP on cloud task already queued or running",
-                context={
-                    "schema": schema_name,
-                    "ocp_provider_uuid": str(openshift_provider_uuid),
-                    "infra_uuid": str(infrastructure_provider_uuid),
-                    "cache_args": cache_args,
-                },
-            )
-        )
-        return False
-    worker_cache.lock_single_task(
-        UPDATE_OPENSHIFT_ON_CLOUD_TASK, cache_args, timeout=_openshift_on_cloud_lock_timeout(schema_name)
-    )
-    return True
-
-
-def _queue_openshift_on_cloud_summaries(
-    schema,
-    ocp_on_cloud_infra_map,
-    start_date,
-    end_date,
-    manifest_id,
-    tracing_id,
-    queue_name,
-    synchronous,
-    fallback_queue,
-):
-    """Build update_openshift_on_cloud signatures, skipping work already locked."""
-    signature_list = []
-    worker_cache = None if synchronous else WorkerCache()
-    for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
-        infra_provider_uuid = infrastructure_tuple[0]
-        infra_provider_type = infrastructure_tuple[1]
-        if worker_cache is not None and not _try_lock_openshift_on_cloud_task(
-            worker_cache, schema, infra_provider_uuid, openshift_provider_uuid, start_date, tracing_id
-        ):
-            continue
-        signature_list.append(
-            update_openshift_on_cloud.si(
-                schema,
-                openshift_provider_uuid,
-                infra_provider_uuid,
-                infra_provider_type,
-                str(start_date),
-                str(end_date),
-                manifest_id=manifest_id,
-                queue_name=queue_name,
-                synchronous=synchronous,
-                tracing_id=tracing_id,
-            ).set(queue=fallback_queue)
-        )
-    return signature_list
-
-
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
     """Take a list of reports to summarize and deduplicate them."""
     reports_by_source = defaultdict(list)
@@ -261,17 +179,24 @@ def trigger_ocp_on_cloud_summary(
                 tracing_id=tracing_id,
             ).set(queue=delete_truncate_queue)
         )
-    signature_list = _queue_openshift_on_cloud_summaries(
-        schema,
-        ocp_on_cloud_infra_map,
-        start_date,
-        end_date,
-        manifest_id,
-        tracing_id,
-        queue_name,
-        synchronous,
-        fallback_update_summary_tables_queue,
-    )
+    signature_list = []
+    for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
+        infra_provider_uuid = infrastructure_tuple[0]
+        infra_provider_type = infrastructure_tuple[1]
+        signature_list.append(
+            update_openshift_on_cloud.si(
+                schema,
+                openshift_provider_uuid,
+                infra_provider_uuid,
+                infra_provider_type,
+                str(start_date),
+                str(end_date),
+                manifest_id=manifest_id,
+                queue_name=queue_name,
+                synchronous=synchronous,
+                tracing_id=tracing_id,
+            ).set(queue=fallback_update_summary_tables_queue)
+        )
 
     # Apply OCP on Cloud tasks
     if signature_list:
@@ -1037,19 +962,25 @@ def update_openshift_on_cloud(  # noqa: C901
         msg = f"OCP on Cloud summary disabled for {schema_name}."
         LOG.info(msg)
         return
-    cache_args = _openshift_on_cloud_cache_args(
-        schema_name, infrastructure_provider_uuid, openshift_provider_uuid, start_date
-    )
+    if isinstance(start_date, str):
+        cache_arg_date = start_date[:-3]
+    else:
+        cache_arg_date = start_date.strftime("%Y-%m")
+    cache_args = [schema_name, infrastructure_provider_uuid, openshift_provider_uuid, cache_arg_date]
     if not synchronous:
         worker_cache = WorkerCache()
-        timeout = _openshift_on_cloud_lock_timeout(schema_name)
+        timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
         fallback_queue = get_customer_queue(schema_name, SummaryQueue)
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
-        if rate_limited:
-            LOG.info(log_json(tracing_id, msg=f"Schema {schema_name} is currently rate limited. Requeuing."))
-            worker_cache.release_single_task(task_name, cache_args)
+        if fallback_queue != SummaryQueue.DEFAULT:
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            if rate_limited:
+                msg = f"Schema {schema_name} is currently rate limited. Requeuing."
+            LOG.info(log_json(tracing_id, msg=msg))
             update_openshift_on_cloud.s(
                 schema_name,
                 openshift_provider_uuid,
@@ -1063,8 +994,6 @@ def update_openshift_on_cloud(  # noqa: C901
                 tracing_id=tracing_id,
             ).apply_async(queue=queue_name or fallback_queue)
             return
-        # Refresh the dispatch-time lock; do not skip here or this worker would
-        # drop the task that trigger_ocp_on_cloud_summary already queued.
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
     # Set OpenShift summary started time
