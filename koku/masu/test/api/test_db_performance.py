@@ -8,6 +8,7 @@ from django.db import connection
 from psycopg2 import OperationalError
 from psycopg2.errors import ProgrammingError
 from psycopg2.errors import UndefinedTable
+from sqlparse.exceptions import SQLParseError
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
@@ -203,6 +204,18 @@ class TestDBPerformanceClass(IamTestCase):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.explain_sql("select 1")
             self.assertEqual(res, expected)
+
+    @patch(
+        "masu.api.db_performance.db_performance.sql_parse",
+        side_effect=SQLParseError("Maximum number of tokens exceeded (10000)."),
+    )
+    def test_explain_sql_parse_token_limit(self, _mock_parse):
+        """sqlparse>=0.6.1 parse/grouping limit must map to ProgrammingError."""
+        with (
+            self.assertRaises(ProgrammingError),
+            DBPerformanceStats("KOKU", CONFIGURATOR) as dbp,
+        ):
+            dbp.explain_sql("select 1")
 
     def test_get_databases(self):
         with connection.cursor() as cur:

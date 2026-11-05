@@ -321,7 +321,13 @@ select datname as "dbname",
     def explain_sql(self, raw_sql):
         res = []
         for target_sql in sql_split(raw_sql):
-            parsed = sql_parse(target_sql)
+            # sqlparse>=0.6.1 may refuse oversized statements (MAX_GROUPING_TOKENS)
+            # during parse/grouping — map that to ProgrammingError so the view returns
+            # a clean response instead of a 500.
+            try:
+                parsed = sql_parse(target_sql)
+            except SQLParseError as error:
+                raise ProgrammingError("Cannot process statement.") from error
             sql_type = parsed[0].get_type()
             if sql_type == "UNKNOWN":
                 LOG.warning(self._prep_log_message(f"SQL parser returns {sql_type} for statement {target_sql}"))
