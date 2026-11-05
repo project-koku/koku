@@ -46,7 +46,10 @@ SELECT
        AND raw_currency IS NOT NULL),
     'project.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
                        ELSE 'usage_cost'
-                  END || '.' || r.custom_name,
+                  END
+        || '.' || COALESCE(NULLIF(r.namespace, ''), 'unknown-namespace')
+        || CASE WHEN r.node IS NOT NULL AND r.node != '' THEN '.' || r.node ELSE '' END
+        || '.' || r.custom_name,
     4,
     'project.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
                        ELSE 'usage_cost'
@@ -98,6 +101,10 @@ SELECT
         || '.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
                        WHEN r.cost_model_rate_type = 'Infrastructure' THEN 'infrastructure'
                        ELSE 'usage_cost' END
+        || '.' || COALESCE(NULLIF(r.namespace, ''), NULLIF(r.node, ''), 'infrastructure')
+        || CASE WHEN r.namespace IS NOT NULL AND r.namespace != ''
+                     AND r.node IS NOT NULL AND r.node != ''
+                 THEN '.' || r.node ELSE '' END
         || '.' || COALESCE(NULLIF(r.custom_name, ''), 'infrastructure'),
     5,
     'overhead.' || r.monthly_cost_type

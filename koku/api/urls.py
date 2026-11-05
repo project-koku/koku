@@ -72,6 +72,7 @@ from api.views import OCPAzureInstanceTypeView
 from api.views import OCPAzureStorageView
 from api.views import OCPAzureTagView
 from api.views import OCPClustersView
+from api.views import OCPCostBreakdownView
 from api.views import OCPCostForecastView
 from api.views import OCPCostView
 from api.views import OCPCpuView
@@ -203,6 +204,11 @@ def get_shared_urlpatterns():
             "reports/openshift/gpu/mig_profiles/",
             _cache_view(OCPMigProfilesView.as_view(), OPENSHIFT_CACHE_PREFIX),
             name="reports-openshift-gpu-mig-profiles",
+        ),
+        path(
+            "breakdown/openshift/cost/",
+            _cache_view(OCPCostBreakdownView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="ocp-cost-breakdown",
         ),
         path(
             "reports/openshift/infrastructures/all/costs/",

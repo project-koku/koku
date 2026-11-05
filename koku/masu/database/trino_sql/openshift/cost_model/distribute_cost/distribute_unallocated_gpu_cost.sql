@@ -34,7 +34,7 @@ namespace_usage_information as (
         sum(gpu_pod_uptime * COALESCE(gpu_usage.mig_slice_count, 1)) as pod_usage_slice_hours,
         DATE(interval_start) as usage_start
     FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu_usage
-    WHERE source = {{source_uuid}}
+    WHERE source = {{source_uuid | string}}
       AND year = {{year}}
       AND month = {{month}}
       AND DATE(interval_start) >= DATE({{start_date}})
@@ -97,7 +97,7 @@ WHERE unalloc.namespace = 'GPU unallocated'
         WHERE gpu.node = unalloc.node
           AND gpu.gpu_model_name = json_extract_scalar(unalloc.all_labels, '$["gpu-model"]')
           AND DATE(gpu.interval_start) = unalloc.usage_start
-          AND gpu.source = {{source_uuid}}
+          AND gpu.source = {{source_uuid | string}}
           AND gpu.year = {{year}}
           AND gpu.month = {{month}}
     );
