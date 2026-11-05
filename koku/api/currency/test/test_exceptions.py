@@ -15,8 +15,8 @@ class ExchangeRateNotFoundTest(SimpleTestCase):
     """Tests for ExchangeRateNotFound detail text."""
 
     @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
-    def test_detail_explains_preferred_currency_is_target_when_currency_url_set(self):
-        """Missing-rate detail names the target and requires source -> preferred rates."""
+    def test_detail_explains_requested_currency_is_target_when_currency_url_set(self):
+        """Missing-rate detail names the target and requires source -> requested rates."""
         exc = ExchangeRateNotFound(
             ["USD", "EUR"],
             "KPW",
@@ -27,7 +27,7 @@ class ExchangeRateNotFoundTest(SimpleTestCase):
         self.assertEqual(
             detail,
             "No exchange rate available to convert costs into KPW for USD -> KPW, EUR -> KPW "
-            "for 2026-10-01 to 2026-10-01. Costs are stored in the source currency; preferred "
+            "for 2026-10-01 to 2026-10-01. Costs are stored in the source currency; the requested "
             "currency is the conversion target. Ask your administrator to configure static "
             "exchange rates for each missing source -> KPW pair (the reverse direction is not used).",
         )
@@ -42,7 +42,7 @@ class ExchangeRateNotFoundTest(SimpleTestCase):
         self.assertTrue(detail.endswith(" or enable dynamic exchange rates."))
 
     @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
-    def test_missing_months_detail_explains_preferred_currency_is_target(self):
+    def test_missing_months_detail_explains_requested_currency_is_target(self):
         """Month-gap detail uses the same target-currency explanation."""
         exc = ExchangeRateNotFound(
             ["USD"],
@@ -55,5 +55,5 @@ class ExchangeRateNotFoundTest(SimpleTestCase):
         self.assertTrue(
             detail.startswith("Exchange rate missing to convert costs into KPW for USD -> KPW for months: 2026-02.")
         )
-        self.assertIn("preferred currency is the conversion target", detail)
+        self.assertIn("the requested currency is the conversion target", detail)
         self.assertIn("source -> KPW pair (the reverse direction is not used).", detail)

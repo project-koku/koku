@@ -25,7 +25,7 @@ class ExchangeRateNotFound(ValidationError):
             )
 
         detail += (
-            " Costs are stored in the source currency; preferred currency is the conversion target."
+            " Costs are stored in the source currency; the requested currency is the conversion target."
             f" Ask your administrator to configure static exchange rates for each missing"
             f" source -> {target_currency} pair (the reverse direction is not used)"
         )

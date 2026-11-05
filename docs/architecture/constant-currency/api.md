@@ -355,7 +355,7 @@ Existing report/forecast URLs are unchanged. Relevant product behavior when
 {
   "errors": [
     {
-      "currency": "No exchange rate available to convert costs into EUR for USD -> EUR for 2026-01-01 to 2026-03-31. Costs are stored in the source currency; preferred currency is the conversion target. Ask your administrator to configure static exchange rates for each missing source -> EUR pair (the reverse direction is not used) or enable dynamic exchange rates."
+      "currency": "No exchange rate available to convert costs into EUR for USD -> EUR for 2026-01-01 to 2026-03-31. Costs are stored in the source currency; the requested currency is the conversion target. Ask your administrator to configure static exchange rates for each missing source -> EUR pair (the reverse direction is not used) or enable dynamic exchange rates."
     }
   ]
 }
