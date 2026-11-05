@@ -3,13 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Price Lists."""
-import copy
 import logging
 import uuid as uuid_mod
 from functools import reduce
 from operator import or_
 
-from django.db import transaction
 from django.db.models import Count
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -39,7 +37,7 @@ from cost_models.models import Rate
 from cost_models.price_list_manager import PriceListException
 from cost_models.price_list_manager import PriceListManager
 from cost_models.price_list_serializer import PriceListSerializer
-from cost_models.rate_sync import sync_rate_table
+from cost_models.rate_sync import match_rates_to_json
 
 LOG = logging.getLogger(__name__)
 
@@ -207,7 +205,6 @@ class PriceListViewSet(viewsets.ModelViewSet):
             raise ValidationError({invalid.pop(): "Unsupported parameter or invalid value"})
         price_list = get_object_or_404(self.get_queryset(), uuid=uuid)
         self.check_object_permissions(request, price_list)
-        self._ensure_rate_sync(price_list)
 
         rate_qs = Rate.objects.filter(price_list=price_list)
         rate_filter = RateFilter(data=request.query_params, queryset=rate_qs, request=request)
@@ -220,30 +217,12 @@ class PriceListViewSet(viewsets.ModelViewSet):
         paginator = ListPaginator(rate_data, request)
         return paginator.paginated_response
 
-    def _ensure_rate_sync(self, price_list):
-        """Trigger sync_rate_table if JSON entries lack rate_id (migration 0013 gap)."""
-        if not price_list.rates:
-            return
-        if any("rate_id" not in entry for entry in price_list.rates):
-            LOG.info("Lazy sync triggered for PriceList %s: rate_id missing from JSON", price_list.uuid)
-            try:
-                with transaction.atomic():
-                    locked_pl = PriceList.objects.select_for_update().get(uuid=price_list.uuid)
-                    if any("rate_id" not in entry for entry in locked_pl.rates):
-                        sync_rate_table(locked_pl, copy.deepcopy(locked_pl.rates))
-            except (ValueError, Exception):
-                LOG.exception("Lazy sync failed for PriceList %s", price_list.uuid)
-                return
-            price_list.refresh_from_db()
-
     def _build_rate_response(self, price_list, filtered_qs, schema=None):
         """Cross-reference filtered Rate rows with JSON and enrich with metric labels."""
         metrics_map = metric_constants.get_cost_model_metrics_map(schema=schema)
-        json_by_rate_id = {}
-        for entry in price_list.rates or []:
-            rid = entry.get("rate_id")
-            if rid:
-                json_by_rate_id[rid] = entry
+        # Read-only: JSON written before migration 0013 has no rate_id, so match it the way
+        # sync_rate_table would instead of syncing on a GET (the read replica cannot write).
+        json_by_rate_id = match_rates_to_json(price_list, Rate.objects.filter(price_list=price_list))
 
         result = []
         for rate_obj in filtered_qs:
