@@ -71,6 +71,12 @@
           value: ${ONPREM}
         - name: IQE_TEST_RUN
           value: ${IQE_TEST_RUN}
+        - name: MASU_ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: koku-masu-admin-token
+              optional: true # template Secret is only applied in ephemeral
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CURRENCY_CATALOG_DENYLIST
