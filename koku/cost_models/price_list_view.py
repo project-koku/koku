@@ -40,6 +40,7 @@ from cost_models.price_list_manager import PriceListException
 from cost_models.price_list_manager import PriceListManager
 from cost_models.price_list_serializer import PriceListSerializer
 from cost_models.rate_sync import sync_rate_table
+from cost_models.serializers import RateSerializer
 
 LOG = logging.getLogger(__name__)
 
@@ -266,9 +267,12 @@ class PriceListViewSet(viewsets.ModelViewSet):
                 "cost_type": rate_obj.cost_type,
                 "default_rate": str(rate_obj.default_rate) if rate_obj.default_rate is not None else None,
             }
-            if json_entry.get("tiered_rates"):
-                rate_dict["tiered_rates"] = json_entry["tiered_rates"]
-            if json_entry.get("tag_rates"):
-                rate_dict["tag_rates"] = json_entry["tag_rates"]
+            # Render the prices as the price list detail does: the JSON stores them as decimal
+            # strings, and the response carries numbers.
+            rendered = RateSerializer().to_representation(copy.deepcopy(json_entry)) if json_entry else {}
+            if rendered.get("tiered_rates"):
+                rate_dict["tiered_rates"] = rendered["tiered_rates"]
+            if rendered.get("tag_rates"):
+                rate_dict["tag_rates"] = rendered["tag_rates"]
             result.append(rate_dict)
         return result
