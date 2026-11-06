@@ -610,45 +610,351 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertEqual(tags, result)
 
     @patch(
-        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
-        return_value=None,
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
     )
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
-    def test_get_matched_tags_strings_trino(self, mock_postgres_tags, mock_trino_tags):
-        """Test fetching match tag strings via trino."""
-        tags = ['"app"']
-        mock_trino_tags.return_value = {"app"}
-        start = self.dh.this_month_start
-        end = self.dh.this_month_end
-        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
-        self.assertEqual(tags, result)
-
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
+    @patch("masu.database.report_db_accessor_base.set_cached_ocp_on_cloud_matched_tags")
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
     @patch(
         "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
         return_value=None,
     )
     @patch(
         "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
-        return_value=[],
+        return_value=[{"app": "mobile"}],
     )
-    def test_get_matched_tags_strings_no_tags(self, mock_postgres_tags, mock_trino_tags):
-        """Test fetching match tag with no tags returned."""
+    def test_get_matched_tags_strings_empty_postgres_uses_month_wide_trino(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_set_cache,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+    ):
+        """Empty Postgres falls through to one month-wide Trino query and caches it."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         start = self.dh.this_month_start
-        end = self.dh.this_month_end
+        end = start + datetime.timedelta(days=4)
         result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
-        self.assertEqual([], result)
+        self.assertEqual(['"app": "mobile"'], result)
+        month_start = self.accessor._as_date(self.dh.month_start(start))
+        month_end = self.accessor._as_date(self.dh.month_end(start))
+        mock_trino_tags.assert_called_once()
+        args, kwargs = mock_trino_tags.call_args
+        self.assertEqual(args[0], self.aws_provider_uuid)
+        self.assertEqual(list(args[1]), [self.ocp_provider_uuid])
+        self.assertEqual(self.accessor._as_date(args[2]), month_start)
+        self.assertEqual(self.accessor._as_date(args[3]), month_end)
+        mock_set_cache.assert_called_once()
+        mock_worker_cache.return_value.try_lock_single_task.assert_called()
+        mock_worker_cache.return_value.release_single_task.assert_called_once()
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch(
+        "masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags",
+        return_value=['"app": "cached"'],
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
     @patch(
         "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
         return_value=None,
     )
-    @patch("masu.database.aws_report_db_accessor.is_tag_processing_disabled", return_value=True)
-    def test_get_matched_tags_strings_trino_disabled(self, mock_postgres_tags, mock_unleash):
-        """Test fetching match tag strings."""
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_cache_hit_skips_trino(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+    ):
+        """A Valkey hit for the cluster/month must not re-query Trino."""
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "cached"'], result)
+        mock_trino_tags.assert_not_called()
+        mock_worker_cache.return_value.try_lock_single_task.assert_not_called()
+
+    @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags")
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_waits_for_in_flight_trino(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+        mock_sleep,
+    ):
+        """Another worker holding the lock should wait for the cached month-wide result."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = True
+        mock_get_cache.side_effect = [None, None, ['"app": "waited"']]
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "waited"'], result)
+        mock_trino_tags.assert_not_called()
+        mock_sleep.assert_called()
+
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags")
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_uses_cache_populated_after_lock(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+    ):
+        """A cache write that lands after we take the lock must skip Trino."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
+        mock_get_cache.side_effect = [None, ['"app": "raced"']]
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "raced"'], result)
+        mock_trino_tags.assert_not_called()
+        mock_worker_cache.return_value.try_lock_single_task.assert_called()
+        mock_worker_cache.return_value.release_single_task.assert_called_once()
+
+    @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
+        return_value=[{"app": "after-wait"}],
+    )
+    def test_get_matched_tags_strings_wait_aborts_when_lock_released(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+        mock_sleep,
+    ):
+        """If the in-flight worker drops the lock without caching, this worker queries Trino."""
+        mock_worker_cache.return_value.single_task_is_running.side_effect = [True, False]
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "after-wait"'], result)
+        mock_trino_tags.assert_called_once()
+        mock_sleep.assert_not_called()
+        mock_worker_cache.return_value.try_lock_single_task.assert_called()
+
+    @patch("masu.database.report_db_accessor_base.time.monotonic")
+    @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
+        return_value=[{"app": "timeout"}],
+    )
+    def test_get_matched_tags_strings_wait_timeout_queries_trino(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+        mock_sleep,
+        mock_monotonic,
+    ):
+        """A waiter that hits the lock timeout must fall through and query Trino."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = True
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
+        mock_monotonic.side_effect = [0, 10**9]
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "timeout"'], result)
+        mock_trino_tags.assert_called_once()
+        mock_sleep.assert_not_called()
+
+    def test_as_date_accepts_date_and_datetime(self):
+        """Month bounds may already be dates; datetime values must drop the time."""
+        dt = datetime.datetime(2026, 11, 15, 12, 30, tzinfo=datetime.timezone.utc)
+        self.assertEqual(self.accessor._as_date(dt), datetime.date(2026, 11, 15))
+        self.assertEqual(self.accessor._as_date(datetime.date(2026, 11, 15)), datetime.date(2026, 11, 15))
+
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=True)
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_trino_disabled(
+        self, mock_trino_tags, mock_postgres_tags, _mock_keys, _mock_flag
+    ):
+        """The tag-processing kill-switch must skip Trino."""
+        start = self.dh.this_month_start
         result = self.accessor._get_matched_tags_strings(
-            1, self.aws_provider_uuid, self.ocp_provider_uuid, "2022-04-01", "2022-04-10"
+            1, self.aws_provider_uuid, self.ocp_provider_uuid, start, start
         )
         self.assertEqual([], result)
+        mock_trino_tags.assert_not_called()
+
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=False,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
+        return_value=[{"app": "mobile"}],
+    )
+    def test_get_matched_tags_strings_flag_off_uses_window_dates(
+        self, mock_trino_tags, mock_postgres_tags, _mock_keys, _mock_flag, _mock_month_flag
+    ):
+        """Legacy Trino fallback must keep the five-day window dates."""
+        start = self.dh.this_month_start + datetime.timedelta(days=6)
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "mobile"'], result)
+        mock_trino_tags.assert_called_once()
+        args, kwargs = mock_trino_tags.call_args
+        self.assertEqual(args[2], start)
+        self.assertEqual(args[3], end)
+
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
+    @patch("masu.database.report_db_accessor_base.set_cached_ocp_on_cloud_matched_tags")
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=[],
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
+        return_value=[],
+    )
+    def test_get_matched_tags_strings_no_tags(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_set_cache,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+    ):
+        """Test fetching match tag with no tags returned from Postgres or Trino."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
+        start = self.dh.this_month_start
+        end = self.dh.this_month_end
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual([], result)
+        mock_trino_tags.assert_called_once()
+        mock_set_cache.assert_called_once()
 
     def test_ocp_on_aws_disk_capacity_sql_filters_ebs_volume_usage(self):
         """COST-8328: capacity CTE must only use EBS VolumeUsage CUR line items."""
@@ -694,6 +1000,19 @@ class AWSReportDBAccessorTest(MasuTestCase):
                     "month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
                     sql_template,
                 )
+
+    def test_matched_tags_sql_filters_aws_dates_before_unnest(self):
+        """Date literals must be applied on the AWS scan before UNNEST."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/aws/openshift/reporting_ocpaws_matched_tags.sql",
+        ).decode("utf-8")
+        aws_cte, unnest_cte = sql_template.split("cte_unnested_aws_tags AS (", 1)
+        self.assertIn("cte_filtered_aws AS (", aws_cte)
+        self.assertIn("TIMESTAMP '{{start_date | sqlsafe}}'", aws_cte)
+        self.assertIn("TIMESTAMP '{{end_date | sqlsafe}}'", aws_cte)
+        self.assertNotIn("UNNEST", aws_cte)
+        self.assertIn("FROM cte_filtered_aws", unnest_cte.split("cte_unnested_ocp_tags AS (", 1)[0])
 
     def test_summary_sql_metadata_days_tup_includes_padded_and_legacy(self):
         """COST-8094: days_tup dual for reads; days_delete_tup one padded value per day."""
