@@ -109,6 +109,10 @@ deploy)
     # SOURCES_BYPASS_RBAC=true (opt-in) turns off sources-api's RBAC check in this namespace only.
     # Needed while RBAC's /api/rbac/v1/access/ returns 404 in ephemeral (seen 2026-11-03): sources-api
     # then answers 500 to every source registration. Decide deliberately; see README "Known issues".
+    # The migration job takes its image from DBM_IMAGE/DBM_IMAGE_TAG (default koku:latest, main's
+    # migrations): without them the branch's own migrations never run and the workers wait for them
+    # forever. A finished migration job does not run again under the same name, so a redeploy that
+    # must migrate again sets DBM_INVOCATION=01, 02, ...
     require_image
     extra=()
     if [[ "${SOURCES_BYPASS_RBAC:-}" == "true" ]]; then
@@ -119,6 +123,9 @@ deploy)
         --set-template-ref "koku=${SHA}" \
         --set-parameter "koku/IMAGE=${IMAGE}" \
         --set-parameter "koku/IMAGE_TAG=${IMAGE_TAG}" \
+        --set-parameter "koku/DBM_IMAGE=${IMAGE}" \
+        --set-parameter "koku/DBM_IMAGE_TAG=${IMAGE_TAG}" \
+        --set-parameter "koku/DBM_INVOCATION=${DBM_INVOCATION:-00}" \
         ${extra[@]+"${extra[@]}"} \
         --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
         --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
