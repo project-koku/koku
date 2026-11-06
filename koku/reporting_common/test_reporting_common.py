@@ -244,6 +244,26 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertEqual(second.queue_name, "new_queue")
         self.assertGreater(second.timeout_timestamp, original_timeout)
 
+    def test_create_or_reset_timeout_keep_earlier_deadline(self):
+        """With keep_earlier_deadline, a reset never moves the deadline later, but can move it earlier."""
+        provider_uuid = self.aws_provider_uuid
+        kwargs = {"task_name": "test_task", "task_args": [], "provider_uuid": provider_uuid, "queue_name": "q"}
+        first = DelayedCeleryTasks.create_or_reset_timeout(task_kwargs={}, timeout_seconds=60, **kwargs)
+        first_deadline = first.timeout_timestamp
+
+        later = DelayedCeleryTasks.create_or_reset_timeout(
+            task_kwargs={}, timeout_seconds=3600, keep_earlier_deadline=True, **kwargs
+        )
+        later.refresh_from_db()
+        self.assertEqual(later.pk, first.pk)
+        self.assertEqual(later.timeout_timestamp, first_deadline)
+
+        earlier = DelayedCeleryTasks.create_or_reset_timeout(
+            task_kwargs={}, timeout_seconds=0, keep_earlier_deadline=True, **kwargs
+        )
+        earlier.refresh_from_db()
+        self.assertLess(earlier.timeout_timestamp, first_deadline)
+
     def test_create_or_reset_timeout_merge_date_range(self):
         """merge_date_range widens start/end against the locked existing row."""
         provider_uuid = self.aws_provider_uuid
