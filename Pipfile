@@ -55,6 +55,7 @@ boto3 = "*"
 sqlalchemy = ">=2.0.0"
 platformdirs = ">=4.3.6"  # floor set to satisfy tox's transitive dep (via fcache/unleashclient)
 pyjwt = ">=2.14.0"  # floor: reject public JWK containers as HMAC secrets (fixed in 2.14.0)
+certifi = ">=2026.10.19"  # floor: COST-8553 distrust eMudhra (prefer >=2026.10.19; 2026.10.18 too aggressive)
 babel = "*"
 
 [dev-packages]
