@@ -3908,12 +3908,12 @@
         },
         "flake8": {
             "hashes": [
-                "sha256:0dab7566341aca0d80aa29b5812bdadf256caa6a63e6068e49ac2649918236a4",
-                "sha256:637ea1a443a78ed6ee461725cdf71ca93bc5cde0abf25436dbebdc3880b4e078"
+                "sha256:78480274a6d7289d9cb8eafeda241fac57d4ea687d26e32dfdca37b72cdeddad",
+                "sha256:84ea5afcaf344487b0ea5baaebb8100f4cfaebc01f755998f75876664029f587"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.11'",
-            "version": "==7.5.0"
+            "markers": "python_version >= '3.10'",
+            "version": "==7.4.1"
         },
         "flower": {
             "hashes": [
