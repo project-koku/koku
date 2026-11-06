@@ -298,6 +298,14 @@ app.conf.beat_schedule["precreate-upcoming-partitions"] = {
     "args": [],
 }
 
+# Daily: delete rates_to_usage rows whose source, report period, rate or cost model is gone
+# (rates_to_usage has no database FKs to them), for tenants with the RTU pipeline enabled.
+app.conf.beat_schedule["sweep-orphaned-rates-to-usage"] = {
+    "task": "masu.processor.tasks.sweep_orphaned_rates_to_usage_all",
+    "schedule": crontab(hour=4, minute=30),
+    "args": [],
+}
+
 # SaaS-only beats (HCS, Azure scrape, AWS org crawl, Sources status/delete)
 status_fallback = validate_cron_expression("0 3 * * *")
 status_expression = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_fallback)
