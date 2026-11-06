@@ -34,10 +34,10 @@ from common.queues import PriorityQueue
 from common.queues import RefreshQueue
 from common.queues import SummaryQueue
 from koku import celery_app
-from koku.cache import TAG_MAPPING_PREFIX
 from koku.cache import delete_cached_ocp_on_cloud_matched_tags
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.cache import TAG_MAPPING_PREFIX
 from koku.middleware import KokuTenantMiddleware
 from koku.trino_database import TrinoQueryNotFoundError
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
