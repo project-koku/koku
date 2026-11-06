@@ -40,8 +40,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${HERE}/../../.." && pwd)"
 NS_FILE="${HERE}/.namespace"
 FLAG="${FLAG:-cost-management.backend.cost_breakdown_rates_to_usage}"
-SHA="$(git -C "${REPO_DIR}" rev-parse HEAD)"
-TAG="$(git -C "${REPO_DIR}" rev-parse --short=7 HEAD)"
+# The commit to deploy: HEAD, or DEPLOY_SHA to keep a namespace on an image already built while
+# HEAD has moved on (local commits have no image until they are pushed and built).
+SHA="$(git -C "${REPO_DIR}" rev-parse "${DEPLOY_SHA:-HEAD}")"
+TAG="$(git -C "${REPO_DIR}" rev-parse --short=7 "${SHA}")"
 
 namespace() {
     [[ -s "${NS_FILE}" ]] || { echo "no namespace reserved; run: $0 reserve" >&2; exit 1; }
@@ -51,6 +53,11 @@ namespace() {
 require_image() {
     [[ -n "${KONFLUX_PR:-}" || -n "${QUAY_REPO:-}" ]] \
         || { echo "set KONFLUX_PR=<pr number> or QUAY_REPO=quay.io/<user>/koku" >&2; exit 1; }
+    # A Konflux image exists only for pushed commits: refuse a commit no remote branch contains.
+    if [[ -n "${KONFLUX_PR:-}" && -z "$(git -C "${REPO_DIR}" branch -r --contains "${SHA}" 2> /dev/null)" ]]; then
+        echo "${TAG} is not pushed, so it has no image; push it, or set DEPLOY_SHA=<built commit>" >&2
+        exit 1
+    fi
 }
 
 # Image to deploy: the Konflux PR build (KONFLUX_PR=<n>, tag pr-<n>-<short sha>, public, expires after 5 days)
