@@ -34,6 +34,18 @@ from reporting_common.models import IngressStagingState
 class ProcessStagedIngressTests(MasuTestCase):
     """Tests for process_staged_ingress_payload."""
 
+    def setUp(self):
+        """Keep the claim heartbeat thread from running during a test.
+
+        The thread uses its own database connection, so it cannot see rows
+        created inside the test transaction. It then reports the claim as lost
+        and the task stops early, depending on thread timing.
+        """
+        super().setUp()
+        heartbeat_start = patch("masu.processor.ocp.staged_payloads.process_staged._ClaimHeartbeat.start")
+        heartbeat_start.start()
+        self.addCleanup(heartbeat_start.stop)
+
     def _pending_row(self, request_id, **kwargs):
         stored_at = timezone.now() - timedelta(minutes=5)
         defaults = {
