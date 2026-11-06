@@ -698,6 +698,8 @@ objects:
           value: ${ONPREM}
         - name: IQE_TEST_RUN
           value: ${IQE_TEST_RUN}
+        - name: MASU_ADMIN_TOKEN
+          value: ${MASU_ADMIN_TOKEN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CURRENCY_CATALOG_DENYLIST
@@ -6523,6 +6525,10 @@ parameters:
 - description: change this value to restart masu
   name: REDEPLOY_HASH_MASU
   value: "000000"
+- description: shared secret for on-prem Masu admin endpoints (Authorization Bearer);
+    empty fails closed when ONPREM=True
+  name: MASU_ADMIN_TOKEN
+  value: ""
 - displayName: Minimum replicas
   name: SCHEDULER_REPLICAS
   required: true
