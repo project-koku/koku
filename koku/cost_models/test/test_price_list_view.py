@@ -1068,6 +1068,18 @@ class PriceListRatesIntegrationTest(IamTestCase):
         self.assertIn("data", response.data)
         self.assertEqual(response.data["meta"]["count"], len(self.DIVERSE_RATES))
 
+    def test_rates_endpoint_does_not_expose_rate_id(self):
+        """The rates response carries no rate_id (internal Rate key; FedRAMP CM-7, as for #6123's rates)."""
+        pl_uuid = self._create_diverse_price_list()
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(url, {"limit": "100"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["data"]), len(self.DIVERSE_RATES))
+        for rate in response.data["data"]:
+            self.assertNotIn("rate_id", rate)
+            self.assertTrue(rate["custom_name"])
+            self.assertIn("cost_type", rate)
+
     # --- TC-121: Rates endpoint filters by metric_type via HTTP ---
 
     def test_rates_endpoint_filters_metric_type_via_http(self):

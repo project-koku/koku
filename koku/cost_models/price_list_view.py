@@ -247,12 +247,13 @@ class PriceListViewSet(viewsets.ModelViewSet):
 
         result = []
         for rate_obj in filtered_qs:
-            rate_id_str = str(rate_obj.uuid)
-            json_entry = json_by_rate_id.get(rate_id_str, {})
+            json_entry = json_by_rate_id.get(str(rate_obj.uuid), {})
             metric_name = rate_obj.metric
             metric_info = metrics_map.get(metric_name, {})
+            # No rate_id: Rate.uuid is an internal key no client needs, and FedRAMP CM-7 (least
+            # functionality) says not to expose it. custom_name identifies a rate in the API, as
+            # for the rates of the price list and cost model endpoints (#6123).
             rate_dict = {
-                "rate_id": rate_id_str,
                 "custom_name": rate_obj.custom_name,
                 "description": rate_obj.description,
                 "metric": {
