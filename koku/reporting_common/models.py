@@ -209,6 +209,7 @@ class DelayedCeleryTasks(models.Model):
         timeout_seconds=settings.DELAYED_TASK_TIME,
         billing_month=None,
         merge_date_range=False,
+        keep_earlier_deadline=False,
     ):
         """
         Saves data regarding to the celery task being delayed.
@@ -221,7 +222,9 @@ class DelayedCeleryTasks(models.Model):
         Lookup/update runs under ``select_for_update`` so concurrent resets
         for the same key serialize. When ``merge_date_range`` is True, the
         stored ``start_date`` / ``end_date`` are widened (min/max) against the
-        locked row before save.
+        locked row before save. When ``keep_earlier_deadline`` is True, an
+        existing row's deadline can only move earlier, so a stream of calls
+        cannot postpone the task indefinitely.
         """
         filters = {"task_name": task_name, "provider_uuid": provider_uuid}
         billing_month_str = None
@@ -243,7 +246,10 @@ class DelayedCeleryTasks(models.Model):
                 existing_task.task_args = task_args
                 existing_task.task_kwargs = task_kwargs
                 existing_task.queue_name = queue_name
+                previous_deadline = existing_task.timeout_timestamp
                 existing_task.set_timeout(timeout_seconds)
+                if keep_earlier_deadline and previous_deadline < existing_task.timeout_timestamp:
+                    existing_task.timeout_timestamp = previous_deadline
                 existing_task.save()
                 return existing_task
 

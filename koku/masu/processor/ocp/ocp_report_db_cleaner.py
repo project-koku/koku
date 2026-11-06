@@ -10,12 +10,12 @@ from django.conf import settings
 
 from api.common import log_json
 from koku.database import cascade_delete
-from koku.database import execute_delete_sql
+from koku.pg_partition import drop_expired_partitions
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor import is_ocp_tag_cleanup_disabled
-from reporting.models import PartitionedTable
 from reporting.models import TRINO_MANAGED_TABLES
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
+from reporting.provider.ocp.rates_to_usage_deletes import delete_rates_to_usage_for_report_periods
 from reporting.provider.ocp.self_hosted_models import get_self_hosted_table_names
 
 LOG = logging.getLogger(__name__)
@@ -86,6 +86,8 @@ class OCPReportDBCleaner:
             )
 
             if not simulate:
+                # rates_to_usage has no FK to its report period: delete its rows explicitly first.
+                delete_rates_to_usage_for_report_periods(usage_period_objs)
                 cascade_delete(usage_period_objs.query.model, usage_period_objs)
 
                 # For on-prem, also delete from self-hosted tables
@@ -135,17 +137,12 @@ class OCPReportDBCleaner:
                         partitions=partition_from,
                     )
                 )
-                del_count = execute_delete_sql(
-                    PartitionedTable.objects.filter(
-                        schema_name=self._schema,
-                        partition_of_table_name__in=table_names,
-                        partition_parameters__default=False,
-                        partition_parameters__from__lte=partition_from,
-                    )
-                )
+                del_count = drop_expired_partitions(self._schema, table_names, partition_from)
                 LOG.info(log_json(msg="deleted table partitions", count=del_count, schema=self._schema))
 
-                # Remove all data related to the report period
+                # Remove all data related to the report period. rates_to_usage has no FK to its
+                # report period: rows outside the dropped partitions are deleted explicitly first.
+                delete_rates_to_usage_for_report_periods(all_usage_periods)
                 cascade_delete(all_usage_periods.query.model, all_usage_periods)
                 LOG.info(
                     log_json(

@@ -13,7 +13,9 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.models import Rate
 from cost_models.rate_sync import sync_rate_table
+from cost_models.rtu_cleanup import schedule_rates_to_usage_cleanup
 
 LOG = logging.getLogger(__name__)
 
@@ -223,7 +225,9 @@ class PriceListManager:
                 f"Cannot delete price list '{self._model.name}': " f"it is assigned to {assigned_count} cost model(s)."
             )
 
+        rate_ids = list(Rate.objects.filter(price_list=self._model).values_list("uuid", flat=True))
         self._model.delete()
+        schedule_rates_to_usage_cleanup(rate_ids=rate_ids)
         self._model = None
 
     @staticmethod

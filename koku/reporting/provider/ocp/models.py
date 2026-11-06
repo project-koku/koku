@@ -1073,20 +1073,31 @@ class RatesToUsage(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-    rate = models.ForeignKey("cost_models.Rate", on_delete=models.CASCADE, null=True, db_index=False)
-    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.CASCADE, null=True, db_index=False)
+    # rate_id and cost_model_id are write-only traceability columns: nothing reads them, and every
+    # cost model run rebuilds its date range. No database constraint and no cascade, so deleting a
+    # Rate or CostModel never deletes from, or fails inserts into, this partitioned table.
+    rate = models.ForeignKey(
+        "cost_models.Rate", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False
+    )
+    cost_model = models.ForeignKey(
+        "cost_models.CostModel", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False
+    )
+    # No database constraint and no cascade on the parents either: Provider.delete and the OCP
+    # retention purges delete these rows explicitly first (rates_to_usage_deletes.py).
     report_period = models.ForeignKey(
         "OCPUsageReportPeriod",
-        on_delete=models.CASCADE,
+        on_delete=models.DO_NOTHING,
         null=True,
         db_column="report_period_id",
+        db_constraint=False,
     )
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
+        on_delete=models.DO_NOTHING,
         unique=False,
         null=False,
         db_column="source_uuid",
+        db_constraint=False,
     )
     usage_start = models.DateField()
     usage_end = models.DateField()
