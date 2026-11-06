@@ -632,47 +632,90 @@
                         "$ref": "#/components/parameters/QueryLimit"
                     },
                     {
-                        "name": "name",
-                        "required": false,
                         "in": "query",
-                        "description": "Filter by price list name (case-insensitive substring match).",
+                        "name": "filter[name]",
+                        "description": "Case-insensitive substring match on the price list name. Accepts comma-separated values or repeated parameters (OR).",
                         "schema": {
-                            "type": "string"
-                        }
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "default"
+                        ]
                     },
                     {
-                        "name": "uuid",
-                        "required": false,
                         "in": "query",
-                        "description": "Filter by exact price list UUID.",
+                        "name": "filter[uuid]",
+                        "description": "Exact price list UUID.",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
                         }
                     },
                     {
-                        "name": "enabled",
-                        "required": false,
                         "in": "query",
-                        "description": "Filter by enabled status. Use true to show only active price lists or false to show only disabled ones.",
+                        "name": "filter[enabled]",
+                        "description": "true shows only active price lists, false only disabled ones.",
                         "schema": {
                             "type": "boolean"
                         }
                     },
                     {
-                        "name": "ordering",
-                        "required": false,
                         "in": "query",
-                        "description": "Order response by allowed fields. Prefix with '-' for descending order. Default is 'name'.",
+                        "name": "filter[currency]",
+                        "description": "Case-insensitive exact match on the currency code.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "USD"
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[cost_model]",
+                        "description": "Price lists assigned to these cost model UUIDs. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[name]",
+                        "description": "Order by name. Default ordering is name ascending.",
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "name",
-                                "-name",
-                                "effective_start_date",
-                                "-effective_start_date",
-                                "updated_timestamp",
-                                "-updated_timestamp"
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[effective_start_date]",
+                        "description": "Order by effective start date.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[updated_timestamp]",
+                        "description": "Order by last update time.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
                             ]
                         }
                     }
@@ -1006,6 +1049,261 @@
                                     "items": {
                                         "$ref": "#/components/schemas/PriceListAffectedCostModel"
                                     }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/rates/": {
+            "get": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "List the rates of a Price List.",
+                "description": "Filterable, paginated rates of a price list, with metric display labels. Read-only. Rates are identified by custom_name; no rate identifier is returned.",
+                "operationId": "getPriceListRates",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[name]",
+                        "description": "Case-insensitive substring match on the rate's custom_name. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "cpu"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[metric_type]",
+                        "description": "Case-insensitive exact match on the metric type. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "cpu",
+                            "memory"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[measurement]",
+                        "description": "Case-insensitive substring match on the measurement label, e.g. Usage or Request. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "usage"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[cost_type]",
+                        "description": "Case-insensitive exact match on the cost type. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "Infrastructure"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[name]",
+                        "description": "Order by custom_name. Default ordering is custom_name ascending.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[metric_type]",
+                        "description": "Order by metric type.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[measurement]",
+                        "description": "Order by metric name.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[cost_type]",
+                        "description": "Order by cost type.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of the price list's rates",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListRatePagination"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: unsupported parameter or invalid value.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/duplicate/": {
+            "post": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Duplicate a Price List.",
+                "description": "Creates a copy named \"Copy of <name>\" with the same rates, currency and effective dates, version 1, enabled, and not assigned to any cost model. No request body.",
+                "operationId": "duplicatePriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to duplicate.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "The new Price List",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: the price list cannot be duplicated, or price list writes are temporarily disabled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
                                 }
                             }
                         }
@@ -8865,11 +9163,11 @@
                     "metric"
                 ],
                 "properties": {
-                    "uuid": {
+                    "custom_name": {
                         "type": "string",
-                        "format": "uuid",
-                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4",
-                        "readOnly": true
+                        "maxLength": 50,
+                        "description": "Name of the rate, unique within its price list; identifies the rate in the API. Generated from the metric, cost type and tag key when not provided. Renaming a rate replaces it.",
+                        "example": "cpu_core_usage_per_hour-Infrastructure"
                     },
                     "metric": {
                         "type": "object",
@@ -8926,11 +9224,11 @@
                     "metric"
                 ],
                 "properties": {
-                    "uuid": {
+                    "custom_name": {
                         "type": "string",
-                        "format": "uuid",
-                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4",
-                        "readOnly": true
+                        "maxLength": 50,
+                        "description": "Name of the rate, unique within its price list; identifies the rate in the API. Generated from the metric, cost type and tag key when not provided. Renaming a rate replaces it.",
+                        "example": "cpu_core_usage_per_hour-Infrastructure"
                     },
                     "metric": {
                         "type": "object",
@@ -12716,6 +13014,166 @@
                         "type": "string"
                     }
                 }
+            },
+            "PriceListRateOut": {
+                "type": "object",
+                "description": "A rate of a price list, enriched with metric display labels. Carries tiered_rates or tag_rates.",
+                "properties": {
+                    "custom_name": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "description": "Name of the rate, unique within its price list; identifies the rate in the API. Generated from the metric, cost type and tag key when not provided. Renaming a rate replaces it.",
+                        "example": "cpu_core_usage_per_hour-Infrastructure"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Compute usage rate"
+                    },
+                    "metric": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "example": "cpu_core_usage_per_hour"
+                            },
+                            "label_metric": {
+                                "type": "string",
+                                "example": "CPU"
+                            },
+                            "label_measurement": {
+                                "type": "string",
+                                "example": "Usage"
+                            },
+                            "label_measurement_unit": {
+                                "type": "string",
+                                "example": "core-hours"
+                            }
+                        }
+                    },
+                    "metric_type": {
+                        "type": "string",
+                        "description": "Metric category, for example cpu, memory, storage, node, cluster, pvc, project, vm or gpu.",
+                        "example": "cpu"
+                    },
+                    "cost_type": {
+                        "type": "string",
+                        "enum": [
+                            "Infrastructure",
+                            "Supplementary"
+                        ]
+                    },
+                    "default_rate": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "First tier's value as a decimal string, or null for tag rates without a default.",
+                        "example": "0.220000000000000"
+                    },
+                    "tiered_rates": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "value": {
+                                    "type": "number"
+                                },
+                                "usage": {
+                                    "type": "object"
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "enum": [
+                                        "USD"
+                                    ]
+                                }
+                            }
+                        },
+                        "example": [
+                            {
+                                "value": 0.22,
+                                "unit": "USD",
+                                "usage": {
+                                    "usage_start": 0,
+                                    "usage_end": 10
+                                }
+                            }
+                        ]
+                    },
+                    "tag_rates": {
+                        "required": [
+                            "tag_key"
+                        ],
+                        "properties": {
+                            "tag_key": {
+                                "type": "string",
+                                "enum": [
+                                    "key_one"
+                                ]
+                            },
+                            "tag_values": {
+                                "type": "array",
+                                "items": {
+                                    "properties": {
+                                        "tag_value": {
+                                            "type": "string"
+                                        },
+                                        "usage": {
+                                            "type": "object"
+                                        },
+                                        "unit": {
+                                            "type": "string",
+                                            "enum": [
+                                                "USD"
+                                            ]
+                                        },
+                                        "value": {
+                                            "type": "number"
+                                        },
+                                        "description": {
+                                            "type": "string"
+                                        },
+                                        "default": {
+                                            "type": "boolean"
+                                        }
+                                    }
+                                },
+                                "example": [
+                                    {
+                                        "tag_value": "dev",
+                                        "unit": "USD",
+                                        "usage": {
+                                            "unit": "USD",
+                                            "usage_start": 0,
+                                            "usage_end": 10
+                                        },
+                                        "value": 0.2,
+                                        "description": "Developers",
+                                        "default": true
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            "PriceListRatePagination": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/PriceListRateOut"
+                                }
+                            }
+                        }
+                    }
+                ]
             }
         }
     }

@@ -40,6 +40,7 @@ from cost_models.price_list_manager import PriceListException
 from cost_models.price_list_manager import PriceListManager
 from cost_models.price_list_serializer import PriceListSerializer
 from cost_models.rate_sync import sync_rate_table
+from cost_models.serializers import RateSerializer
 
 LOG = logging.getLogger(__name__)
 
@@ -247,12 +248,13 @@ class PriceListViewSet(viewsets.ModelViewSet):
 
         result = []
         for rate_obj in filtered_qs:
-            rate_id_str = str(rate_obj.uuid)
-            json_entry = json_by_rate_id.get(rate_id_str, {})
+            json_entry = json_by_rate_id.get(str(rate_obj.uuid), {})
             metric_name = rate_obj.metric
             metric_info = metrics_map.get(metric_name, {})
+            # No rate_id: Rate.uuid is an internal key no client needs, and FedRAMP CM-7 (least
+            # functionality) says not to expose it. custom_name identifies a rate in the API, as
+            # for the rates of the price list and cost model endpoints (#6123).
             rate_dict = {
-                "rate_id": rate_id_str,
                 "custom_name": rate_obj.custom_name,
                 "description": rate_obj.description,
                 "metric": {
@@ -265,9 +267,12 @@ class PriceListViewSet(viewsets.ModelViewSet):
                 "cost_type": rate_obj.cost_type,
                 "default_rate": str(rate_obj.default_rate) if rate_obj.default_rate is not None else None,
             }
-            if json_entry.get("tiered_rates"):
-                rate_dict["tiered_rates"] = json_entry["tiered_rates"]
-            if json_entry.get("tag_rates"):
-                rate_dict["tag_rates"] = json_entry["tag_rates"]
+            # Render the prices as the price list detail does: the JSON stores them as decimal
+            # strings, and the response carries numbers.
+            rendered = RateSerializer().to_representation(copy.deepcopy(json_entry)) if json_entry else {}
+            if rendered.get("tiered_rates"):
+                rate_dict["tiered_rates"] = rendered["tiered_rates"]
+            if rendered.get("tag_rates"):
+                rate_dict["tag_rates"] = rendered["tag_rates"]
             result.append(rate_dict)
         return result

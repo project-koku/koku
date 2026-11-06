@@ -178,6 +178,27 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertIn("USD", codes)
         self.assertIn("EUR", codes)
 
+    @override_settings(CURRENCY_CATALOG_DENYLIST=frozenset({"KPW"}))
+    def test_list_excludes_denylisted_currency_unless_enabled(self):
+        """Denylisted tender codes are omitted unless already enabled for the tenant."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        url = reverse("currency-list") + "?limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertNotIn("KPW", codes)
+
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="KPW")
+
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes_by_key = {c["code"]: c for c in response.data["data"]}
+        self.assertIn("KPW", codes_by_key)
+        self.assertTrue(codes_by_key["KPW"]["enabled"])
+
     def test_list_includes_already_enabled_inactive_currency(self):
         """Legacy enabled withdrawn currencies still appear with enabled=true."""
         with tenant_context(self.tenant):
@@ -926,6 +947,14 @@ class EnabledCurrencyViewTest(IamTestCase):
             response = self.client.post(self._url("XXX"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertFalse(EnabledCurrency.objects.filter(currency_code="XXX").exists())
+
+    @override_settings(CURRENCY_CATALOG_DENYLIST=frozenset({"KPW"}))
+    def test_post_enable_rejects_denylisted_currency(self):
+        """POST must reject tender codes excluded by CURRENCY_CATALOG_DENYLIST."""
+        with tenant_context(self.tenant):
+            response = self.client.post(self._url("KPW"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="KPW").exists())
 
     def test_delete_allows_disabling_already_enabled_inactive_currency(self):
         """Already-enabled withdrawn currencies remain disableable via DELETE."""

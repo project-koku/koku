@@ -68,7 +68,8 @@ ISO 4217 registry at response time.
 ## `GET /settings/currency/`
 
 Administrator currency catalog for Settings UI. Lists **current tender** ISO
-4217 currencies (babel territory data). Already-enabled inactive/withdrawn
+4217 currencies (babel territory data), minus any codes in
+`CURRENCY_CATALOG_DENYLIST`. Already-enabled inactive/withdrawn/denylisted
 codes remain in the list so they can be disabled.
 
 **Permission:** settings access.
@@ -182,7 +183,8 @@ JSON behavior for `Accept: application/json` is unchanged. Implementation:
 
 ## `POST /settings/currency/enabled/{code}/`
 
-Enable a **current tender** ISO 4217 currency for the tenant.
+Enable a **current tender** ISO 4217 currency for the tenant (not in
+`CURRENCY_CATALOG_DENYLIST`).
 
 **Permission:** settings access.
 
