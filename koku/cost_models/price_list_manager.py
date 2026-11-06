@@ -127,8 +127,10 @@ class PriceListManager:
         if rates_changed or dates_changed:
             self._model.version += 1
 
-        self._model.save()
-        sync_rate_table(self._model, copy.deepcopy(self._model.rates) if self._model.rates else [])
+        # One transaction: if the Rate sync fails, the saved rates JSON, name and version roll back too.
+        with transaction.atomic():
+            self._model.save()
+            sync_rate_table(self._model, copy.deepcopy(self._model.rates) if self._model.rates else [])
 
         if rates_changed or dates_changed:
             self._trigger_recalculation()
