@@ -111,8 +111,8 @@ deploy)
     # then answers 500 to every source registration. Decide deliberately; see README "Known issues".
     # The migration job takes its image from DBM_IMAGE/DBM_IMAGE_TAG (default koku:latest, main's
     # migrations): without them the branch's own migrations never run and the workers wait for them
-    # forever. A finished migration job does not run again under the same name, so a redeploy that
-    # must migrate again sets DBM_INVOCATION=01, 02, ...
+    # forever. A finished migration job does not run again under the same name; DBM_INVOCATION=01, 02,
+    # ... names a new one, but Clowder starts it only once the koku app is ready (README "Known issues").
     require_image
     extra=()
     if [[ "${SOURCES_BYPASS_RBAC:-}" == "true" ]]; then
