@@ -46,9 +46,11 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import COST_BREAKDOWN_RTU_UNLEASH_FLAG
 from masu.processor import is_celery_task_delay_disabled
 from masu.processor import is_cost_model_processing_disabled
 from masu.processor import is_cost_model_single_flight_enabled
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -74,6 +76,8 @@ from masu.processor.worker_cache import WorkerCache
 from masu.util.common import get_latest_openshift_on_cloud_manifest
 from masu.util.common import set_summary_timestamp
 from reporting.ingress.models import IngressReports
+from reporting.provider.ocp.rates_to_usage_deletes import delete_rates_to_usage_for_rates_and_cost_models
+from reporting.provider.ocp.rates_to_usage_deletes import sweep_orphaned_rates_to_usage as sweep_rates_to_usage
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
 from reporting_common.states import ManifestState
@@ -1154,12 +1158,8 @@ def delete_rates_to_usage_rows(schema_name, rate_ids=None, cost_model_ids=None):
     cost_model_ids = [str(cost_model_id) for cost_model_id in cost_model_ids or []]
     if not rate_ids and not cost_model_ids:
         return 0
-    with schema_context(schema_name), connection.cursor() as cursor:
-        cursor.execute(
-            "DELETE FROM rates_to_usage WHERE rate_id = ANY(%s::uuid[]) OR cost_model_id = ANY(%s::uuid[])",
-            [rate_ids, cost_model_ids],
-        )
-        deleted = cursor.rowcount
+    with schema_context(schema_name):
+        deleted = delete_rates_to_usage_for_rates_and_cost_models(rate_ids, cost_model_ids)
     LOG.info(
         log_json(
             msg="deleted rates_to_usage rows of deleted rates and cost models",
@@ -1170,6 +1170,33 @@ def delete_rates_to_usage_rows(schema_name, rate_ids=None, cost_model_ids=None):
         )
     )
     return deleted
+
+
+@celery_app.task(name="masu.processor.tasks.sweep_orphaned_rates_to_usage", queue=CostModelQueue.DEFAULT)
+def sweep_orphaned_rates_to_usage(schema_name):
+    """Delete one tenant's rates_to_usage rows whose source, report period, rate or cost model is gone."""
+    with schema_context(schema_name):
+        deleted = sweep_rates_to_usage()
+    LOG.info(log_json(msg="rates_to_usage orphan sweep done", schema=schema_name, deleted=deleted))
+    return deleted
+
+
+@celery_app.task(name="masu.processor.tasks.sweep_orphaned_rates_to_usage_all", queue=DEFAULT)
+def sweep_orphaned_rates_to_usage_all():
+    """Queue the rates_to_usage orphan sweep for every tenant with the RTU pipeline enabled."""
+    excluded = {"public", Tenant._TEMPLATE_SCHEMA}
+    schema_names = [
+        schema_name
+        for schema_name in Tenant.objects.values_list("schema_name", flat=True)
+        if schema_name and schema_name not in excluded
+    ]
+    queued = 0
+    for schema_name in schema_names:
+        if is_feature_flag_enabled_by_schema(schema_name, COST_BREAKDOWN_RTU_UNLEASH_FLAG):
+            sweep_orphaned_rates_to_usage.delay(schema_name)
+            queued += 1
+    LOG.info(log_json(msg="queued rates_to_usage orphan sweeps", schemas=queued))
+    return queued
 
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT)

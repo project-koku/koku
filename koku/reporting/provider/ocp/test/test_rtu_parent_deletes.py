@@ -16,16 +16,18 @@ from model_bakery import baker
 
 from koku.pg_partition import PartitionHandlerMixin
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
+from masu.processor.tasks import sweep_orphaned_rates_to_usage_all
 from masu.test import MasuTestCase
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import RatesToUsage
+from reporting.provider.ocp.rates_to_usage_deletes import sweep_orphaned_rates_to_usage
 from reporting.provider.ocp.test.test_rtu_migrations import FK_COLUMNS_SQL
 
 CUSTOM_NAME = "RTU parent delete test"
 
 
-class RatesToUsageParentDeleteTest(MasuTestCase):
-    """Explicit deletes replace the report period and source cascades."""
+class RatesToUsageRowsMixin:
+    """Create rates_to_usage rows for the delete and sweep tests."""
 
     def _rtu_row(self, source_uuid, report_period_id, usage_start=None):
         usage_start = usage_start or self.dh.this_month_start.date()
@@ -43,6 +45,10 @@ class RatesToUsageParentDeleteTest(MasuTestCase):
 
     def _report_period(self, provider_uuid):
         return OCPUsageReportPeriod.objects.filter(provider_id=provider_uuid).order_by("-report_period_start").first()
+
+
+class RatesToUsageParentDeleteTest(RatesToUsageRowsMixin, MasuTestCase):
+    """Explicit deletes replace the report period and source cascades."""
 
     def test_no_report_period_or_source_constraint(self):
         """Only cost_category_id keeps a database FK."""
@@ -102,3 +108,49 @@ class RatesToUsageParentDeleteTest(MasuTestCase):
             self.assertFalse(OCPUsageReportPeriod.objects.filter(id=expired.id).exists())
             self.assertFalse(RatesToUsage.objects.filter(uuid=expired_row.uuid).exists())
             self.assertTrue(RatesToUsage.objects.filter(uuid=current_row.uuid).exists())
+
+
+class RatesToUsageOrphanSweepTest(RatesToUsageRowsMixin, MasuTestCase):
+    """The periodic sweep deletes rows whose source, report period, rate or cost model is gone."""
+
+    def test_sweep_deletes_rows_of_missing_parents_only(self):
+        """One row per kind of missing parent is deleted; a row with live parents stays."""
+        with schema_context(self.schema):
+            period_id = self._report_period(self.ocp_provider_uuid).id
+            live = self._rtu_row(self.ocp_provider_uuid, period_id)
+            no_source = self._rtu_row(uuid4(), 2_000_000_001)
+            no_period = self._rtu_row(self.ocp_provider_uuid, 2_000_000_002)
+            no_rate = self._rtu_row(self.ocp_provider_uuid, period_id)
+            no_cost_model = self._rtu_row(self.ocp_provider_uuid, period_id)
+            RatesToUsage.objects.filter(uuid=no_rate.uuid).update(rate_id=uuid4())
+            RatesToUsage.objects.filter(uuid=no_cost_model.uuid).update(cost_model_id=uuid4())
+
+            deleted = sweep_orphaned_rates_to_usage()
+
+            remaining = set(RatesToUsage.objects.filter(custom_name=CUSTOM_NAME).values_list("uuid", flat=True))
+        self.assertIn(live.uuid, remaining)
+        for row in (no_source, no_period, no_rate, no_cost_model):
+            self.assertNotIn(row.uuid, remaining)
+        self.assertGreaterEqual(deleted["sources"], 1)
+        self.assertGreaterEqual(deleted["report_periods"], 1)
+        self.assertGreaterEqual(deleted["rates_and_cost_models"], 2)
+
+    def test_second_sweep_finds_nothing(self):
+        """After a sweep, nothing is left to delete."""
+        with schema_context(self.schema):
+            self._rtu_row(uuid4(), 2_000_000_003)
+            sweep_orphaned_rates_to_usage()
+            self.assertEqual(
+                sweep_orphaned_rates_to_usage(), {"sources": 0, "report_periods": 0, "rates_and_cost_models": 0}
+            )
+
+    @patch("masu.processor.tasks.sweep_orphaned_rates_to_usage.delay")
+    def test_dispatcher_queues_only_tenants_with_the_rtu_flag(self, mock_delay):
+        """The daily beat queues a sweep only for tenants that write rates_to_usage."""
+        with patch(
+            "masu.processor.tasks.is_feature_flag_enabled_by_schema",
+            side_effect=lambda schema, flag: schema == self.schema,
+        ):
+            queued = sweep_orphaned_rates_to_usage_all()
+        self.assertEqual(queued, 1)
+        mock_delay.assert_called_once_with(self.schema)
