@@ -613,13 +613,15 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                         for entry in rate_rows:
                             ns_total = ns_totals.get(entry["namespace"], Decimal(0))
                             expected = rate_share * ns_total
-                            self.assertAlmostEqual(
-                                float(entry["actual"]),
-                                float(expected),
-                                places=4,
+                            actual = entry["actual"]
+                            tolerance = abs(expected) * Decimal("1e-9") + Decimal("1e-6")
+                            self.assertLessEqual(
+                                abs(actual - expected),
+                                tolerance,
                                 msg=(
                                     f"[{dist_type}] Option 2 cross-check failed for "
-                                    f"rate={rate_name}, ns={entry['namespace']}"
+                                    f"rate={rate_name}, ns={entry['namespace']} "
+                                    f"(actual={actual}, expected={expected}, tolerance={tolerance})"
                                 ),
                             )
 
