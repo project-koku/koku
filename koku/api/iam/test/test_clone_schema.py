@@ -17,6 +17,7 @@ from ..models import CloneSchemaFuncMissing
 from ..models import Tenant
 from .iam_test_case import IamTestCase
 from api.currency.models import ExchangeRateDictionary
+from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from koku.database import dbfunc_exists
 
@@ -230,6 +231,67 @@ class CloneSchemaTest(IamTestCase):
                     .exclude(effective_date=current_month)
                     .exists()
                 )
+        finally:
+            Tenant.objects.filter(schema_name=schema_name).delete()
+
+    @override_settings(ONPREM=True, CURRENCY_URL="")
+    def test_new_schema_onprem_offline_restricts_enabled_currencies_to_usd(self):
+        """On-prem without CURRENCY_URL, cloned schemas keep USD only (Fix 1a)."""
+        schema_name = "org90909098"
+        with schema_context(Tenant._TEMPLATE_SCHEMA):
+            self.assertGreater(EnabledCurrency.objects.count(), 1)
+
+        tenant = Tenant(schema_name=schema_name)
+        tenant.save()
+        try:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertTrue(tenant.create_schema())
+
+            with schema_context(schema_name):
+                enabled = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+                self.assertEqual(enabled, {"USD"})
+        finally:
+            Tenant.objects.filter(schema_name=schema_name).delete()
+
+    @override_settings(ONPREM=False, CURRENCY_URL="")
+    def test_new_schema_saas_empty_currency_url_keeps_full_enablement_seed(self):
+        """SaaS with empty CURRENCY_URL still inherits the migration enablement seed."""
+        schema_name = "org90909099"
+        with schema_context(Tenant._TEMPLATE_SCHEMA):
+            template_count = EnabledCurrency.objects.count()
+            self.assertGreater(template_count, 1)
+
+        tenant = Tenant(schema_name=schema_name)
+        tenant.save()
+        try:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertTrue(tenant.create_schema())
+
+            with schema_context(schema_name):
+                self.assertEqual(EnabledCurrency.objects.count(), template_count)
+        finally:
+            Tenant.objects.filter(schema_name=schema_name).delete()
+
+    @override_settings(ONPREM=True, CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
+    @patch("masu.celery.tasks._fetch_and_store_exchange_rates")
+    def test_new_schema_onprem_with_currency_url_keeps_full_enablement_seed(self, mock_fetch):
+        """On-prem with CURRENCY_URL does not trim the migration enablement seed."""
+        schema_name = "org90909100"
+        with schema_context(Tenant._TEMPLATE_SCHEMA):
+            template_count = EnabledCurrency.objects.count()
+            self.assertGreater(template_count, 1)
+
+        def store_rates(_url):
+            ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
+
+        mock_fetch.side_effect = store_rates
+        tenant = Tenant(schema_name=schema_name)
+        tenant.save()
+        try:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertTrue(tenant.create_schema())
+            with schema_context(schema_name):
+                self.assertEqual(EnabledCurrency.objects.count(), template_count)
         finally:
             Tenant.objects.filter(schema_name=schema_name).delete()
 

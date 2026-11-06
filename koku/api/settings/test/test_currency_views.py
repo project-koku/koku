@@ -1020,7 +1020,10 @@ class EnabledCurrencyViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="GBP").exists())
 
-    @override_settings(CACHES=CACHE_OVERRIDE)
+    @override_settings(
+        CACHES=CACHE_OVERRIDE,
+        CURRENCY_URL="https://exchange-rates.example/v6/latest/USD",
+    )
     def test_enable_currency_invalidates_enabled_codes_cache(self):
         """Enabling a currency should invalidate the cached enabled-codes set."""
         with tenant_context(self.tenant):
@@ -1135,6 +1138,7 @@ class EnabledCurrencyViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="GBP").exists())
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_disable_reenable_restores_current_month_static_mer(self):
         """Re-enable rematerializes covering static definitions for the current month."""
         date_helper = DateHelper()
@@ -1219,6 +1223,7 @@ class EnabledCurrencyViewTest(IamTestCase):
 
             self.assertEqual(StaticExchangeRate.objects.filter(uuid=static_rate.uuid).count(), 1)
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_reenable_without_static_definition_writes_dynamic_only(self):
         """Re-enable with no covering static definition only writes dynamic MER rows."""
         date_helper = DateHelper()
@@ -1303,3 +1308,55 @@ class EnabledCurrencyViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             usd = next(item for item in response.data["data"] if item["code"] == "USD")
             self.assertEqual(usd["active_rate_type"], ACTIVE_RATE_TYPE_STATIC)
+
+    @override_settings(CURRENCY_URL="")
+    def test_enable_currency_blocked_without_static_rates_when_no_currency_url(self):
+        """Offline deploys require static rates before POST enable (Fix 2a)."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            MonthlyExchangeRate.objects.filter(Q(base_currency="EUR") | Q(target_currency="EUR")).delete()
+            response = self.client.post(self._url("EUR"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="EUR").exists())
+            self.assertIn("static exchange rates", response.data["errors"][0]["detail"])
+
+    @override_settings(CURRENCY_URL="")
+    def test_enable_currency_allowed_with_static_rate_coverage(self):
+        """Enable succeeds offline when static rates cover required targets."""
+        from api.utils import materialized_view_month_start
+        from api.utils import to_date
+        from dateutil.relativedelta import relativedelta
+
+        date_helper = DateHelper()
+        retention_start = to_date(materialized_view_month_start(schema_name=self.schema_name))
+        horizon_end = date_helper.this_month_start.date() + relativedelta(months=1)
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="EUR",
+                target_currency="USD",
+                exchange_rate=Decimal("1.08"),
+                start_date=retention_start,
+                end_date=_month_end(horizon_end),
+            )
+            response = self.client.post(self._url("EUR"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
+
+    @override_settings(CURRENCY_URL="")
+    def test_enable_currency_returns_200_when_already_enabled_without_rate_side_effects(self):
+        """Re-enabling an already-enabled currency is a 200 no-op offline."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+            with patch(
+                "api.settings.currency_views.rematerialize_open_static_monthly_rates"
+            ) as mock_rematerialize, patch(
+                "api.settings.currency_views.populate_dynamic_monthly_rates"
+            ) as mock_populate:
+                response = self.client.post(self._url("EUR"), **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(EnabledCurrency.objects.filter(currency_code="EUR").count(), 1)
+            mock_rematerialize.assert_not_called()
+            mock_populate.assert_not_called()
