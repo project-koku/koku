@@ -72,7 +72,11 @@
         - name: IQE_TEST_RUN
           value: ${IQE_TEST_RUN}
         - name: MASU_ADMIN_TOKEN
-          value: ${MASU_ADMIN_TOKEN}
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: koku-masu-admin-token
+              optional: true # template Secret is only applied in ephemeral
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CURRENCY_CATALOG_DENYLIST
@@ -237,9 +241,3 @@
     description: change this value to restart masu
     name: REDEPLOY_HASH_MASU
     value: "000000"
-- op: add
-  path: /parameters/-
-  value:
-    description: shared secret for on-prem Masu admin endpoints (Authorization Bearer); empty fails closed when ONPREM=True
-    name: MASU_ADMIN_TOKEN
-    value: ""
