@@ -50,7 +50,9 @@ The tech lead proposed:
    existing rates by `rate_id`, create new rates, delete only removed
    rates) — preserves `Rate.uuid` for unchanged rates.
 2. Include `rate_id` in **API payloads** so the frontend can round-trip
-   stable Rate UUIDs.
+   stable Rate UUIDs. **Superseded 2026-11-04**: `rate_id` is not part of
+   the API (FedRAMP CM-7, least functionality); see
+   [api-and-frontend.md](./api-and-frontend.md#rateserializer--custom_name-no-rate_id).
 3. Change `RatesToUsage.rate` FK from **`SET_NULL` to `CASCADE`**.
 4. **Scoped recalculation** — only recalculate the changed rate's costs.
 
@@ -98,15 +100,16 @@ performance on large partitions.
 | What changes | Where | Impact |
 |---|---|---|
 | `_sync_rate_table()` rewrite | `cost_model_manager.py` | Match by `rate_id` (if present) or `custom_name`, update/create/delete individually |
-| `RateSerializer` adds `rate_id` | `serializers.py` | Optional UUID, read-write. GET includes it; PUT may include it. |
-| Frontend `RateRequest` adds `rate_id` | `koku-ui` `api/rates.ts` | Coordinated frontend change. Backward-compatible: omitting degrades to match-by-`custom_name`. |
+| ~~`RateSerializer` adds `rate_id`~~ | `serializers.py` | **Superseded 2026-11-04**: no `rate_id` in the API (FedRAMP CM-7). Output omits it, input drops it. |
+| ~~Frontend `RateRequest` adds `rate_id`~~ | `koku-ui` `api/rates.ts` | **Superseded 2026-11-04**: the UI never sends `rate_id`; rates match by `custom_name`. |
 | API contract documented | `api-and-frontend.md` | New field in rate objects |
 | Phase 1 validation expanded | `phased-delivery.md` | Test: update cost model → unchanged rates keep their UUID |
 
 **Backward compatibility**: If the frontend doesn't send `rate_id`, the
 backend diffs by `custom_name` (using the existing `unique_together`
-constraint). Rename = delete + create rather than update. Full
-diff-based sync activates once the frontend ships `rate_id` support.
+constraint). Rename = delete + create rather than update. This is the
+final design (2026-11-04): the frontend will not ship `rate_id` support,
+because `rate_id` is not exposed (FedRAMP CM-7).
 
 ##### Layer 2: `rate_id` in SQL pipeline (currently unscoped)
 
@@ -357,3 +360,4 @@ blocking). Both mechanisms are independent and complementary.
 | v1.3 | 2026-04-03 | Concern 3: due diligence findings from verifying tech lead's proposal against codebase. Added Gaps A-F: GET serializer won't emit `rate_id` without explicit changes (Gap A), backward-compat + CASCADE = historical data loss (Gap B), scoped recalc harder than described (Gap C), `rate_id` needs price_list ownership validation (Gap D), diff operations need delete→update→create ordering for unique constraint (Gap E), change detection field classification needed (Gap F). Expanded decision points from 3 to 6. |
 | v1.4 | 2026-04-03 | Concern 5 marked RESOLVED per tech lead decision: Option 1 is non-negotiable, remove Option 2 fallback language. Clarify Gap B wording ("not automatically rebuilt" instead of "permanently lost") and soften Gap C implementation estimate ("multiple call sites" instead of fixed count). |
 | v2.0 | 2026-04-03 | All concerns resolved. Concern 3 Gaps A-F closed with conservative defaults: diff-based `_sync_rate_table()` with `custom_name` fallback (B), `rate_id` on `RateSerializer` + `to_representation()` (A), ownership validation (D), delete→update→create ordering (E), `COST_AFFECTING_FIELDS` classification (F), scoped recalc deferred (C). Pseudocode added to `api-and-frontend.md`. No open concerns remain. |
+| v2.1 | 2026-11-04 | Concern 3: `rate_id` in API payloads superseded — not exposed in either direction (FedRAMP CM-7, least functionality; no consumer needs it). `custom_name` is the rate identity; rename = delete + create. See [api-and-frontend.md](./api-and-frontend.md#rateserializer--custom_name-no-rate_id). |
