@@ -68,7 +68,8 @@ ISO 4217 registry at response time.
 ## `GET /settings/currency/`
 
 Administrator currency catalog for Settings UI. Lists **current tender** ISO
-4217 currencies (babel territory data). Already-enabled inactive/withdrawn
+4217 currencies (babel territory data), minus any codes in
+`CURRENCY_CATALOG_DENYLIST`. Already-enabled inactive/withdrawn/denylisted
 codes remain in the list so they can be disabled.
 
 **Permission:** settings access.
@@ -182,7 +183,8 @@ JSON behavior for `Accept: application/json` is unchanged. Implementation:
 
 ## `POST /settings/currency/enabled/{code}/`
 
-Enable a **current tender** ISO 4217 currency for the tenant.
+Enable a **current tender** ISO 4217 currency for the tenant (not in
+`CURRENCY_CATALOG_DENYLIST`).
 
 **Permission:** settings access.
 
@@ -355,14 +357,14 @@ Existing report/forecast URLs are unchanged. Relevant product behavior when
 {
   "errors": [
     {
-      "currency": "No exchange rate available for USD -> EUR for 2026-01-01 to 2026-03-31. Ask your administrator to configure static exchange rates or enable dynamic exchange rates."
+      "currency": "No exchange rate available to convert costs into EUR for USD -> EUR for 2026-01-01 to 2026-03-31. Costs are stored in the source currency; the requested currency is the conversion target. Ask your administrator to configure static exchange rates for each missing source -> EUR pair (the reverse direction is not used) or enable dynamic exchange rates."
     }
   ]
 }
 ```
 
-(When `CURRENCY_URL` is configured, the message may omit the “or enable dynamic
-exchange rates” clause and point administrators at static rates.)
+(When `CURRENCY_URL` is configured, the message omits the “or enable dynamic
+exchange rates” clause and ends after “(the reverse direction is not used)”.)
 
 Same-currency conversion (base equals target) uses rate `1`.
 
