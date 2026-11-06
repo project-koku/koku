@@ -167,9 +167,7 @@ def build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_pr
 def get_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_provider_uuid, month):
     """Return cached month-wide OCP-on-cloud matched tags, or None on a miss."""
     cache = caches[CacheEnum.default]
-    return cache.get(
-        build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month)
-    )
+    return cache.get(build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month))
 
 
 def set_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_provider_uuid, month, matched_tags):

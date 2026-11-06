@@ -733,6 +733,133 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_trino_tags.assert_not_called()
         mock_sleep.assert_called()
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags")
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_uses_cache_populated_after_lock(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+    ):
+        """A cache write that lands after we take the lock must skip Trino."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_get_cache.side_effect = [None, ['"app": "raced"']]
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "raced"'], result)
+        mock_trino_tags.assert_not_called()
+        mock_worker_cache.return_value.lock_single_task.assert_called_once()
+        mock_worker_cache.return_value.release_single_task.assert_called_once()
+
+    @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
+        return_value=[{"app": "after-wait"}],
+    )
+    def test_get_matched_tags_strings_wait_aborts_when_lock_released(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+        mock_sleep,
+    ):
+        """If the in-flight worker drops the lock without caching, this worker queries Trino."""
+        mock_worker_cache.return_value.single_task_is_running.side_effect = [True, False]
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "after-wait"'], result)
+        mock_trino_tags.assert_called_once()
+        mock_sleep.assert_not_called()
+        mock_worker_cache.return_value.lock_single_task.assert_called_once()
+
+    @patch("masu.database.report_db_accessor_base.time.monotonic")
+    @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch(
+        "masu.database.aws_report_db_accessor.AWSReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
+        return_value=[{"app": "timeout"}],
+    )
+    def test_get_matched_tags_strings_wait_timeout_queries_trino(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+        mock_sleep,
+        mock_monotonic,
+    ):
+        """A waiter that hits the lock timeout must fall through and query Trino."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = True
+        mock_monotonic.side_effect = [0, 10**9]
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "timeout"'], result)
+        mock_trino_tags.assert_called_once()
+        mock_sleep.assert_not_called()
+
+    def test_as_date_accepts_date_and_datetime(self):
+        """Month bounds may already be dates; datetime values must drop the time."""
+        dt = datetime.datetime(2026, 11, 15, 12, 30, tzinfo=datetime.timezone.utc)
+        self.assertEqual(self.accessor._as_date(dt), datetime.date(2026, 11, 15))
+        self.assertEqual(self.accessor._as_date(datetime.date(2026, 11, 15)), datetime.date(2026, 11, 15))
+
     @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=True)
     @patch(
         "masu.database.aws_report_db_accessor.AWSReportDBAccessor.check_for_matching_enabled_keys",
