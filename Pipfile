@@ -22,7 +22,7 @@ django-filter = ">=2.2"
 django-prometheus = ">=1.1"
 django-redis = ">=4.10"
 django-tenants = ">=3.4"
-djangorestframework = ">=3.18.2"  # floor: COST-8483 / CVE-2026-114136 (fixed in 3.18.2)
+djangorestframework = ">=3.18.2"  # floor: COST-8483/CVE-2026-114136, COST-8484/CVE-2026-114138 (fixed in 3.18.2)
 djangorestframework-csv = ">=2.1"
 google-api-python-client = ">=1.12.4"
 google-auth = ">=1.22.1"
