@@ -1096,7 +1096,7 @@ delete_source_beat (Beat Schedule)
 
 Several tasks implement deduplication to prevent concurrent execution:
 - `update_summary_tables` - Uses `WorkerCache` to track running tasks
-- `update_openshift_on_cloud` - Uses `WorkerCache` to track running tasks. When `cost-management.backend.ocp-on-cloud-month-wide-matched-tags` is on, matched-tag Trino fetches are month-wide, cached in Valkey by schema + OCP provider + cloud provider + month, and single-flighted so five-day windows reuse one result.
+- `update_openshift_on_cloud` - Uses `WorkerCache` to track running tasks. When `cost-management.backend.ocp-on-cloud-month-wide-matched-tags` is on, matched-tag Trino fetches are month-wide, cached in Valkey by schema + OCP provider + cloud provider + month, and single-flighted with `try_lock_single_task` (`cache.add`) so five-day windows inside that run reuse one result. A run that actually processes deletes that cluster/cloud/month entry first so a later rebuild cannot reuse a stale empty result; enabling or disabling tag keys invalidates every matched-tags entry for the tenant.
 - `update_cost_model_costs` - Uses `WorkerCache` for deduplication
 
 ### Rate Limiting

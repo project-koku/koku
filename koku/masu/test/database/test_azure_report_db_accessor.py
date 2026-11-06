@@ -422,6 +422,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
     ):
         """Empty Postgres falls through to one month-wide Trino query and caches it."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         start = self.dh.this_month_start
         end = start + datetime.timedelta(days=4)
         result = self.accessor._get_matched_tags_strings(
@@ -437,7 +438,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.assertEqual(self.accessor._as_date(args[2]), month_start)
         self.assertEqual(self.accessor._as_date(args[3]), month_end)
         mock_set_cache.assert_called_once()
-        mock_worker_cache.return_value.lock_single_task.assert_called_once()
+        mock_worker_cache.return_value.try_lock_single_task.assert_called()
         mock_worker_cache.return_value.release_single_task.assert_called_once()
 
     @patch(
@@ -477,7 +478,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         self.assertEqual(['"app": "cached"'], result)
         mock_trino_tags.assert_not_called()
-        mock_worker_cache.return_value.lock_single_task.assert_not_called()
+        mock_worker_cache.return_value.try_lock_single_task.assert_not_called()
 
     @patch("masu.database.report_db_accessor_base.time.sleep")
     @patch(
@@ -573,6 +574,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
     ):
         """Test fetching match tag with no tags returned from Postgres or Trino."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         start = self.dh.this_month_start
         end = self.dh.this_month_end
         result = self.accessor._get_matched_tags_strings(

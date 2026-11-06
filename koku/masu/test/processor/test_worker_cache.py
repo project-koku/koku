@@ -10,6 +10,7 @@ from django.core.cache.backends.db import DatabaseCache
 from django.db import connection
 from django.test.utils import override_settings
 
+from masu.processor.worker_cache import create_single_task_cache_key
 from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WORKER_OFFLINE_GRACE_SECONDS
 from masu.processor.worker_cache import WorkerCache
@@ -210,6 +211,46 @@ class WorkerCacheTest(MasuTestCase):
         self.assertTrue(cache.single_task_is_running(task_name, task_args))
         cache.release_single_task(task_name, task_args)
         self.assertFalse(cache.single_task_is_running(task_name, task_args))
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_try_lock_single_task_is_atomic(self, mock_inspect):
+        """A second acquire for the same key must fail while the first holder is live."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        cache = WorkerCache()
+        task_name = "test_task"
+        task_args = ["schema1", "OCP"]
+
+        self.assertTrue(cache.try_lock_single_task(task_name, task_args))
+        self.assertFalse(cache.try_lock_single_task(task_name, task_args))
+        cache.release_single_task(task_name, task_args)
+        self.assertTrue(cache.try_lock_single_task(task_name, task_args))
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_try_lock_single_task_replaces_stale_host(self, mock_inspect):
+        """A lock whose host is no longer in worker_cache_keys can be taken over."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        cache = WorkerCache()
+        task_name = "test_task"
+        task_args = ["schema1", "OCP"]
+        cache.cache.set(create_single_task_cache_key(task_name, task_args), "dead-host")
+        self.assertTrue(cache.try_lock_single_task(task_name, task_args))
+        self.assertTrue(cache.single_task_is_running(task_name, task_args))
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_release_single_task_is_owner_checked(self, mock_inspect):
+        """A worker must not delete a lock it does not own."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        cache = WorkerCache()
+        task_name = "test_task"
+        task_args = ["schema1", "OCP"]
+        self.assertTrue(cache.try_lock_single_task(task_name, task_args))
+        cache._hostname = "other-worker"
+        cache.release_single_task(task_name, task_args)
+        cache._hostname = "kokuworker"
+        self.assertTrue(cache.single_task_is_running(task_name, task_args))
 
     @override_settings(HOSTNAME="kokuworker", WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS=2)
     @patch.object(WorkerCache, "cache", DB_WORKER_CACHE)

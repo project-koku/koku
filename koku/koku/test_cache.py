@@ -16,17 +16,20 @@ from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import build_enabled_currency_codes_key
 from koku.cache import build_ocp_on_cloud_matched_tags_key
 from koku.cache import CacheEnum
+from koku.cache import delete_cached_ocp_on_cloud_matched_tags
 from koku.cache import delete_value_from_cache
 from koku.cache import get_cached_infra_map
 from koku.cache import get_cached_ocp_on_cloud_matched_tags
 from koku.cache import get_cached_tag_rate_map
 from koku.cache import get_value_from_cache
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
+from koku.cache import invalidate_ocp_on_cloud_matched_tags
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.cache import invalidate_view_cache_for_tenant_and_source_types
 from koku.cache import is_key_in_cache
 from koku.cache import KokuCacheError
+from koku.cache import OCP_ON_CLOUD_MATCHED_TAGS_PREFIX
 from koku.cache import OPENSHIFT_ALL_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
@@ -321,6 +324,38 @@ class KokuCacheTest(IamTestCase):
         self.assertEqual(
             get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "other-cloud", "2026-09"),
             ['"app": "other"'],
+        )
+
+    @patch("koku.cache.caches")
+    def test_delete_cached_ocp_on_cloud_matched_tags(self, mock_caches):
+        """Test that one cluster/cloud/month entry can be dropped without touching others."""
+        store = {}
+        cache = mock_caches.__getitem__.return_value
+        cache.get.side_effect = lambda key: store.get(key)
+
+        def _set(key, value, timeout=None):
+            store[key] = value
+
+        def _delete(key):
+            return store.pop(key, None) is not None
+
+        cache.set.side_effect = _set
+        cache.delete.side_effect = _delete
+        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09", ['"app": "x"'])
+        set_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "other-cloud", "2026-09", ['"app": "other"'])
+        delete_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09")
+        self.assertIsNone(get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "cloud-uuid", "2026-09"))
+        self.assertEqual(
+            get_cached_ocp_on_cloud_matched_tags("org1234567", "ocp-uuid", "other-cloud", "2026-09"),
+            ['"app": "other"'],
+        )
+
+    @patch("koku.cache.invalidate_cache_for_tenant_and_cache_key")
+    def test_invalidate_ocp_on_cloud_matched_tags(self, mock_invalidate):
+        """Tenant-wide matched-tags invalidation must use the default cache and prefix."""
+        invalidate_ocp_on_cloud_matched_tags("org1234567")
+        mock_invalidate.assert_called_once_with(
+            "org1234567", OCP_ON_CLOUD_MATCHED_TAGS_PREFIX, cache_name=CacheEnum.default
         )
 
     def test_tag_rate_map_cache(self):

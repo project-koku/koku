@@ -174,16 +174,24 @@ class ReportDBAccessorBase:
             return cached
 
         worker_cache = WorkerCache()
-        if worker_cache.single_task_is_running(MATCHED_TAGS_TRINO_TASK, cache_args):
-            LOG.info(log_json(msg="waiting for in-flight matched tags Trino query", context=trino_ctx))
-            cached = self._wait_for_cached_matched_tags(ocp_uuid, cloud_uuid, month_key, cache_args)
-            if cached is not None:
-                return cached
-
-        worker_cache.lock_single_task(
-            MATCHED_TAGS_TRINO_TASK, cache_args, timeout=settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
-        )
+        timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        acquired = False
         try:
+            if worker_cache.single_task_is_running(MATCHED_TAGS_TRINO_TASK, cache_args):
+                LOG.info(log_json(msg="waiting for in-flight matched tags Trino query", context=trino_ctx))
+                cached = self._wait_for_cached_matched_tags(ocp_uuid, cloud_uuid, month_key, cache_args)
+                if cached is not None:
+                    return cached
+            acquired = worker_cache.try_lock_single_task(MATCHED_TAGS_TRINO_TASK, cache_args, timeout=timeout)
+            if not acquired:
+                LOG.info(log_json(msg="waiting for in-flight matched tags Trino query", context=trino_ctx))
+                cached = self._wait_for_cached_matched_tags(ocp_uuid, cloud_uuid, month_key, cache_args)
+                if cached is not None:
+                    return cached
+                acquired = worker_cache.try_lock_single_task(MATCHED_TAGS_TRINO_TASK, cache_args, timeout=timeout)
+                if not acquired:
+                    cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key)
+                    return cached or []
             cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key)
             if cached is not None:
                 LOG.info(log_json(msg="using cached matched tags", context=trino_ctx))
@@ -200,7 +208,8 @@ class ReportDBAccessorBase:
             set_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key, tag_strings)
             return tag_strings
         finally:
-            worker_cache.release_single_task(MATCHED_TAGS_TRINO_TASK, cache_args)
+            if acquired:
+                worker_cache.release_single_task(MATCHED_TAGS_TRINO_TASK, cache_args)
 
     def _wait_for_cached_matched_tags(self, ocp_uuid, cloud_uuid, month_key, cache_args):
         """Poll Valkey until the in-flight Trino worker publishes matched tags."""

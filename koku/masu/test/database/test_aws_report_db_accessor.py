@@ -642,6 +642,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     ):
         """Empty Postgres falls through to one month-wide Trino query and caches it."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         start = self.dh.this_month_start
         end = start + datetime.timedelta(days=4)
         result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
@@ -655,7 +656,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertEqual(self.accessor._as_date(args[2]), month_start)
         self.assertEqual(self.accessor._as_date(args[3]), month_end)
         mock_set_cache.assert_called_once()
-        mock_worker_cache.return_value.lock_single_task.assert_called_once()
+        mock_worker_cache.return_value.try_lock_single_task.assert_called()
         mock_worker_cache.return_value.release_single_task.assert_called_once()
 
     @patch(
@@ -693,7 +694,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
         self.assertEqual(['"app": "cached"'], result)
         mock_trino_tags.assert_not_called()
-        mock_worker_cache.return_value.lock_single_task.assert_not_called()
+        mock_worker_cache.return_value.try_lock_single_task.assert_not_called()
 
     @patch("masu.database.report_db_accessor_base.time.sleep")
     @patch(
@@ -761,13 +762,14 @@ class AWSReportDBAccessorTest(MasuTestCase):
     ):
         """A cache write that lands after we take the lock must skip Trino."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         mock_get_cache.side_effect = [None, ['"app": "raced"']]
         start = self.dh.this_month_start
         end = start + datetime.timedelta(days=4)
         result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
         self.assertEqual(['"app": "raced"'], result)
         mock_trino_tags.assert_not_called()
-        mock_worker_cache.return_value.lock_single_task.assert_called_once()
+        mock_worker_cache.return_value.try_lock_single_task.assert_called()
         mock_worker_cache.return_value.release_single_task.assert_called_once()
 
     @patch("masu.database.report_db_accessor_base.time.sleep")
@@ -803,13 +805,14 @@ class AWSReportDBAccessorTest(MasuTestCase):
     ):
         """If the in-flight worker drops the lock without caching, this worker queries Trino."""
         mock_worker_cache.return_value.single_task_is_running.side_effect = [True, False]
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         start = self.dh.this_month_start
         end = start + datetime.timedelta(days=4)
         result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)
         self.assertEqual(['"app": "after-wait"'], result)
         mock_trino_tags.assert_called_once()
         mock_sleep.assert_not_called()
-        mock_worker_cache.return_value.lock_single_task.assert_called_once()
+        mock_worker_cache.return_value.try_lock_single_task.assert_called()
 
     @patch("masu.database.report_db_accessor_base.time.monotonic")
     @patch("masu.database.report_db_accessor_base.time.sleep")
@@ -846,6 +849,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     ):
         """A waiter that hits the lock timeout must fall through and query Trino."""
         mock_worker_cache.return_value.single_task_is_running.return_value = True
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         mock_monotonic.side_effect = [0, 10**9]
         start = self.dh.this_month_start
         end = start + datetime.timedelta(days=4)
@@ -944,6 +948,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     ):
         """Test fetching match tag with no tags returned from Postgres or Trino."""
         mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         start = self.dh.this_month_start
         end = self.dh.this_month_end
         result = self.accessor._get_matched_tags_strings(1, self.aws_provider_uuid, self.ocp_provider_uuid, start, end)

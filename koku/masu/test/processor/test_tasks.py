@@ -1248,6 +1248,32 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 synchronous=True,
             )
 
+    @patch("masu.processor.tasks.delete_cached_ocp_on_cloud_matched_tags")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.validate_daily_data.s")
+    def test_update_openshift_on_cloud_clears_matched_tags_cache(
+        self, mock_data_validator, mock_cost_updater, mock_updater, mock_delete_tags
+    ):
+        """A new summary run must drop the previous month-wide matched-tags cache entry."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.today.date()
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+            synchronous=True,
+        )
+        mock_delete_tags.assert_called_once_with(
+            self.schema,
+            str(self.ocp_on_aws_ocp_provider.uuid),
+            str(self.aws_provider_uuid),
+            start_date.strftime("%Y-%m"),
+        )
+
     @patch(
         "masu.processor.tasks.is_ocp_on_cloud_summary_disabled",
         return_value=True,

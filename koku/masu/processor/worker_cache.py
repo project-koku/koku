@@ -219,7 +219,19 @@ class WorkerCache:
         # Expire the cache so we don't infinite loop waiting
         self.cache.set(cache_str, self._hostname, timeout)
 
-    def release_single_task(self, task_name, task_args=None):
-        """Delete the cache entry for a single task."""
+    def try_lock_single_task(self, task_name, task_args=None, timeout=TASK_CACHE_EXPIRE):
+        """Atomically acquire a single-task lock. Return True if this worker holds it."""
         cache_str = create_single_task_cache_key(task_name, task_args)
+        host = self.cache.get(cache_str)
+        if host and host in self.worker_cache_keys:
+            return False
+        if host:
+            self.cache.delete(cache_str)
+        return self.cache.add(cache_str, self._hostname, timeout)
+
+    def release_single_task(self, task_name, task_args=None):
+        """Delete the cache entry for a single task if this worker owns it."""
+        cache_str = create_single_task_cache_key(task_name, task_args)
+        if self.cache.get(cache_str) != self._hostname:
+            return
         self.cache.delete(cache_str)

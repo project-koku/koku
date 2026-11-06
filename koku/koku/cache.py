@@ -35,6 +35,7 @@ OPENSHIFT_GCP_CACHE_PREFIX = "openshift-gcp-view"
 OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
 SOURCES_CACHE_PREFIX = "sources"
 TAG_MAPPING_PREFIX = "tag-mapping"
+OCP_ON_CLOUD_MATCHED_TAGS_PREFIX = "ocp-on-cloud-matched-tags"
 
 
 def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name=CacheEnum.api):
@@ -177,6 +178,19 @@ def set_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_p
         build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month),
         matched_tags,
         timeout=settings.WORKER_CACHE_TIMEOUT,
+    )
+
+
+def delete_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_provider_uuid, month):
+    """Drop one cluster/cloud/month matched-tags cache entry."""
+    cache = caches[CacheEnum.default]
+    cache.delete(build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month))
+
+
+def invalidate_ocp_on_cloud_matched_tags(schema_name):
+    """Drop every matched-tags cache entry for a tenant."""
+    invalidate_cache_for_tenant_and_cache_key(
+        schema_name, OCP_ON_CLOUD_MATCHED_TAGS_PREFIX, cache_name=CacheEnum.default
     )
 
 
