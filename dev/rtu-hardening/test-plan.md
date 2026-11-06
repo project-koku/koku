@@ -1,6 +1,6 @@
 # RTU hardening: test plan
 
-Branch `mpovolny/rtu-hardening` (draft PR [#6425](https://github.com/project-koku/koku/pull/6425), image builds only). Covers work log items 1 to 6 of [`rtu-race-map.md`](rtu-race-map.md); later items add their rows here. How to run everything: [`README.md`](README.md).
+Branch `mpovolny/rtu-hardening` (draft PR [#6425](https://github.com/project-koku/koku/pull/6425), image builds only). Covers work log items 1 to 7 and 9 of [`rtu-race-map.md`](rtu-race-map.md); later items add their rows here. How to run everything: [`README.md`](README.md).
 
 Out of scope: correctness of the cost breakdown API and of the breakdown tree itself. That is the QE plan "Cost Breakdown and Rate Filtering" (`docs/tests/COST-7249/qe-test-plan-cost-breakdown.md`, added by #6102). Phase 1 schema normalization (Rate table, diff-based `sync_rate_table`, write freeze) is `docs/architecture/cost-breakdown/test-plan.md`.
 
@@ -16,6 +16,8 @@ Out of scope: correctness of the cost breakdown API and of the breakdown tree it
 | 5 | Retention purges by date drop expired partitions with one statement per parent table (all four providers) |
 | 6 | `GET /price-lists/<uuid>/rates/` never writes and matches JSON to Rate rows read-only; `sync_rate_table` keeps Rate identity and names for JSON without `rate_id` / `custom_name` |
 | 4 | Every RTU writer runs under `_distribution_provider_lock(provider)` for its whole delete-and-insert sequence when it writes RTU |
+| 9 | `GET /price-lists/<uuid>/rates/` no longer returns `rate_id`; `custom_name` is the only rate identity in the API (FedRAMP CM-7) |
+| 7 | `docs/specs/openapi.json` documents the price list rates and duplicate endpoints and the list parameters the API accepts |
 
 ## Invariants
 
@@ -32,9 +34,11 @@ Out of scope: correctness of the cost breakdown API and of the breakdown tree it
 | I9 | A failed rate sync leaves the price list or cost model exactly as before: name, version, rates JSON, source mapping, and no recalculation dispatched |
 | I10 | Deleting a provider, or purging report periods by provider or by date, removes exactly their RTU rows (in every partition) and no others; inserts referencing a missing source or report period succeed |
 | I11 | A purge by date never holds ACCESS EXCLUSIVE on two parent tables at once: one autocommitted statement per table, dropping exactly the expired non-default partitions of the listed tables |
-| I12 | The rates GET issues no write statements and returns the same rates (UUIDs, tiered and tag rates) whether or not the JSON carries `rate_id` / `custom_name` |
+| I12 | The rates GET issues no write statements and returns the same rates (names, tiered and tag rates) whether or not the JSON carries `rate_id` / `custom_name`; Rate UUIDs stay stable (I13) |
 | I13 | Syncing JSON without `rate_id` / `custom_name` (the pre-0013 shape) keeps every Rate's UUID and name |
 | I14 | Two overlapping RTU writes for one provider leave exactly the rows of one run (no double counting); legacy (`use_rtu=False`) writes take no lock |
+| I15 | No API response carries `rate_id`: the price list and cost model rates (#6123) and `GET /price-lists/<uuid>/rates/` |
+| I16 | The OpenAPI spec matches the price list API: documented response fields cover what the rates endpoint returns, no rate identifier is documented, and every documented query parameter is accepted |
 
 ## Unit tests (local, `koku-db` on :15432)
 
@@ -71,6 +75,9 @@ python koku/manage.py test --noinput reporting.provider.ocp.test.test_rtu_migrat
 | `test_price_list_view.test_match_rates_to_json_*` (replace TC-112 to TC-114) | I12 | yes (function missing) |
 | `test_rtu_writer_lock.test_overlapping_windows_do_not_double_rows` | I14 | yes (32 rows instead of 16) |
 | `test_rtu_writer_lock.RatesToUsageWriterLockDecoratorTest` (RTU locks, legacy does not, all seven writers wrapped) | I14 | yes (decorator missing) |
+| `test_price_list_view.test_rates_endpoint_does_not_expose_rate_id` | I15 | yes (`rate_id` in every entry) |
+| `test_price_list_view.test_rates_response_matches_openapi_schema` | I16 | yes (path and schema missing) |
+| `test_price_list_view.test_documented_query_parameters_are_accepted` | I16 | yes (`name`, `uuid`, `enabled`, `ordering` returned 400) |
 | `test_phase4_distribution` existing tests 01–11 (proportionality, sum consistency, cost conservation, sign, idempotency, multi-rate, two-phase equivalence) | I6 (totals) | n/a, must stay green |
 
 Local test runs: none fail. The failures listed here earlier (15 in `test_phase2_rates_to_usage`, the worker zero-rate test, the parquet summary updaters, provider statistics) came from a stale kept test DB built before the month changed; rebuilt with `KEEPDB=False`, the full suite passes (2026-11-04: 4,935 tests, 43 skipped). See `docs/agent/testing.md`. `koku.test_pg_partition.test_skips_locked_table_and_succeeds_later` is timing-sensitive (200 ms `lock_timeout`) and failed once in a combined run; it passed alone and in the full suite.
