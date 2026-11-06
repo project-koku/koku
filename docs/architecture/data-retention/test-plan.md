@@ -1029,7 +1029,7 @@ A test run is **FAILED** if any test mapped to a High-severity risk
 | Requirement | Detail |
 |-------------|--------|
 | Database | PostgreSQL 16 (test runner creates `test_koku` with tenant schemas) |
-| Python | 3.11+ with `pipenv` dependencies |
+| Python | 3.12+ with `pipenv` dependencies |
 | Runner | `python koku/manage.py test --noinput -v 2` (via tox or direct) |
 | ONPREM flag | Contract tests require `ONPREM=True` for endpoint registration; use `skipUnless` or `override_settings` |
 | Coverage | `coverage run koku/manage.py test ... && coverage report --show-missing` |

@@ -20,7 +20,7 @@ Comprehensive checklist for conducting thorough code reviews to ensure quality, 
 - [ ] Variable names are descriptive and follow snake_case
 - [ ] No code duplication
 - [ ] Follows Koku project conventions (`docs/agent/*.md`)
-- [ ] Python 3.11+ features used appropriately
+- [ ] Python 3.12+ features used appropriately
 - [ ] Type hints present for function parameters and return types
 - [ ] F-strings used for string formatting
 - [ ] Parenthesized context managers used for multiple managers
