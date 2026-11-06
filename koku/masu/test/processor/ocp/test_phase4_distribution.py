@@ -613,10 +613,15 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                         for entry in rate_rows:
                             ns_total = ns_totals.get(entry["namespace"], Decimal(0))
                             expected = rate_share * ns_total
+                            # Relative tolerance: costs reach ~1e12 with random fixture data, where
+                            # adjacent float64 values are ~1.2e-4 apart, so places=4 (5e-5) failed
+                            # on a one-ulp difference between the Decimal expectation and the
+                            # stored value. 1e-12 leaves thousands of ulps of headroom and still
+                            # catches real mismatches; the floor keeps small values at places=4.
                             self.assertAlmostEqual(
                                 float(entry["actual"]),
                                 float(expected),
-                                places=4,
+                                delta=max(abs(float(expected)) * 1e-12, 5e-5),
                                 msg=(
                                     f"[{dist_type}] Option 2 cross-check failed for "
                                     f"rate={rate_name}, ns={entry['namespace']}"
