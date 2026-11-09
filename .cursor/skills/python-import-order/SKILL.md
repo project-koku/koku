@@ -12,18 +12,27 @@ Hand-sorting imports is how Sanity fails. Do not guess. Run the hook.
 
 ## Required before every Python commit or push
 
-On every changed `.py` file:
+Stage only the Python files that belong in the commit. Run the hook on the **index**, not the working tree. `--files` rewrites on-disk files and a later `git add` will commit leftover unstaged edits.
+
+If those files also have unstaged hunks, hide them first:
 
 ```bash
-pipenv run pre-commit run reorder-python-imports --files <changed.py files>
+git stash push --keep-index -m "python-import-order"
+pipenv run pre-commit run reorder-python-imports
 ```
 
-If the hook reports `files were modified`, those files are now correct. Stage them. Do not revert the reorder. Re-run until the hook passes.
-
-Also run:
+If the hook rewrites files, `git add` **those paths only** while the stash is still applied (they are the only unstaged changes). Then restore unstaged work:
 
 ```bash
-pipenv run python -m flake8 <changed.py files>
+git stash pop
+```
+
+Do not `git add` those files after `stash pop`. Skip the stash when `git status` shows no unstaged Python changes; then `pipenv run pre-commit run reorder-python-imports` is enough.
+
+Also lint the staged files (flake8 does not rewrite):
+
+```bash
+pipenv run python -m flake8 $(git diff --cached --name-only -- '*.py')
 ```
 
 Host Python 3.14 breaks the pyupgrade and flake8 **pre-commit envs** (`ast.Str`). `reorder-python-imports` still works. Flake8 must be `pipenv run python -m flake8` (3.11).
@@ -33,7 +42,8 @@ Host Python 3.14 breaks the pyupgrade and flake8 **pre-commit envs** (`ast.Str`)
 - Hand-sort `from koku.cache import ...` (uppercase constants first is often **wrong**)
 - Assume ASCII or “constants then functions”
 - Skip the hook because flake8 passed
-- Commit with unstaged reorder-python-imports edits
+- Pass `--files` (that formats the working tree, including unstaged edits)
+- `git add` a file the hook rewrote after `stash pop` (that stages restored unstaged work)
 
 ## Source of truth
 
