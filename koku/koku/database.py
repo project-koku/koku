@@ -33,6 +33,7 @@ from jinjasql import JinjaSql
 from psycopg2 import DatabaseError as p_DBError
 from sqlparse import format as format_sql
 from sqlparse import split as sql_split
+from sqlparse.exceptions import SQLParseError
 
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
@@ -286,7 +287,12 @@ def execute_compiled_sql(sql, params=None):
     rows_affected = 0
     with transaction.get_connection().cursor() as cur:
         params = params or None
-        LOG.debug(format_sql(cur.mogrify(sql, params).decode("utf-8"), reindent_aligned=True))
+        compiled_sql = cur.mogrify(sql, params).decode("utf-8")
+        try:
+            LOG.debug(format_sql(compiled_sql, reindent_aligned=True))
+        except SQLParseError:
+            # sqlparse>=0.6.1 may refuse oversized statements (MAX_GROUPING_TOKENS).
+            LOG.debug(compiled_sql)
         cur.execute(sql, params)
         rows_affected = cur.rowcount
 
