@@ -446,8 +446,7 @@ def init_worker(**kwargs):
         _initialize_unleash_for_celery_worker()
     except Exception as exc:
         LOG.exception(
-            "Unleash initialization failed after %.3f seconds; terminating "
-            "Celery child.",
+            "Unleash initialization failed after %.3f seconds; terminating " "Celery child.",
             time.monotonic() - started,
         )
         # Celery's signal dispatcher catches Exception and continues. SystemExit
