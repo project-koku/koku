@@ -698,6 +698,12 @@ objects:
           value: ${ONPREM}
         - name: IQE_TEST_RUN
           value: ${IQE_TEST_RUN}
+        - name: MASU_ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: koku-masu-admin-token
+              optional: true
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: CURRENCY_CATALOG_DENYLIST
@@ -5863,6 +5869,12 @@ objects:
   stringData:
     django-secret-key: ${SECRET_KEY}
 - apiVersion: v1
+  kind: Secret
+  metadata:
+    name: koku-masu-admin-token
+  stringData:
+    token: ${MASU_ADMIN_TOKEN}
+- apiVersion: v1
   data:
     nginx.conf: |-
       worker_processes  1;
@@ -6334,6 +6346,11 @@ parameters:
   generate: expression
   name: SECRET_KEY
   required: true
+- description: on-prem Masu admin shared secret, generated per ephemeral deploy
+  displayName: Masu admin token (Ephemeral)
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  name: MASU_ADMIN_TOKEN
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN

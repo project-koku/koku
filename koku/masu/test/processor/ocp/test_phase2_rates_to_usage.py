@@ -1002,11 +1002,10 @@ class TestPurgeWiring(MasuTestCase):
     """Test that rates_to_usage is in purge paths (BAC-13, BAC-14)."""
 
     # TC-51: rates_to_usage in cleaner base table list
-    @patch("masu.processor.ocp.ocp_report_db_cleaner.execute_delete_sql")
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.drop_expired_partitions", return_value=0)
     @patch("masu.processor.ocp.ocp_report_db_cleaner.cascade_delete")
-    @patch("masu.processor.ocp.ocp_report_db_cleaner.PartitionedTable")
     @patch("masu.processor.ocp.ocp_report_db_cleaner.OCPReportDBAccessor")
-    def test_rates_to_usage_in_cleaner_base_list(self, mock_accessor_cls, mock_pt, mock_cascade, mock_delete):
+    def test_rates_to_usage_in_cleaner_base_list(self, mock_accessor_cls, mock_cascade, mock_drop):
         """Verify partition cleanup includes rates_to_usage table."""
         from datetime import date as date_cls
         from unittest.mock import MagicMock
@@ -1023,9 +1022,8 @@ class TestPurgeWiring(MasuTestCase):
         cleaner = OCPReportDBCleaner(self.schema)
         cleaner.purge_expired_report_data_by_date(date_cls(2020, 1, 1))
 
-        filter_call = mock_pt.objects.filter
-        self.assertTrue(filter_call.called)
-        table_names_arg = filter_call.call_args[1].get("partition_of_table_name__in")
+        mock_drop.assert_called_once()
+        _, table_names_arg, _ = mock_drop.call_args.args
         self.assertIn("rates_to_usage", table_names_arg)
         self.assertIn("reporting_ocp_vm_summary_p", table_names_arg)
         self.assertIn("reporting_ocp_cost_breakdown_p", table_names_arg)

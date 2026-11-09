@@ -117,3 +117,35 @@ def sync_test_rate_rows(cost_model):
             )
         )
     Rate.objects.bulk_create(rate_objects)
+
+
+def collapse_cost_ties(order, cost_by_group):
+    """Collapse adjacent groups that share a cost into one run.
+
+    The report handlers sort a day's groups with a stable sort on cost, so groups
+    with the same cost come back in whatever order the database returned them.
+    Comparing these runs keeps the assertion on the cost ordering without pinning
+    an arbitrary tie-break that the API never promised.
+    """
+    runs = []
+    for group in order:
+        cost = cost_by_group[group]
+        if runs and runs[-1][0] == cost:
+            runs[-1][1].add(group)
+        else:
+            runs.append((cost, {group}))
+    return [(cost, frozenset(groups)) for cost, groups in runs]
+
+
+def cost_ranks(rows, group_key):
+    """Return a rank per group where groups that share a cost share a rank."""
+    ranks = {}
+    rank = 0
+    previous_cost = object()
+    for row in rows:
+        cost = row.get("cost")
+        if cost != previous_cost:
+            rank += 1
+            previous_cost = cost
+        ranks[row.get(group_key)] = rank
+    return ranks

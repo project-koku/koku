@@ -37,6 +37,7 @@ from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.queries import strip_prefix
 from api.report.test.aws.test_views import _calculate_accounts_and_subous
+from api.report.test.util.common import collapse_cost_ties
 from api.report.test.util.constants import AWS_CONSTANTS
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
@@ -2941,15 +2942,14 @@ class AWSReportQueryTest(IamTestCase):
                         gb = "gb"
                         query = query.annotate(gb=group_by_annotations)
                     expected = list(query.values(gb).annotate(cost=cost_annotations).order_by("-cost", gb))
-                correctlst = [field.get(gb) for field in expected]
-                if correctlst and None in correctlst:
-                    ind = correctlst.index(None)
-                    correctlst[ind] = "No-" + group_by
+                costs = {(field.get(gb) or "No-" + group_by): field.get("cost") for field in expected}
+                correctlst = list(costs)
                 tested = False
                 for element in data:
                     lst = [field.get(group_by) for field in element.get(group_by + "s", [])]
                     if lst and correctlst:
-                        self.assertEqual(correctlst, lst)
+                        self.assertFalse(set(lst) - set(costs), f"{group_by} values missing from {yesterday}")
+                        self.assertEqual(collapse_cost_ties(correctlst, costs), collapse_cost_ties(lst, costs))
                         tested = True
                 self.assertTrue(tested)
 

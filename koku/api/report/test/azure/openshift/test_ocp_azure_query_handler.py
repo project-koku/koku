@@ -25,6 +25,7 @@ from api.report.azure.openshift.serializers import OCPAzureExcludeSerializer
 from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
+from api.report.test.util.common import collapse_cost_ties
 from api.report.test.util.constants import AZURE_SERVICE_NAMES
 from api.tags.azure.openshift.queries import OCPAzureTagQueryHandler
 from api.tags.azure.openshift.view import OCPAzureTagView
@@ -1421,11 +1422,13 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 .order_by("-cost")
             )
         correctlst = [service.get("service_name") for service in expected]
+        costs = {service.get("service_name"): service.get("cost") for service in expected}
         tested = False
         for element in data:
             lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+                self.assertFalse(set(lst) - set(costs), f"service_name values missing from {yesterday}")
+                self.assertEqual(collapse_cost_ties(correctlst, costs), collapse_cost_ties(lst, costs))
                 tested = True
         self.assertTrue(tested)
 
