@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import yaml
 from django.conf import settings
 from django.utils import timezone
 from kombu.exceptions import OperationalError as KombuOperationalError
@@ -436,17 +437,28 @@ class ProcessStagedIngressTests(MasuTestCase):
     def test_scheduler_worker_queue_omits_ingress(self):
         """Test that the scheduler pod is not subscribed to the legacy ingress Celery queue."""
         repo = Path(__file__).resolve().parents[6]
-        for relative in ("deploy/clowdapp.yaml", "deploy/kustomize/patches/scheduler.yaml"):
-            queue_line = ""
-            for line in (repo / relative).read_text().splitlines():
-                if "cost_model" in line and "download" in line and "summary" in line:
-                    queue_line = line
-                    break
-            self.assertTrue(
-                queue_line,
-                f"no scheduler queue line (cost_model/download/summary) in {relative}",
-            )
-            tokens = {token.strip().strip("'\"") for token in queue_line.split("value:")[-1].split(",")}
+        template = yaml.safe_load((repo / "deploy/clowdapp.yaml").read_text())
+        patch_ops = yaml.safe_load((repo / "deploy/kustomize/patches/scheduler.yaml").read_text())
+
+        template_queues = [
+            param.get("value")
+            for param in template.get("parameters", [])
+            if param.get("name") == "SCHEDULER_WORKER_QUEUE"
+        ]
+        patch_queues = [
+            op["value"].get("value")
+            for op in patch_ops
+            if isinstance(op.get("value"), dict) and op["value"].get("name") == "SCHEDULER_WORKER_QUEUE"
+        ]
+
+        for relative, values in (
+            ("deploy/clowdapp.yaml", template_queues),
+            ("deploy/kustomize/patches/scheduler.yaml", patch_queues),
+        ):
+            self.assertEqual(len(values), 1, f"SCHEDULER_WORKER_QUEUE must be defined once in {relative}")
+            queue = values[0]
+            self.assertTrue(queue, f"SCHEDULER_WORKER_QUEUE has no value in {relative}")
+            tokens = {token.strip() for token in queue.split(",")}
             self.assertNotIn("ingress", tokens, relative)
 
     def test_processed_row_is_not_claimed_again(self):
