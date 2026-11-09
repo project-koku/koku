@@ -423,8 +423,7 @@ def _initialize_unleash_for_celery_worker():
         max(1, WORKER_PROC_ALIVE_TIMEOUT // 2),
     )
     LOG.info(
-        "Starting Unleash initialization with a %s-second request timeout "
-        "(Celery child deadline: %s seconds).",
+        "Starting Unleash initialization with a %s-second request timeout " "(Celery child deadline: %s seconds).",
         startup_request_timeout,
         WORKER_PROC_ALIVE_TIMEOUT,
     )
