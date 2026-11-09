@@ -10,6 +10,7 @@ from django.core.cache.backends.db import DatabaseCache
 from django.db import connection
 from django.test.utils import override_settings
 
+from masu.processor.worker_cache import _delete_if_value
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WORKER_OFFLINE_GRACE_SECONDS
@@ -251,6 +252,87 @@ class WorkerCacheTest(MasuTestCase):
         cache.release_single_task(task_name, task_args)
         cache._hostname = "kokuworker"
         self.assertTrue(cache.single_task_is_running(task_name, task_args))
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_release_single_task_does_not_delete_replaced_lock(self, mock_inspect):
+        """Release must not drop a lock that another worker already took over."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        cache = WorkerCache()
+        task_name = "test_task"
+        task_args = ["schema1", "OCP"]
+        self.assertTrue(cache.try_lock_single_task(task_name, task_args))
+        key = create_single_task_cache_key(task_name, task_args)
+        cache.cache.set(key, "other-worker")
+        cache.release_single_task(task_name, task_args)
+        self.assertEqual(cache.cache.get(key), "other-worker")
+
+    def _stale_takeover_interleaving(self, worker_a, worker_b, task_name, task_args):
+        """Run B's try_lock after A has read the stale owner but before A deletes."""
+        key = create_single_task_cache_key(task_name, task_args)
+        worker_a.cache.set(key, "dead-host")
+        acquired = []
+        original_get = worker_a.cache.get
+
+        def hooked_get(*args, **kwargs):
+            value = original_get(*args, **kwargs)
+            hook = getattr(hooked_get, "after_read", None)
+            if hook is not None:
+                hooked_get.after_read = None
+                hook()
+            return value
+
+        hooked_get.after_read = lambda: acquired.append(worker_b.try_lock_single_task(task_name, task_args))
+        with patch.object(worker_a.cache, "get", hooked_get):
+            acquired.append(worker_a.try_lock_single_task(task_name, task_args))
+        return acquired, worker_a.cache.get(key)
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_try_lock_single_task_stale_takeover_has_one_winner(self, mock_inspect):
+        """Two workers taking over the same stale lock must not both succeed."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        worker_a = WorkerCache()
+        with override_settings(HOSTNAME="worker-b"):
+            mock_inspect.reserved.return_value = {"celery@worker-b": []}
+            worker_b = WorkerCache()
+        task_name = "test_task"
+        task_args = ["schema1", "OCP"]
+        acquired, owner = self._stale_takeover_interleaving(worker_a, worker_b, task_name, task_args)
+        self.assertEqual(sum(acquired), 1, f"both acquired: {acquired}; final owner: {owner}")
+        self.assertEqual(acquired, [True, False])
+        self.assertEqual(owner, "worker-b")
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch.object(WorkerCache, "cache", DB_WORKER_CACHE)
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_try_lock_single_task_stale_takeover_has_one_winner_database_cache(self, mock_inspect):
+        """DatabaseCache stale takeover must compare-and-delete the observed owner."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        worker_a = WorkerCache()
+        with override_settings(HOSTNAME="worker-b"):
+            mock_inspect.reserved.return_value = {"celery@worker-b": []}
+            worker_b = WorkerCache()
+        task_name = "test_task"
+        task_args = ["schema1", "OCP"]
+        acquired, owner = self._stale_takeover_interleaving(worker_a, worker_b, task_name, task_args)
+        self.assertEqual(sum(acquired), 1, f"both acquired: {acquired}; final owner: {owner}")
+        self.assertEqual(acquired, [True, False])
+        self.assertEqual(owner, "worker-b")
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch.object(WorkerCache, "cache", DB_WORKER_CACHE)
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_delete_if_value_requires_matching_owner(self, mock_inspect):
+        """A DatabaseCache lock row is removed only when the stored owner matches."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        WorkerCache()
+        key = create_single_task_cache_key("test_task", ["schema1", "OCP"])
+        DB_WORKER_CACHE.set(key, "dead-host")
+        self.assertFalse(_delete_if_value(DB_WORKER_CACHE, key, "kokuworker"))
+        self.assertEqual(DB_WORKER_CACHE.get(key), "dead-host")
+        self.assertTrue(_delete_if_value(DB_WORKER_CACHE, key, "dead-host"))
+        self.assertIsNone(DB_WORKER_CACHE.get(key))
 
     @override_settings(HOSTNAME="kokuworker", WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS=2)
     @patch.object(WorkerCache, "cache", DB_WORKER_CACHE)
