@@ -28,8 +28,13 @@
             "matchUpdateTypes": [
                 "lockFileMaintenance"
             ],
+            "automerge": true,
+            "automergeType": "pr",
+            "platformAutomerge": false,
+            "ignoreTests": false,
+            "updateNotScheduled": true,
             "addLabels": [
-                "smoke-tests",
+                "full-run-smoke-tests",
                 "dependencies"
             ]
         },

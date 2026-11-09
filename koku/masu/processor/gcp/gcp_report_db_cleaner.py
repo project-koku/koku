@@ -10,9 +10,8 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from koku.database import cascade_delete
-from koku.database import execute_delete_sql
+from koku.pg_partition import drop_expired_partitions
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from reporting.models import PartitionedTable
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
 
@@ -114,14 +113,7 @@ class GCPReportDBCleaner:
                         partitions=partition_from,
                     )
                 )
-                del_count = execute_delete_sql(
-                    PartitionedTable.objects.filter(
-                        schema_name=self._schema,
-                        partition_of_table_name__in=table_names,
-                        partition_parameters__default=False,
-                        partition_parameters__from__lte=partition_from,
-                    )
-                )
+                del_count = drop_expired_partitions(self._schema, table_names, partition_from)
                 LOG.info(log_json(msg="deleted table partitions", schema=self._schema, records_deleted=del_count))
 
                 # Iterate over the remainder as they could involve much larger amounts of data

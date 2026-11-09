@@ -25,6 +25,7 @@ from api.report.azure.serializers import AzureExcludeSerializer
 from api.report.azure.view import AzureCostView
 from api.report.azure.view import AzureInstanceTypeView
 from api.report.azure.view import AzureStorageView
+from api.report.test.util.common import collapse_cost_ties
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
@@ -1683,7 +1684,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
             )
 
         expected_lst = [service.get("service_name") for service in expected]
-        self.assertEqual(correctlst, expected_lst)
+        costs = {service.get("service_name"): service.get("cost") for service in expected}
+        self.assertFalse(set(correctlst) - set(costs), f"service_name values missing from {yesterday}")
+        self.assertEqual(collapse_cost_ties(expected_lst, costs), collapse_cost_ties(correctlst, costs))
 
     def test_azure_date_incorrect_date(self):
         wrong_date = "200BC"

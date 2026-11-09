@@ -147,6 +147,17 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     fake = Faker()
 
+    def _private_temp_dir(self):
+        """Return a per-test temp dir instead of the process-wide temp root.
+
+        These tests copy a report file under its own base name. Two downloader
+        modules that use the same base name in the shared root end up in a race
+        under ``--parallel``: one worker deletes the file another is reading.
+        """
+        temp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        return temp_dir
+
     @classmethod
     def setUpClass(cls):
         """Set up shared class variables."""
@@ -692,7 +703,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         file_name = "empty_frame.csv"
         file_path = f"./koku/masu/test/data/aws/{file_name}"
-        temp_dir = tempfile.gettempdir()
+        temp_dir = self._private_temp_dir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
 
@@ -733,7 +744,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         file_name = "empty_frame.csv"
         file_path = f"./koku/masu/test/data/aws/{file_name}"
-        temp_dir = tempfile.gettempdir()
+        temp_dir = self._private_temp_dir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
 
@@ -785,7 +796,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
         end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2).date()
         incremental_date = start_date.replace(day=15)
-        temp_dir = tempfile.gettempdir()
+        temp_dir = self._private_temp_dir()
 
         empty_name = "empty_frame.csv"
         empty_src = f"./koku/masu/test/data/aws/{empty_name}"
@@ -996,7 +1007,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         file_name = f"{file}.csv"
         manifest_id = self.aws_manifest_id
         file_path = f"./koku/masu/test/data/aws/{file_name}"
-        temp_dir = tempfile.gettempdir()
+        temp_dir = self._private_temp_dir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
