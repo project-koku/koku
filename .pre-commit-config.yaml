@@ -43,9 +43,9 @@ repos:
     hooks:
       - id: check-pipfile-lock
         name: Check pipenv's Pipfile.lock to be consistent with Pipfile
-        entry: pipenv verify
+        entry: env PIPENV_IGNORE_VIRTUALENVS=1 pipenv verify
         language: python
-        additional_dependencies: ['pipenv']
+        additional_dependencies: ['pipenv==2025.0.4']
         files: (Pipfile|Pipfile\.lock)$
         pass_filenames: false
 
