@@ -394,6 +394,10 @@ def _initialize_unleash_for_celery_worker():
         return
 
     request_timeout = UNLEASH_CLIENT.unleash_request_timeout
+    startup_request_timeout = min(
+        request_timeout,
+        max(1, WORKER_PROC_ALIVE_TIMEOUT // 2),
+    )
     transport = UNLEASH_CLIENT._transport
     register = transport.register
     registration_succeeded = False
@@ -401,6 +405,7 @@ def _initialize_unleash_for_celery_worker():
     def register_or_raise(payload):
         nonlocal registration_succeeded
         registration_started = time.monotonic()
+        UNLEASH_CLIENT.unleash_request_timeout = startup_request_timeout
         try:
             registered = register(payload)
         except Exception:
@@ -409,6 +414,9 @@ def _initialize_unleash_for_celery_worker():
                 time.monotonic() - registration_started,
             )
             raise
+        finally:
+            UNLEASH_CLIENT.unleash_request_timeout = request_timeout
+
         elapsed = time.monotonic() - registration_started
         if not registered:
             LOG.error("Unleash registration failed in %.3f seconds.", elapsed)
@@ -418,16 +426,11 @@ def _initialize_unleash_for_celery_worker():
         return registered
 
     # Limit the synchronous registration request to the Celery startup budget.
-    startup_request_timeout = min(
-        request_timeout,
-        max(1, WORKER_PROC_ALIVE_TIMEOUT // 2),
-    )
     LOG.info(
-        "Starting Unleash initialization with a %s-second request timeout " "(Celery child deadline: %s seconds).",
+        "Using a %s-second timeout for Unleash registration " "(Celery child deadline: %s seconds).",
         startup_request_timeout,
         WORKER_PROC_ALIVE_TIMEOUT,
     )
-    UNLEASH_CLIENT.unleash_request_timeout = startup_request_timeout
     transport.register = register_or_raise
     try:
         UNLEASH_CLIENT.initialize_client()
@@ -435,7 +438,6 @@ def _initialize_unleash_for_celery_worker():
             raise RuntimeError("Unleash registration was not verified")
     finally:
         transport.register = register
-        UNLEASH_CLIENT.unleash_request_timeout = request_timeout
 
 
 @worker_process_init.connect
