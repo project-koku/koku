@@ -148,6 +148,17 @@ class AzureReportDownloaderTest(MasuTestCase):
 
     fake = Faker()
 
+    def _private_temp_dir(self):
+        """Return a per-test temp dir instead of the process-wide temp root.
+
+        These tests copy a report file under its own base name. Two downloader
+        modules that use the same base name in the shared root end up in a race
+        under ``--parallel``: one worker deletes the file another is reading.
+        """
+        temp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        return temp_dir
+
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
     def setUp(self, mock_service):
         """Set up each test."""
@@ -518,7 +529,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         file_name = f"{file}.csv"
         file_path = f"./koku/masu/test/data/azure/{file_name}"
         manifest_id = self.azure_manifest_id
-        temp_dir = tempfile.gettempdir()
+        temp_dir = self._private_temp_dir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = []

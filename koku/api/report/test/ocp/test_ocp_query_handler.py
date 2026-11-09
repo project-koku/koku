@@ -38,6 +38,7 @@ from api.report.ocp.view import OCPGpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.ocp.view import OCPVolumeView
+from api.report.test.util.common import cost_ranks
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
@@ -1273,11 +1274,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotations)
                 .order_by("-cost")
             )
-        ranking_map = {}
-        count = 1
-        for project in expected:
-            ranking_map[project.get("project")] = count
-            count += 1
+        ranking_map = cost_ranks(expected, "project")
         for element in data:
             previous = 0
             for project in element.get("projects"):
