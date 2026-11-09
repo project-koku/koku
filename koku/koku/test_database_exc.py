@@ -4,6 +4,7 @@
 #
 import json
 import os
+from unittest.mock import patch
 
 import psycopg2
 from django.db import connection
@@ -11,8 +12,10 @@ from django.db import IntegrityError
 from psycopg2.errors import DeadlockDetected
 from psycopg2.errors import DivisionByZero
 from sqlparse import parse as sql_parse
+from sqlparse.exceptions import SQLParseError
 
 from . import database_exc as dbex
+from .database import execute_compiled_sql
 from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 
@@ -21,6 +24,15 @@ class TestDatabaseExc(IamTestCase):
     def _new_connection(self):
         raw_conn = connection.connection
         return psycopg2.connect(password=CONFIGURATOR.get_database_password(), **raw_conn.get_dsn_parameters())
+
+    @patch(
+        "koku.database.format_sql",
+        side_effect=SQLParseError("Maximum number of tokens exceeded (10000)."),
+    )
+    def test_execute_compiled_sql_format_token_limit(self, _mock_format):
+        """Debug formatting must not break execution when sqlparse hits its token limit."""
+        rows = execute_compiled_sql("SELECT 1 WHERE false")
+        self.assertEqual(rows, 0)
 
     def test_real_exception(self):
         """Test a **real** exception from another connection to the DB."""

@@ -19,6 +19,7 @@ from api.report.aws.openshift.view import OCPAWSInstanceTypeView
 from api.report.aws.openshift.view import OCPAWSStorageView
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.queries import check_view_filter_and_group_by_criteria
+from api.report.test.util.common import cost_ranks
 from api.report.test.util.constants import AWS_CONSTANTS
 from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler
 from api.tags.aws.openshift.view import OCPAWSTagView
@@ -437,11 +438,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                 .order_by("-cost")
             )
         tested = False
-        ranking_map = {}
-        count = 1
-        for service in expected:
-            ranking_map[service.get("service")] = count
-            count += 1
+        ranking_map = cost_ranks(expected, "service")
         for element in data:
             previous = 0
             for service in element.get("services"):
