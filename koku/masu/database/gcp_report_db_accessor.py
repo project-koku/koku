@@ -23,10 +23,12 @@ from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.database.tag_mapping_guardrails import run_tag_mapping_update
 from masu.processor import GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_tag_processing_disabled
 from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.provider.all.models import EnabledTagKeys
@@ -485,8 +487,15 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if has_mappings:
             sql = pkgutil.get_data("masu.database", "sql/gcp/openshift/ocpgcp_tag_mapping_update_daily_summary.sql")
             sql = sql.decode("utf-8")
-            self._prepare_and_execute_raw_sql_query(
-                self._table_map["ocp_on_gcp_project_daily_summary"], sql, sql_params
+            sql_params["materialize_tag_mapping_candidates"] = is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            )
+            run_tag_mapping_update(
+                self,
+                self._table_map["ocp_on_gcp_project_daily_summary"],
+                sql,
+                sql_params,
+                label="OCP-on-GCP",
             )
         else:
             LOG.debug("No tag mappings for GCP.")
