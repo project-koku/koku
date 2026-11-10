@@ -41,7 +41,7 @@ def restrict_enabled_currencies_for_onprem_offline(schema_name):
     Migration 0014 seeds many currencies on every schema clone. On on-prem
     installs without ``CURRENCY_URL``, those codes are not convertible until
     static rates exist. Keep the system default and account display currency
-    only (see constant-currency Fix 1a).
+    only (see constant-currency design).
     """
     from django_tenants.utils import schema_context
 
@@ -92,6 +92,10 @@ def _conversion_horizon_end():
     return current_month + relativedelta(months=1)
 
 
+# User-facing wording for offline coverage gaps (matches ``currency_conversion_ready`` horizon).
+_OFFLINE_STATIC_COVERAGE_PERIOD = "across the retained reporting window through the next month"
+
+
 def conversion_coverage(base_currency, target_currency, start_month, end_month):
     """Stable API wrapper for monthly exchange-rate conversion coverage."""
     from cost_models.monthly_exchange_rate_utils import conversion_coverage as monthly_rate_conversion_coverage
@@ -134,7 +138,7 @@ def enablement_blocked_detail(code):
     target_phrase = " and ".join(targets) if targets else KOKU_DEFAULT_CURRENCY
     return (
         f"Cannot enable {code} without static exchange rates from {code} to "
-        f"{target_phrase} for the retention window. Create static rates via "
+        f"{target_phrase} {_OFFLINE_STATIC_COVERAGE_PERIOD}. Create static rates via "
         f"/settings/currency/static-rates/ then retry."
     )
 
@@ -146,9 +150,21 @@ def denomination_blocked_detail(code):
     target_phrase = " and ".join(targets) if targets else KOKU_DEFAULT_CURRENCY
     return (
         f"Cannot use {code} without static exchange rates from {code} to "
-        f"{target_phrase} for the retention window. Create static rates via "
+        f"{target_phrase} {_OFFLINE_STATIC_COVERAGE_PERIOD}. Create static rates via "
         f"/settings/currency/static-rates/ then retry."
     )
+
+
+def offline_denomination_validation_detail(currency):
+    """Return ``denomination_blocked_detail`` when offline static coverage is required but missing."""
+    if not currency:
+        return None
+    code = str(currency).upper()
+    if dynamic_fx_available():
+        return None
+    if currency_conversion_ready(code):
+        return None
+    return denomination_blocked_detail(code)
 
 
 def build_exchange_dictionary(rates):

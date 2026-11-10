@@ -15,9 +15,7 @@ from rest_framework import serializers
 from api.common import error_obj
 from api.common import log_json
 from api.currency.currencies import CurrencyField
-from api.currency.utils import currency_conversion_ready
-from api.currency.utils import denomination_blocked_detail
-from api.currency.utils import dynamic_fx_available
+from api.currency.utils import offline_denomination_validation_detail
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
@@ -581,14 +579,10 @@ class CostModelSerializer(BaseSerializer):
 
     @staticmethod
     def validate_offline_denomination_currency(currency):
-        """Require static conversion coverage when dynamic FX is unavailable (Fix 3a)."""
-        if not currency:
-            return
-        code = str(currency).upper()
-        if dynamic_fx_available():
-            return
-        if not currency_conversion_ready(code):
-            raise serializers.ValidationError(denomination_blocked_detail(code))
+        """Require static conversion coverage when dynamic FX is unavailable."""
+        detail = offline_denomination_validation_detail(currency)
+        if detail:
+            raise serializers.ValidationError(detail)
 
     @staticmethod
     def validate_rates_currency(data):

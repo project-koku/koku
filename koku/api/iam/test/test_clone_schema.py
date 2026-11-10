@@ -236,7 +236,7 @@ class CloneSchemaTest(IamTestCase):
 
     @override_settings(ONPREM=True, CURRENCY_URL="")
     def test_new_schema_onprem_offline_restricts_enabled_currencies_to_usd(self):
-        """On-prem without CURRENCY_URL, cloned schemas keep USD only (Fix 1a)."""
+        """On-prem without CURRENCY_URL, cloned schemas keep USD only."""
         schema_name = "org90909098"
         with schema_context(Tenant._TEMPLATE_SCHEMA):
             self.assertGreater(EnabledCurrency.objects.count(), 1)

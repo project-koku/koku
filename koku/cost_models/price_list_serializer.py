@@ -10,9 +10,6 @@ from rest_framework import serializers
 
 from api.common import error_obj
 from api.currency.currencies import CurrencyField
-from api.currency.utils import currency_conversion_ready
-from api.currency.utils import denomination_blocked_detail
-from api.currency.utils import dynamic_fx_available
 from api.metrics import constants as metric_constants
 from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
@@ -76,17 +73,6 @@ class PriceListSerializer(BaseSerializer):
         if start and end and end < start:
             raise serializers.ValidationError("effective_end_date must be on or after effective_start_date.")
 
-    @staticmethod
-    def validate_offline_denomination_currency(currency):
-        """Require static conversion coverage when dynamic FX is unavailable."""
-        if not currency:
-            return
-        code = str(currency).upper()
-        if dynamic_fx_available():
-            return
-        if not currency_conversion_ready(code):
-            raise serializers.ValidationError(denomination_blocked_detail(code))
-
     def validate(self, data):
         """Validate price list data."""
         if not self.instance:
@@ -114,7 +100,7 @@ class PriceListSerializer(BaseSerializer):
         if data.get("rates"):
             CostModelSerializer.validate_rates_currency(data)
 
-        self.validate_offline_denomination_currency(data.get("currency"))
+        CostModelSerializer.validate_offline_denomination_currency(data.get("currency"))
 
         return data
 

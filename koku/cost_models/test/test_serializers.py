@@ -988,7 +988,7 @@ def _month_end(d):
 
 
 class CostModelOfflineDenominationValidationTest(IamTestCase):
-    """Fix 3a: block cost models when offline conversion coverage is missing."""
+    """Block cost models when offline conversion coverage is missing."""
 
     @override_settings(CURRENCY_URL="")
     def test_validate_offline_denomination_blocked_without_static_rates(self):
@@ -1021,7 +1021,7 @@ class CostModelOfflineDenominationValidationTest(IamTestCase):
 
 
 class PriceListOfflineDenominationValidationTest(IamTestCase):
-    """Fix 3b: block price lists when offline conversion coverage is missing."""
+    """Block price lists when offline conversion coverage is missing."""
 
     def _price_list_data(self, currency):
         date_helper = DateHelper()

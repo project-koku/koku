@@ -207,7 +207,7 @@ static exchange-rate windows. Otherwise `400`:
 {
   "errors": [
     {
-      "detail": "Cannot enable EUR without static exchange rates from EUR to USD for the retention window. Create static rates via /settings/currency/static-rates/ then retry.",
+      "detail": "Cannot enable EUR without static exchange rates from EUR to USD across the retained reporting window through the next month. Create static rates via /settings/currency/static-rates/ then retry.",
       "source": "currency",
       "status": 400
     }

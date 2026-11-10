@@ -1311,7 +1311,7 @@ class EnabledCurrencyViewTest(IamTestCase):
 
     @override_settings(CURRENCY_URL="")
     def test_enable_currency_blocked_without_static_rates_when_no_currency_url(self):
-        """Offline deploys require static rates before POST enable (Fix 2a)."""
+        """Offline deploys require static rates before POST enable."""
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
             MonthlyExchangeRate.objects.filter(Q(base_currency="EUR") | Q(target_currency="EUR")).delete()

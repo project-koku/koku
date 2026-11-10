@@ -6634,7 +6634,7 @@
                 ],
                 "summary": "Enable a currency for the tenant",
                 "operationId": "postSettingsCurrencyEnabled",
-                "description": "Enable a current tender ISO 4217 currency. When CURRENCY_URL is not configured, enablement requires static exchange rate coverage from the currency to the system default and account display currency for the retention window.",
+                "description": "Enable a current tender ISO 4217 currency. When CURRENCY_URL is not configured, enablement requires static exchange rate coverage from the currency to the system default and account display currency across the retained reporting window through the next month.",
                 "parameters": [
                     {
                         "in": "path",
@@ -6665,7 +6665,7 @@
                                 "example": {
                                     "errors": [
                                         {
-                                            "detail": "Cannot enable EUR without static exchange rates from EUR to USD for the retention window. Create static rates via /settings/currency/static-rates/ then retry.",
+                                            "detail": "Cannot enable EUR without static exchange rates from EUR to USD across the retained reporting window through the next month. Create static rates via /settings/currency/static-rates/ then retry.",
                                             "source": "currency",
                                             "status": 400
                                         }
