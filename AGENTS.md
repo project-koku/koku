@@ -141,7 +141,7 @@ Load the matching guide **before** editing:
 | Writing or fixing tests | [`testing.md`](docs/agent/testing.md), [`write-unit-tests` playbook](docs/agent/playbooks/write-unit-tests.md) |
 | Django ORM / models / accessors | [`django-db.md`](docs/agent/django-db.md), [`backend-gotchas.md`](docs/agent/backend-gotchas.md) |
 | Logging | [`logging-patterns.md`](docs/agent/logging-patterns.md) |
-| Python style | [`python-conventions.md`](docs/agent/python-conventions.md) |
+| Python style | [`python-conventions.md`](docs/agent/python-conventions.md), [`python-import-order` skill](.cursor/skills/python-import-order/SKILL.md) |
 | Domain terms (provider, source, manifest, cost model) | [`domain-context.md`](docs/agent/domain-context.md) |
 | Local stack / nise / UI E2E | [`docs/local-development.md`](docs/local-development.md) |
 | Querying prod/stage databases | [`database-queries` playbook](docs/agent/playbooks/database-queries.md) |
