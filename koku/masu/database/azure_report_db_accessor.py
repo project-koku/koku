@@ -22,8 +22,10 @@ from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.database.tag_mapping_guardrails import run_tag_mapping_update
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -177,8 +179,16 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "masu.database", "sql/azure/openshift/ocpazure_tag_mapping_update_daily_summary.sql"
             )
             sql = sql.decode("utf-8")
-            self._prepare_and_execute_raw_sql_query(
-                self._table_map["ocp_on_azure_project_daily_summary"], sql, sql_params
+            sql_params["materialize_tag_mapping_candidates"] = is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            )
+            run_tag_mapping_update(
+                self,
+                self._table_map["ocp_on_azure_project_daily_summary"],
+                sql,
+                sql_params,
+                label="OCP-on-Azure",
+                flag_checker=is_feature_flag_enabled_by_schema,
             )
         else:
             LOG.debug("No tag mappings for Azure.")
