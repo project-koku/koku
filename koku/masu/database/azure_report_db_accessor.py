@@ -189,6 +189,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 sql,
                 sql_params,
                 label="OCP-on-Azure",
+                flag_checker=is_feature_flag_enabled_by_schema,
             )
         else:
             LOG.debug("No tag mappings for Azure.")

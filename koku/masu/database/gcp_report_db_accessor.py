@@ -474,7 +474,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         sql_params = {
             "schema": self.schema,
-            "gcp_bill_ids": gcp_bill_ids,
+            "bill_ids": gcp_bill_ids,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -496,6 +496,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 sql,
                 sql_params,
                 label="OCP-on-GCP",
+                flag_checker=is_feature_flag_enabled_by_schema,
             )
         else:
             LOG.debug("No tag mappings for GCP.")
