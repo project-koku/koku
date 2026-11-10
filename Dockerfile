@@ -37,7 +37,7 @@ ARG USER_ID=1000
 # potential conflicts with Python packages preinstalled in the main Python
 # installation.
 RUN python3.12 -m venv /pipenv-venv \
-    && /pipenv-venv/bin/python -m pip install --upgrade pip setuptools \
+    && /pipenv-venv/bin/python -m pip install --upgrade pip 'setuptools>=78.1.1' \
     && /pipenv-venv/bin/python -m pip install pipenv
 
 ENV PATH="/pipenv-venv/bin:$PATH"
