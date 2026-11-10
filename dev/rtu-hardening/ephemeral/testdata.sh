@@ -175,6 +175,22 @@ wait-rtu)
     echo "timed out waiting for RTU rows" >&2
     exit 1
     ;;
+hold-run-lock)
+    # Single-flight (COST-8575): hold a provider month's cost model run lock for SECONDS (default 300),
+    # as a long run would. hold-run-lock [SECONDS] [MONTH yyyy-mm-01] [cluster name]
+    month="${3:-$(python3 -c 'import datetime as d; print(d.date.today().replace(day=1))')}"
+    db -c "SELECT pg_advisory_lock(hashtext('cost_model_run'), hashtext(p.uuid::text || ':${month}')),
+                  now() AS locked_at, p.uuid, '${month}' AS month
+           FROM public.api_provider p WHERE p.name = '${4:-RTU cluster A}';" \
+       -c "SELECT pg_sleep(${2:-300});" -c "SELECT now() AS released_at;"
+    ;;
+delayed-tasks)
+    # Single-flight: pending delayed cost model runs (deferred busy runs land here)
+    db -c "SELECT p.name, d.metadata->>'billing_month' AS month, d.task_kwargs->>'start_date' AS start_date,
+                  d.task_kwargs->>'end_date' AS end_date, d.timeout_timestamp
+           FROM public.delayed_celery_tasks d JOIN public.api_provider p ON p.uuid = d.provider_uuid
+           ORDER BY d.timeout_timestamp;"
+    ;;
 clean)
     oc delete pod "${POD}" -n "${NS}" --ignore-not-found
     ;;
