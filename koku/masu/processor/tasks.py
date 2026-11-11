@@ -34,6 +34,7 @@ from common.queues import PriorityQueue
 from common.queues import RefreshQueue
 from common.queues import SummaryQueue
 from koku import celery_app
+from koku.cache import delete_cached_ocp_on_cloud_matched_tags
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.cache import TAG_MAPPING_PREFIX
@@ -79,6 +80,7 @@ LOG = logging.getLogger(__name__)
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
 APPLY_TAG_MAPPINGS_TASK = "masu.processor.tasks.apply_tag_mappings"
+UPDATE_OPENSHIFT_ON_CLOUD_TASK = "masu.processor.tasks.update_openshift_on_cloud"
 
 
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
@@ -956,13 +958,13 @@ def update_openshift_on_cloud(  # noqa: C901
     }
     LOG.info(log_json(tracing_id, msg="update openshift on cloud processing started", context=context))
     ocp_manifest_id = get_latest_openshift_on_cloud_manifest(start_date, openshift_provider_uuid)
-    task_name = "masu.processor.tasks.update_openshift_on_cloud"
+    task_name = UPDATE_OPENSHIFT_ON_CLOUD_TASK
     if is_ocp_on_cloud_summary_disabled(schema_name):
         msg = f"OCP on Cloud summary disabled for {schema_name}."
         LOG.info(msg)
         return
     if isinstance(start_date, str):
-        cache_arg_date = start_date[:-3]  # Strip days from string
+        cache_arg_date = start_date[:-3]
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
     cache_args = [schema_name, infrastructure_provider_uuid, openshift_provider_uuid, cache_arg_date]
@@ -994,6 +996,10 @@ def update_openshift_on_cloud(  # noqa: C901
             ).apply_async(queue=queue_name or fallback_queue)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
+
+    delete_cached_ocp_on_cloud_matched_tags(
+        schema_name, str(openshift_provider_uuid), str(infrastructure_provider_uuid), cache_arg_date
+    )
 
     # Set OpenShift summary started time
     set_summary_timestamp(ManifestState.START, ocp_manifest_id)

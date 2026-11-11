@@ -3,11 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Cache of worker tasks currently running."""
+import base64
 import logging
+import pickle
 import time
 
 from django.conf import settings
 from django.core.cache import caches
+from django.core.cache.backends.db import DatabaseCache
 from django.db import connection
 
 from koku import CELERY_INSPECT
@@ -76,6 +79,29 @@ def _lock_is_held(table_key, live_workers):
     if not table_key.startswith(prefix):
         return True
     return WorkerCache.cache.get(table_key[len(prefix) :]) in live_workers
+
+
+def _delete_if_value(cache, key, expected):
+    """Delete key only if it currently stores expected. Return True if a value was removed.
+
+    Production uses DatabaseCache, so the compare-and-delete is one SQL statement. Other
+    backends fall back to get-then-delete, which is enough for sequential LocMemCache tests.
+    """
+    if isinstance(cache, DatabaseCache):
+        table_key = cache.make_and_validate_key(key)
+        encoded = base64.b64encode(pickle.dumps(expected, DatabaseCache.pickle_protocol)).decode("latin1")
+        quote_name = connection.ops.quote_name
+        table = f"{quote_name('public')}.{quote_name(cache._table)}"
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"DELETE FROM {table} WHERE {quote_name('cache_key')} = %s AND {quote_name('value')} = %s",
+                [table_key, encoded],
+            )
+            return cursor.rowcount > 0
+    if cache.get(key) != expected:
+        return False
+    cache.delete(key)
+    return True
 
 
 class WorkerCache:
@@ -219,7 +245,21 @@ class WorkerCache:
         # Expire the cache so we don't infinite loop waiting
         self.cache.set(cache_str, self._hostname, timeout)
 
-    def release_single_task(self, task_name, task_args=None):
-        """Delete the cache entry for a single task."""
+    def try_lock_single_task(self, task_name, task_args=None, timeout=TASK_CACHE_EXPIRE):
+        """Acquire a single-task lock. Return True if this worker holds it.
+
+        A live owner rejects the caller. A stale owner is removed only if that hostname
+        is still stored, so two takeovers of the same lease cannot both succeed.
+        """
         cache_str = create_single_task_cache_key(task_name, task_args)
-        self.cache.delete(cache_str)
+        host = self.cache.get(cache_str)
+        if host and host in self.worker_cache_keys:
+            return False
+        if host:
+            _delete_if_value(self.cache, cache_str, host)
+        return self.cache.add(cache_str, self._hostname, timeout)
+
+    def release_single_task(self, task_name, task_args=None):
+        """Delete the cache entry for a single task if this worker still owns it."""
+        cache_str = create_single_task_cache_key(task_name, task_args)
+        _delete_if_value(self.cache, cache_str, self._hostname)
