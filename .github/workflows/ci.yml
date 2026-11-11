@@ -232,7 +232,7 @@ jobs:
           overwrite: true
 
   units-gate:
-    name: Units - 3.12
+    name: Unit Tests
     needs: [changed-files, units]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
