@@ -14,6 +14,7 @@ See docs/architecture/cost-breakdown/phased-delivery.md § Concern 1 Resolution.
 See docs/architecture/cost-breakdown/risk-register.md § R18.
 """
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -700,18 +701,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             self.assertEqual(in_window.exclude(rate_id=rate_id).count(), others_before)
 
 
-class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
-    """Regression test: GPU unallocated cost distribution for multi-model nodes.
-
-    ``gpu_rtu_cost`` in distribute_unallocated_gpu_cost_rtu.sql previously grouped
-    by node only (not GPU model), collapsing a multi-model node's per-model costs
-    into a single total. That total was then re-applied in full once per model
-    via a cross join through a separate ``gpu_model_map`` CTE and a MAX(...)
-    aggregate, over-distributing cost to real namespaces and leaving an incorrect
-    non-zero residual on the internal "GPU unallocated" accounting bucket instead
-    of netting to zero. The fix groups gpu_rtu_cost by gpu-model up front and
-    sums (rather than takes the max of) each namespace's per-model contributions.
-    """
+class _GPUDistributionFixtures(_ReportPeriodMixin):
+    """Last-month report period, GPU source rows in rates_to_usage, GPU usage, and running the
+    GPU distribution through PostgreSQL (shared by the GPU distribution tests)."""
 
     NODE = "gpu-node-cost-breakdown-test"
 
@@ -859,6 +851,20 @@ class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
                         use_rtu=True,
                     )
 
+
+class TestGPUUnallocatedDistributionRTU(_GPUDistributionFixtures, MasuTestCase):
+    """Regression test: GPU unallocated cost distribution for multi-model nodes.
+
+    ``gpu_rtu_cost`` in distribute_unallocated_gpu_cost_rtu.sql previously grouped
+    by node only (not GPU model), collapsing a multi-model node's per-model costs
+    into a single total. That total was then re-applied in full once per model
+    via a cross join through a separate ``gpu_model_map`` CTE and a MAX(...)
+    aggregate, over-distributing cost to real namespaces and leaving an incorrect
+    non-zero residual on the internal "GPU unallocated" accounting bucket instead
+    of netting to zero. The fix groups gpu_rtu_cost by gpu-model up front and
+    sums (rather than takes the max of) each namespace's per-model contributions.
+    """
+
     def test_multi_model_node_distributes_exact_source_cost(self):
         """A multi-GPU-model node must distribute exactly its total source cost.
 
@@ -915,6 +921,142 @@ class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
                 places=2,
                 msg=f"GPU unallocated bucket must net to zero after distribution, got {net_balance}",
             )
+
+
+class _Day2DateHelper(DateHelper):
+    """DateHelper whose "now" is the 2nd of the current month, when the GPU distribution
+    of a current-month run covers the whole previous month."""
+
+    @property
+    def now_utc(self):
+        return super().now_utc.replace(day=2)
+
+
+class TestGPUFullMonthDistributionAggregationRTU(_GPUDistributionFixtures, MasuTestCase):
+    """COST-8586: a full-month GPU distribution must reach the daily summary for its whole window.
+
+    The GPU distribution runs over a whole month: on the 2nd of the month a current-month
+    run distributes the previous month, and a past-month run always distributes the full
+    month. It deletes that window's ``gpu_distributed`` daily summary rows and writes new
+    rows to ``rates_to_usage``, so the aggregate and the UI summaries must cover the same
+    window, not only the run's own dates.
+    """
+
+    def _distribute_and_update(self, summary_range, date_helper=DateHelper):
+        """Run distribute_costs_and_update_ui_summary (RTU) with GPU distribution on; return the UI summary mock."""
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater._distribution_info = {"distribution_type": "cpu", metric_constants.GPU_UNALLOCATED: True}
+
+        def run_via_postgres(accessor, sql, bind_params=None):
+            # gpu_distributed is routed through Trino; run the self_hosted_sql template on PostgreSQL
+            # instead, as _GPUDistributionFixtures._run_gpu_distribution does.
+            accessor._prepare_and_execute_raw_sql_query(
+                accessor._table_map["line_item_daily_summary"], sql, bind_params, operation="INSERT (test)"
+            )
+
+        populate_ui = OCPReportDBAccessor.populate_ui_summary_tables
+        with (
+            patch(
+                "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
+                return_value=True,
+            ),
+            patch("masu.util.ocp.common.trino_table_exists", return_value=True),
+            override_settings(ONPREM=True),
+            patch("masu.database.ocp_report_db_accessor.DateHelper", date_helper),
+            patch.object(
+                OCPReportDBAccessor, "_execute_trino_multipart_sql_query", autospec=True, side_effect=run_via_postgres
+            ),
+            patch.object(
+                OCPReportDBAccessor, "populate_ui_summary_tables", autospec=True, side_effect=populate_ui
+            ) as ui_summary,
+        ):
+            updater.distribute_costs_and_update_ui_summary(summary_range, use_rtu=True)
+        return ui_summary
+
+    def _daily_summary_gpu_by_namespace(self):
+        with schema_context(self.schema):
+            distributed_in_rtu = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start=self.usage_start,
+                node=self.NODE,
+                monthly_cost_type="gpu_distributed",
+            ).exists()
+            self.assertTrue(distributed_in_rtu, "the GPU distribution did not run: no gpu_distributed rows in RTU")
+            rows = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start=self.usage_start,
+                node=self.NODE,
+                cost_model_rate_type="gpu_distributed",
+            ).exclude(namespace="GPU unallocated")
+            return {
+                namespace: float(total)
+                for namespace, total in rows.values("namespace")
+                .annotate(total=Sum("distributed_cost"))
+                .values_list("namespace", "total")
+            }
+
+    @staticmethod
+    def _windows(ui_summary):
+        return {(call.args[1].start_date, call.args[1].end_date) for call in ui_summary.call_args_list}
+
+    def test_day2_previous_month_distribution_reaches_daily_summary(self):
+        """Day 2: the previous month's GPU distribution lands in that month's daily summary and UI summaries."""
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+        current_start = DateHelper().this_month_start.date()
+        run = SummaryRangeConfig(start_date=current_start, end_date=current_start + timedelta(days=1))
+
+        ui_summary = self._distribute_and_update(run, date_helper=_Day2DateHelper)
+
+        by_namespace = self._daily_summary_gpu_by_namespace()
+        self.assertAlmostEqual(by_namespace.get("proj-a", 0), 37.0, places=2, msg=by_namespace)
+        self.assertAlmostEqual(by_namespace.get("proj-b", 0), 63.0, places=2, msg=by_namespace)
+        self.assertIn((self.start_date, self.end_date), self._windows(ui_summary))
+
+    def test_day2_rerun_finds_the_previous_month_finalized(self):
+        """A second day-2 run sees the aggregated rows and does not redistribute the previous month."""
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+        current_start = DateHelper().this_month_start.date()
+        self._distribute_and_update(
+            SummaryRangeConfig(start_date=current_start, end_date=current_start + timedelta(days=1)),
+            date_helper=_Day2DateHelper,
+        )
+        with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logs:
+            self._distribute_and_update(
+                SummaryRangeConfig(start_date=current_start, end_date=current_start + timedelta(days=1)),
+                date_helper=_Day2DateHelper,
+            )
+        self.assertTrue(any("previous month already finalized" in line for line in logs.output))
+
+    def test_partial_past_month_run_keeps_the_whole_month_distribution(self):
+        """A past-month run over its last days still leaves the month's GPU distribution in the daily summary."""
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+        run = SummaryRangeConfig(start_date=self.end_date - timedelta(days=1), end_date=self.end_date)
+
+        ui_summary = self._distribute_and_update(run)
+
+        by_namespace = self._daily_summary_gpu_by_namespace()
+        self.assertAlmostEqual(by_namespace.get("proj-a", 0), 37.0, places=2, msg=by_namespace)
+        self.assertAlmostEqual(by_namespace.get("proj-b", 0), 63.0, places=2, msg=by_namespace)
+        self.assertIn((self.start_date, self.end_date), self._windows(ui_summary))
+
+    def test_full_month_run_does_not_duplicate_distributed_rows(self):
+        """When the run's own dates cover the GPU rows, the main aggregate and the full-month step
+        both write them; the daily summary must hold them once."""
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+
+        ui_summary = self._distribute_and_update(
+            SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        )
+
+        by_namespace = self._daily_summary_gpu_by_namespace()
+        self.assertAlmostEqual(by_namespace.get("proj-a", 0), 37.0, places=2, msg=by_namespace)
+        self.assertAlmostEqual(by_namespace.get("proj-b", 0), 63.0, places=2, msg=by_namespace)
+        # The run's window is the distribution's window: no extra UI summary refresh.
+        self.assertEqual(len(ui_summary.call_args_list), 1)
 
 
 class TestBreakdownSQLFixes(_ReportPeriodMixin, MasuTestCase):
