@@ -8,6 +8,7 @@ from datetime import date
 from unittest.mock import patch
 
 from masu.processor.tasks import defer_busy_cost_model_update
+from masu.processor.tasks import delayed_update_cost_model_costs
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import UPDATE_COST_MODEL_COSTS_TASK
 from masu.test import MasuTestCase
@@ -74,7 +75,7 @@ class CostModelSingleFlightTaskTest(MasuTestCase):
         self.assertEqual(row.task_kwargs["start_date"], "2026-06-05")
         self.assertEqual(row.task_kwargs["end_date"], "2026-06-10")
         self.assertEqual(row.queue_name, "cost_model")
-        self.assertEqual(row.metadata, {"billing_month": "2026-06-01"})
+        self.assertEqual(row.metadata, {"billing_month": "2026-06-01", "keep_earlier_deadline": True})
 
     @patch("masu.processor.tasks.is_cost_model_single_flight_enabled", return_value=True)
     def test_synchronous_runs_without_the_lock(self, _flag, mock_updater):
@@ -117,3 +118,19 @@ class DeferBusyCostModelUpdateTest(MasuTestCase):
         """Unlike delayed_update_cost_model_costs, the row is not fired at once: it would meet the busy lock."""
         defer_busy_cost_model_update(self.schema, self.ocp_provider_uuid, "2026-06-01", "2026-06-02", "q")
         self.assertTrue(self._rows().exists())
+
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+    def test_cost_model_edit_does_not_postpone_a_busy_retry(self, _delay_disabled):
+        """A cost model edit for the same provider month keeps a pending busy retry's deadline.
+
+        Both use one row per provider and billing month; the edit's ordinary debounce
+        (DELAYED_TASK_TIME) must not move the busy retry's deadline later.
+        """
+        defer_busy_cost_model_update(self.schema, self.ocp_provider_uuid, "2026-06-01", "2026-06-02", "q")
+        deadline = self._rows().get().timeout_timestamp
+
+        delayed_update_cost_model_costs(self.schema, self.ocp_provider_uuid, "2026-06-01", "2026-06-30", "q")
+
+        row = self._rows().get()
+        self.assertEqual(row.timeout_timestamp, deadline)
+        self.assertEqual((row.task_kwargs["start_date"], row.task_kwargs["end_date"]), ("2026-06-01", "2026-06-30"))

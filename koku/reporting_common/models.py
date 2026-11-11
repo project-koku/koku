@@ -150,6 +150,10 @@ class RegionMapping(models.Model):
     region_name = models.CharField(max_length=64, null=False, unique=True)
 
 
+# DelayedCeleryTasks.metadata key: the row's deadline may only move earlier (see create_or_reset_timeout).
+KEEP_EARLIER_DEADLINE = "keep_earlier_deadline"
+
+
 class DelayedCeleryTasks(models.Model):
     """This table tracks summary tasks that are delaying execution."""
 
@@ -222,9 +226,12 @@ class DelayedCeleryTasks(models.Model):
         Lookup/update runs under ``select_for_update`` so concurrent resets
         for the same key serialize. When ``merge_date_range`` is True, the
         stored ``start_date`` / ``end_date`` are widened (min/max) against the
-        locked row before save. When ``keep_earlier_deadline`` is True, an
-        existing row's deadline can only move earlier, so a stream of calls
-        cannot postpone the task indefinitely.
+        locked row before save. When ``keep_earlier_deadline`` is True, the
+        row is marked (``metadata.keep_earlier_deadline``) and from then on
+        its deadline can only move earlier, whichever caller resets it, so
+        no stream of calls can postpone the task indefinitely. The mark
+        goes with the row when the task fires; unmarked rows keep the
+        ordinary debounce.
         """
         filters = {"task_name": task_name, "provider_uuid": provider_uuid}
         billing_month_str = None
@@ -248,7 +255,11 @@ class DelayedCeleryTasks(models.Model):
                 existing_task.queue_name = queue_name
                 previous_deadline = existing_task.timeout_timestamp
                 existing_task.set_timeout(timeout_seconds)
-                if keep_earlier_deadline and previous_deadline < existing_task.timeout_timestamp:
+                metadata = existing_task.metadata or {}
+                if keep_earlier_deadline:
+                    metadata = {**metadata, KEEP_EARLIER_DEADLINE: True}
+                    existing_task.metadata = metadata
+                if metadata.get(KEEP_EARLIER_DEADLINE) and previous_deadline < existing_task.timeout_timestamp:
                     existing_task.timeout_timestamp = previous_deadline
                 existing_task.save()
                 return existing_task
@@ -257,6 +268,8 @@ class DelayedCeleryTasks(models.Model):
                 task_kwargs["tracing_id"] = str(uuid4())
 
             metadata = {"billing_month": billing_month_str} if billing_month_str is not None else {}
+            if keep_earlier_deadline:
+                metadata[KEEP_EARLIER_DEADLINE] = True
             new_task = cls(
                 task_name=task_name,
                 task_args=task_args,
