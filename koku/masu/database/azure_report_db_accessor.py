@@ -22,9 +22,10 @@ from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.database.tag_mapping_guardrails import run_tag_mapping_update
 from masu.processor import is_feature_flag_enabled_by_schema
-from masu.processor import is_tag_processing_disabled
 from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -178,8 +179,16 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "masu.database", "sql/azure/openshift/ocpazure_tag_mapping_update_daily_summary.sql"
             )
             sql = sql.decode("utf-8")
-            self._prepare_and_execute_raw_sql_query(
-                self._table_map["ocp_on_azure_project_daily_summary"], sql, sql_params
+            sql_params["materialize_tag_mapping_candidates"] = is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            )
+            run_tag_mapping_update(
+                self,
+                self._table_map["ocp_on_azure_project_daily_summary"],
+                sql,
+                sql_params,
+                label="OCP-on-Azure",
+                flag_checker=is_feature_flag_enabled_by_schema,
             )
         else:
             LOG.debug("No tag mappings for Azure.")
@@ -444,15 +453,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             enabled_tags = self.check_for_matching_enabled_keys()
             if EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).exists() and enabled_tags:
                 matched_tags = self.get_openshift_on_cloud_matched_tags(bill_id)
-        if not matched_tags and enabled_tags:
-            LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
-            if is_tag_processing_disabled(self.schema):
-                LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
-                return []
-            LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
-            matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
-                azure_provider_uuid, [ocp_provider_uuid], start_date, end_date, invoice_month=None
-            )
         if matched_tags:
-            return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-        return matched_tags
+            return self._matched_tags_to_strings(matched_tags)
+        if not enabled_tags:
+            return []
+        LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+        return self._trino_matched_tag_strings(azure_provider_uuid, ocp_provider_uuid, start_date, end_date, ctx)
