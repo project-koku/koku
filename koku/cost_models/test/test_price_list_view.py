@@ -4,6 +4,7 @@
 #
 """Test the Price List views."""
 import logging
+from decimal import Decimal
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -953,6 +954,59 @@ class PriceListRatesUnitTest(IamTestCase):
 
             after = dict(Rate.objects.filter(price_list=pl).values_list("uuid", "custom_name"))
             self.assertEqual(after, before)
+
+    def _legacy_price_list_with_named_second_entry(self):
+        """A price list in the pre-rate-identity shape where a later entry carries a custom_name.
+
+        Two rates share metric and cost type. Their Rate rows are named in order, as migration
+        0013 named them (base for 1.00, base-2 for 2.00). The stored JSON then loses rate_id, and
+        only the second entry carries custom_name = base, which 0013 ignored.
+        """
+        base = "cpu_core_usage_per_hour-Infrastructure"
+        usage = {"usage_start": None, "usage_end": None}
+        rates = [
+            {
+                "metric": {"name": "cpu_core_usage_per_hour"},
+                "cost_type": "Infrastructure",
+                "tiered_rates": [{"value": value, "unit": "USD", "usage": usage}],
+            }
+            for value in ("1.00", "2.00")
+        ]
+        pl_uuid = self._create_diverse_price_list(rates=rates)
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            names = dict(Rate.objects.filter(price_list=pl).values_list("custom_name", "default_rate"))
+            self.assertEqual(names, {base: Decimal("1.00"), f"{base}-2": Decimal("2.00")})
+            legacy = [{k: v for k, v in entry.items() if k not in ("rate_id", "custom_name")} for entry in pl.rates]
+            legacy[1]["custom_name"] = base
+            PriceList.objects.filter(uuid=pl_uuid).update(rates=legacy)
+            pl.refresh_from_db()
+        return pl, base
+
+    def test_match_rates_to_json_legacy_custom_name_does_not_reorder(self):
+        """A custom_name in legacy JSON must not change which Rate row each entry matches (migration order)."""
+        from cost_models.rate_sync import match_rates_to_json
+
+        pl, base = self._legacy_price_list_with_named_second_entry()
+        with tenant_context(self.tenant):
+            rows = {r.custom_name: str(r.uuid) for r in Rate.objects.filter(price_list=pl)}
+            matched = match_rates_to_json(pl, Rate.objects.filter(price_list=pl))
+
+        self.assertEqual(Decimal(matched[rows[base]]["tiered_rates"][0]["value"]), Decimal("1.00"))
+        self.assertEqual(Decimal(matched[rows[f"{base}-2"]]["tiered_rates"][0]["value"]), Decimal("2.00"))
+
+    def test_update_without_rates_keeps_legacy_rows_in_migration_order(self):
+        """A rename of a legacy price list syncs its stored JSON without swapping rows or prices."""
+        from cost_models.price_list_manager import PriceListManager
+
+        pl, base = self._legacy_price_list_with_named_second_entry()
+        with tenant_context(self.tenant):
+            before = {r.uuid: (r.custom_name, r.default_rate) for r in Rate.objects.filter(price_list=pl)}
+
+            PriceListManager(pl.uuid).update(name="Renamed legacy price list")
+
+            after = {r.uuid: (r.custom_name, r.default_rate) for r in Rate.objects.filter(price_list=pl)}
+        self.assertEqual(after, before)
 
     # --- TC-113: match_rates_to_json uses rate_id when present ---
 

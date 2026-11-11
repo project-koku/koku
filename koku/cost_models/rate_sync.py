@@ -186,6 +186,23 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
     return incoming_ids, to_update, to_create_data
 
 
+def as_migrated(stored_rates):
+    """Read stored rates JSON that was never synced the way migration 0013 read it.
+
+    Stored JSON without any rate_id predates rate identities: every sync writes rate_id back.
+    Migration 0013 named its Rate rows in order and ignored any custom_name in the JSON, so a
+    custom_name there (stored unvalidated before rate identities existed) is not the row's name
+    and must not reserve a name before earlier entries are matched. Drops custom_name from such
+    JSON, in place. Only for stored JSON: a client payload carries the row names the API returns.
+    """
+    entries = [entry for entry in stored_rates or [] if isinstance(entry, dict)]
+    if any(entry.get("rate_id") for entry in entries):
+        return stored_rates
+    for entry in entries:
+        entry.pop("custom_name", None)
+    return stored_rates
+
+
 def match_rates_to_json(price_list, rates):
     """Map each Rate's UUID (str) to its entry in price_list.rates, without writing anything.
 
@@ -193,7 +210,7 @@ def match_rates_to_json(price_list, rates):
     the way migration 0013 did), on a copy of the JSON. For read paths: the API reads pods use the
     read replica in production, where a sync cannot write.
     """
-    rates_data = copy.deepcopy(price_list.rates or [])
+    rates_data = as_migrated(copy.deepcopy(price_list.rates or []))
     if not rates_data:
         return {}
     existing_by_uuid = {r.uuid: r for r in rates}
