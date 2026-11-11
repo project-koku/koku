@@ -918,6 +918,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                         distribution_raw_currency,
                     )
                     RTU_AGGREGATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
+                if use_rtu:
+                    self._aggregate_full_month_distributions(accessor, month_range, distribution_raw_currency)
                 if markup_pct:
                     accessor.populate_markup_cost(
                         markup_pct,
@@ -937,6 +939,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     RTU_MARKUP_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
                 if use_rtu:
                     accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
+                    self._refresh_full_month_windows(accessor, month_range)
                 else:
                     # Cost breakdown is built exclusively from rates_to_usage, which this
                     # (legacy) run does not write to. Skip rebuilding it from whatever is
@@ -956,6 +959,51 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 ):
                     report_period.derived_cost_datetime = timezone.now()
                     report_period.save()
+
+    def _aggregate_full_month_distributions(self, accessor, month_range: SummaryRangeConfig, raw_currency):
+        """Copy full-month distributions' RTU rows into the daily summary for their whole window.
+
+        A full-month distribution (GPU) can cover more than the run's dates: the whole month,
+        or the previous month on the 2nd. aggregate_rates_to_daily_summary covers only the
+        run's dates (COST-8586).
+        """
+        for distribution in month_range.full_month_distributions:
+            accessor.aggregate_distributed_rates_to_daily_summary(
+                distribution["start_date"],
+                distribution["end_date"],
+                self._provider_uuid,
+                distribution["report_period_id"],
+                distribution["cost_model_rate_type"],
+                raw_currency,
+            )
+
+    def _refresh_full_month_windows(self, accessor, month_range: SummaryRangeConfig):
+        """Refresh the UI summaries of full-month distribution windows beyond the run's dates (COST-8586)."""
+        for window in self._full_month_windows_beyond_run(month_range):
+            accessor.populate_ui_summary_tables(window, self._provider_uuid)
+
+    @staticmethod
+    def _full_month_windows_beyond_run(month_range: SummaryRangeConfig) -> list[SummaryRangeConfig]:
+        """Windows of full-month distributions that reach beyond the run's dates, once each.
+
+        Their daily summary rows changed outside the window populate_ui_summary_tables was
+        just called with, so their UI summaries (cost breakdown included) need a refresh.
+        """
+        windows = []
+        seen = set()
+        for distribution in month_range.full_month_distributions:
+            start, end = distribution["start_date"], distribution["end_date"]
+            if start >= month_range.start_date and end <= month_range.end_date:
+                continue
+            if (start, end) in seen:
+                continue
+            seen.add((start, end))
+            windows.append(
+                SummaryRangeConfig(
+                    start_date=start, end_date=end, summarize_previous_month=month_range.summarize_previous_month
+                )
+            )
+        return windows
 
     def _get_markup_percentage(self):
         """Return the markup percentage as a Decimal, or None if no markup configured."""
