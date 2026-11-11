@@ -1328,20 +1328,30 @@ class EnabledCurrencyViewTest(IamTestCase):
         from dateutil.relativedelta import relativedelta
 
         date_helper = DateHelper()
+        current_month = date_helper.this_month_start.date()
         retention_start = to_date(materialized_view_month_start(schema_name=self.schema_name))
-        horizon_end = date_helper.this_month_start.date() + relativedelta(months=1)
+        next_month = date_helper.this_month_start.date() + relativedelta(months=1)
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
-            StaticExchangeRate.objects.create(
+            static_rate = StaticExchangeRate.objects.create(
                 base_currency="EUR",
                 target_currency="USD",
                 exchange_rate=Decimal("1.08"),
                 start_date=retention_start,
-                end_date=_month_end(horizon_end),
+                end_date=_month_end(next_month),
             )
+            upsert_static_monthly_rates(static_rate)
             response = self.client.post(self._url("EUR"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
+            for month_start in (current_month, next_month):
+                mer = MonthlyExchangeRate.objects.get(
+                    effective_date=month_start,
+                    base_currency="EUR",
+                    target_currency="USD",
+                )
+                self.assertEqual(mer.exchange_rate, Decimal("1.08"))
+                self.assertEqual(mer.rate_type, RateType.STATIC)
 
     @override_settings(CURRENCY_URL="")
     def test_enable_currency_returns_200_when_already_enabled_without_rate_side_effects(self):

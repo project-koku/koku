@@ -215,13 +215,26 @@ static exchange-rate windows. Otherwise `400`:
 }
 ```
 
-**Side effects (product behavior):** covering `StaticExchangeRate` definitions
-for this currency are rematerialized into STATIC monthly rates from the current
-month through each definition's end date (so a disable → re-enable cycle
-restores still-valid overrides, including future months). Remaining enabled
-pairs then receive dynamic monthly rates for the current month and the next
-month when market data is available. Missing past months in the retention window
-are filled from the next later monthly rate. Report caches for the tenant are invalidated.
+**Side effects (product behavior):** report caches for the tenant are
+invalidated on every successful enable.
+
+When **`CURRENCY_URL` is configured**, enablement runs
+[`populate_dynamic_monthly_rates`](../../../koku/cost_models/monthly_exchange_rate_utils.py).
+Covering `StaticExchangeRate` definitions for this currency are rematerialized
+into STATIC monthly rates from the current month through each definition's end
+date (so a disable → re-enable cycle restores still-valid overrides, including
+future months). Remaining enabled pairs then receive dynamic monthly rates for
+the current month and the next month when market data is available. Missing past
+months in the retention window are filled from the next later monthly rate.
+
+When **`CURRENCY_URL` is not configured**, enablement runs only
+[`rematerialize_open_static_monthly_rates`](../../../koku/cost_models/monthly_exchange_rate_utils.py)
+for the enabled code: surviving static definitions are written as STATIC monthly
+rates for unfinalized months from the current month through each definition's end
+date (again restoring overrides after disable → re-enable). There is no dynamic
+rate fetch and **no** retention-window backfill on enable; months in the retained
+window must already be covered by monthly rates created when static definitions
+were saved (or by earlier pipeline activity).
 
 ---
 
