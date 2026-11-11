@@ -10,18 +10,22 @@ WITH cte_enabled_tag_keys AS (
     ) c
     WHERE c.p_count > 1
 ),
-cte_unnested_aws_tags AS (
-    SELECT DISTINCT key,
-        value
+cte_filtered_aws AS (
+    SELECT resourcetags
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
-    CROSS JOIN UNNEST(cast(json_parse(resourcetags) as map(varchar, varchar))) AS tags(key, value)
-    JOIN cte_enabled_tag_keys AS etk
-        ON any_match(etk.key_array, x->strpos(aws.resourcetags, x) != 0)
     WHERE source = {{aws_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
-        AND lineitem_usagestartdate >= {{start_date}}
-        AND lineitem_usagestartdate < date_add('day', 1, {{end_date}})
+        AND lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+),
+cte_unnested_aws_tags AS (
+    SELECT DISTINCT key,
+        value
+    FROM cte_filtered_aws AS aws
+    CROSS JOIN UNNEST(cast(json_parse(resourcetags) as map(varchar, varchar))) AS tags(key, value)
+    JOIN cte_enabled_tag_keys AS etk
+        ON any_match(etk.key_array, x->strpos(aws.resourcetags, x) != 0)
 ),
 cte_unnested_ocp_tags AS (
     SELECT DISTINCT pod_key,

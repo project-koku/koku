@@ -65,6 +65,7 @@ from masu.processor.tasks import trigger_ocp_on_cloud_summary
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
+from masu.processor.tasks import UPDATE_OPENSHIFT_ON_CLOUD_TASK
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import validate_daily_data
 from masu.processor.worker_cache import create_single_task_cache_key
@@ -1247,6 +1248,32 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 synchronous=True,
             )
 
+    @patch("masu.processor.tasks.delete_cached_ocp_on_cloud_matched_tags")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.validate_daily_data.s")
+    def test_update_openshift_on_cloud_clears_matched_tags_cache(
+        self, mock_data_validator, mock_cost_updater, mock_updater, mock_delete_tags
+    ):
+        """A new summary run must drop the previous month-wide matched-tags cache entry."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.today.date()
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+            synchronous=True,
+        )
+        mock_delete_tags.assert_called_once_with(
+            self.schema,
+            str(self.ocp_on_aws_ocp_provider.uuid),
+            str(self.aws_provider_uuid),
+            start_date.strftime("%Y-%m"),
+        )
+
     @patch(
         "masu.processor.tasks.is_ocp_on_cloud_summary_disabled",
         return_value=True,
@@ -1800,12 +1827,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock.side_effect = self.lock_single_task
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
 
-        task_name = "masu.processor.tasks.update_openshift_on_cloud"
+        task_name = UPDATE_OPENSHIFT_ON_CLOUD_TASK
         cache_args = [
             self.schema,
-            self.aws_provider_uuid,
-            self.ocpaws_provider_uuid,
-            str(start_date.strftime("%Y-%m")),
+            str(self.aws_provider_uuid),
+            str(self.ocpaws_provider_uuid),
+            start_date.strftime("%Y-%m"),
         ]
 
         manifest_dict = {
@@ -1826,53 +1853,39 @@ class TestWorkerCacheThrottling(MasuTestCase):
         )
         mock_model_update.assert_called_once()
         mock_delay.assert_not_called()
-        update_openshift_on_cloud(
-            self.schema,
-            self.ocpaws_provider_uuid,
-            self.aws_provider_uuid,
-            Provider.PROVIDER_AWS,
-            start_date,
-            end_date,
-        )
-        update_openshift_on_cloud(
-            self.schema,
-            self.ocpaws_provider_uuid,
-            self.aws_provider_uuid,
-            Provider.PROVIDER_AWS,
-            start_date,
-            end_date,
-        )
-        mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))
         # Let the cache entry expire
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
-            with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
-                mock_rate_limit.return_value = False
-                mock_delay.reset_mock()
-                update_openshift_on_cloud(
-                    self.schema,
-                    self.ocpaws_provider_uuid,
-                    self.aws_provider_uuid,
-                    Provider.PROVIDER_AWS,
-                    start_date,
-                    end_date,
-                )
-                mock_delay.assert_not_called()
+        with (
+            patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL),
+            patch("masu.processor.tasks.is_rate_limit_customer_large", return_value=True),
+            patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit,
+        ):
+            mock_rate_limit.return_value = False
+            mock_delay.reset_mock()
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocpaws_provider_uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+            )
+            mock_delay.assert_not_called()
 
-                mock_rate_limit.return_value = True
+            mock_rate_limit.return_value = True
 
-                update_openshift_on_cloud(
-                    self.schema,
-                    self.ocpaws_provider_uuid,
-                    self.aws_provider_uuid,
-                    Provider.PROVIDER_AWS,
-                    start_date,
-                    end_date,
-                )
-                mock_delay.assert_called()
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocpaws_provider_uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+            )
+            mock_delay.assert_called()
 
     @patch("masu.processor.tasks.chain")
     def test_unleash_disable_source(self, mock_chain):

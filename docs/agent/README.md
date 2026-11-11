@@ -11,7 +11,7 @@ The content lives **only here**. Tool-specific directories hold thin wrappers:
 |------|-----------|-------------------------------|----------|
 | Every agent | [`AGENTS.md`](../../AGENTS.md) | Task Router links | [`playbooks/`](playbooks/) |
 | Claude Code | `AGENTS.md` (read natively, no `CLAUDE.md`) | `.claude/rules/<topic>.md` — symlinks to guides here; Claude Code scopes on the guide's `paths:` frontmatter | `.claude/commands/` |
-| Cursor | `AGENTS.md`, `.cursor/rules/{domain-context,multi-tenancy}.mdc` | `.cursor/rules/<topic>.mdc` — `globs` frontmatter + `@docs/agent/<topic>.md` | `.cursor/commands/`, `.cursor/skills/koku-release/` |
+| Cursor | `AGENTS.md`, `.cursor/rules/{domain-context,multi-tenancy}.mdc` | `.cursor/rules/<topic>.mdc` — `globs` frontmatter + `@docs/agent/<topic>.md` | `.cursor/commands/`, `.cursor/skills/koku-release/`, `.cursor/skills/python-import-order/` |
 
 When you change a rule, edit the guide here, not the wrapper. To make a guide
 attach by path in Claude Code, give it `paths:` frontmatter and symlink it:
