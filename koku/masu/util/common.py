@@ -569,6 +569,12 @@ class SummaryRangeConfig(BaseModel):
         description="When True, indicates we are summarizing previous month data (e.g., GPU finalization). "
         "Used to skip certain UI table updates that don't need to be reprocessed.",
     )
+    full_month_distributions: list[dict] = Field(
+        default_factory=list,
+        description="Distributions that ran over a whole month rather than this range (GPU unallocated): "
+        "one entry per run with cost_model_rate_type, start_date, end_date and report_period_id. "
+        "Set by OCPReportDBAccessor.populate_distributed_cost_sql.",
+    )
 
     @field_validator("start_date", "end_date", mode="before")
     @classmethod
