@@ -15,6 +15,7 @@ from rest_framework import serializers
 from api.common import error_obj
 from api.common import log_json
 from api.currency.currencies import CurrencyField
+from api.currency.utils import offline_denomination_validation_detail
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
@@ -534,11 +535,13 @@ class CostModelSerializer(BaseSerializer):
             and data["source_type"] != Provider.PROVIDER_OCP
             and data["source_type"] in SOURCE_TYPE_MAP.keys()
         ):
+            self.validate_offline_denomination_currency(data.get("currency"))
             return data
         if data["source_type"] not in self.metric_map.keys():
             raise serializers.ValidationError("{} is not a valid source.".format(data["source_type"]))
         if data.get("rates"):
             self.validate_rates_currency(data)
+        self.validate_offline_denomination_currency(data.get("currency"))
         return data
 
     def _get_metric_display_data(self, source_type, metric):
@@ -573,6 +576,13 @@ class CostModelSerializer(BaseSerializer):
             raise serializers.ValidationError("Invalid request. Source UUID validation failed.")
 
         return source_uuids
+
+    @staticmethod
+    def validate_offline_denomination_currency(currency):
+        """Require static conversion coverage when dynamic FX is unavailable."""
+        detail = offline_denomination_validation_detail(currency)
+        if detail:
+            raise serializers.ValidationError(detail)
 
     @staticmethod
     def validate_rates_currency(data):

@@ -25,6 +25,9 @@ from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.currencies import is_active_iso_currency
 from api.currency.currencies import is_valid_iso_currency
+from api.currency.utils import currency_conversion_ready
+from api.currency.utils import dynamic_fx_available
+from api.currency.utils import enablement_blocked_detail
 from api.provider.models import Provider
 from api.report.constants import URL_ENCODED_SAFE
 from api.settings.utils import ListField
@@ -34,6 +37,7 @@ from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
 from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import rematerialize_open_static_monthly_rates
 from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
 from koku.cache import build_enabled_currency_codes_key
@@ -359,12 +363,34 @@ class EnabledCurrencyView(APIView):
     @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):
         code = self._validate_code_for_enable(kwargs["code"])
-        _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
-        if created:
+        if EnabledCurrency.objects.filter(currency_code=code).exists():
+            LOG.info(log_json(msg="Currency enabled", currency=code))
+            return Response(status=status.HTTP_200_OK)
+
+        if not dynamic_fx_available() and not currency_conversion_ready(code):
+            detail = enablement_blocked_detail(code)
+            LOG.info(log_json(msg="Currency enable blocked", currency=code, detail=detail))
+            return Response(
+                {
+                    "errors": [
+                        {
+                            "detail": detail,
+                            "source": "currency",
+                            "status": status.HTTP_400_BAD_REQUEST,
+                        }
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        EnabledCurrency.objects.create(currency_code=code)
+        schema_name = request.user.customer.schema_name
+        if dynamic_fx_available():
             populate_dynamic_monthly_rates(code=code)
-            schema_name = request.user.customer.schema_name
-            invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
-            delete_value_from_cache(build_enabled_currency_codes_key(schema_name))
+        else:
+            rematerialize_open_static_monthly_rates(code=code)
+        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        delete_value_from_cache(build_enabled_currency_codes_key(schema_name))
         LOG.info(log_json(msg="Currency enabled", currency=code))
         return Response(status=status.HTTP_200_OK)
 
