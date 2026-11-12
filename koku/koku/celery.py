@@ -386,12 +386,77 @@ def wait_for_migrations(sender, instance, **kwargs):
         debugpy.wait_for_client()
 
 
+def _initialize_unleash_for_celery_worker():
+    from koku.feature_flags import MockUnleashClient, UNLEASH_CLIENT
+
+    if isinstance(UNLEASH_CLIENT, MockUnleashClient):
+        UNLEASH_CLIENT.initialize_client()
+        return
+
+    request_timeout = UNLEASH_CLIENT.unleash_request_timeout
+    startup_request_timeout = min(
+        request_timeout,
+        max(1, WORKER_PROC_ALIVE_TIMEOUT // 2),
+    )
+    transport = UNLEASH_CLIENT._transport
+    register = transport.register
+    registration_succeeded = False
+
+    def register_or_raise(payload):
+        nonlocal registration_succeeded
+        registration_started = time.monotonic()
+        UNLEASH_CLIENT.unleash_request_timeout = startup_request_timeout
+        try:
+            registered = register(payload)
+        except Exception:
+            LOG.exception(
+                "Unleash registration raised after %.3f seconds.",
+                time.monotonic() - registration_started,
+            )
+            raise
+        finally:
+            UNLEASH_CLIENT.unleash_request_timeout = request_timeout
+
+        elapsed = time.monotonic() - registration_started
+        if not registered:
+            LOG.error("Unleash registration failed in %.3f seconds.", elapsed)
+            raise RuntimeError("Unleash registration failed")
+        LOG.info("Unleash registration succeeded in %.3f seconds.", elapsed)
+        registration_succeeded = True
+        return registered
+
+    # Limit the synchronous registration request to the Celery startup budget.
+    LOG.info(
+        "Using a %s-second timeout for Unleash registration " "(Celery child deadline: %s seconds).",
+        startup_request_timeout,
+        WORKER_PROC_ALIVE_TIMEOUT,
+    )
+    transport.register = register_or_raise
+    try:
+        UNLEASH_CLIENT.initialize_client()
+        if not registration_succeeded:
+            raise RuntimeError("Unleash registration was not verified")
+    finally:
+        transport.register = register
+
+
 @worker_process_init.connect
 def init_worker(**kwargs):
-    from koku.feature_flags import UNLEASH_CLIENT
-
-    LOG.debug("Initializing UNLEASH_CLIENT for celery worker.")
-    UNLEASH_CLIENT.initialize_client()
+    started = time.monotonic()
+    try:
+        _initialize_unleash_for_celery_worker()
+    except Exception as exc:
+        LOG.exception(
+            "Unleash initialization failed after %.3f seconds; terminating " "Celery child.",
+            time.monotonic() - started,
+        )
+        # Celery's signal dispatcher catches Exception and continues. SystemExit
+        # escapes that handler so this child cannot report ready after init failed.
+        raise SystemExit(1) from exc
+    LOG.info(
+        "Unleash initialized for Celery child in %.3f seconds.",
+        time.monotonic() - started,
+    )
 
 
 def is_task_currently_running(task_name, task_id, check_args=None):
