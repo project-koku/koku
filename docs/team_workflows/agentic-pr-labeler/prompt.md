@@ -171,7 +171,7 @@ When `koku-ci` runs:
 | Check name | System | Label dependency |
 |---|---|---|
 | `Red Hat Konflux / koku-ci / koku` | Konflux | Requires smoke test label when `smokes-required` present |
-| `Unit Tests` | GitHub Actions | No label dependency |
+| `Units - 3.11` | GitHub Actions | No label dependency |
 | `Sanity` | GitHub Actions | No label dependency |
 | `codecov/patch` | Codecov | No label dependency |
 
