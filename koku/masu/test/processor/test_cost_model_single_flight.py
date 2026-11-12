@@ -5,6 +5,7 @@
 """Tests for single-flight cost model updates per provider and month (COST-8575)."""
 from contextlib import contextmanager
 from datetime import date
+from datetime import timedelta
 from unittest.mock import patch
 
 from masu.processor.tasks import defer_busy_cost_model_update
@@ -108,8 +109,8 @@ class DeferBusyCostModelUpdateTest(MasuTestCase):
         """A pending row's deadline stays put when more runs are deferred into it."""
         defer_busy_cost_model_update(self.schema, self.ocp_provider_uuid, "2026-06-01", "2026-06-02", "q")
         deadline = self._rows().get().timeout_timestamp
-        # Defer again at the first deadline: a plain reset would move it COST_MODEL_BUSY_DEFER_SECONDS later.
-        with patch("reporting_common.models.timezone.now", return_value=deadline):
+        # Defer again 10 minutes later, before the beat fired the row: a plain reset would move the deadline there.
+        with patch("reporting_common.models.timezone.now", return_value=deadline + timedelta(minutes=10)):
             defer_busy_cost_model_update(self.schema, self.ocp_provider_uuid, "2026-06-03", "2026-06-04", "q")
         self.assertEqual(self._rows().get().timeout_timestamp, deadline)
 

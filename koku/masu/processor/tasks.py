@@ -83,8 +83,10 @@ LOG = logging.getLogger(__name__)
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
-# A run whose provider-month lock stays busy is retried through the delayed tasks after this.
-COST_MODEL_BUSY_DEFER_SECONDS = 300
+# Deadline of a deferred busy run's delayed-task row. The row fires on the delayed-tasks beat
+# (every DELAYED_TASK_POLLING_MINUTES) once its deadline has passed, so 0 makes it eligible on the
+# next tick; the two-minute lock wait already covers "the other run is almost done".
+COST_MODEL_BUSY_DEFER_SECONDS = 0
 APPLY_TAG_MAPPINGS_TASK = "masu.processor.tasks.apply_tag_mappings"
 UPDATE_OPENSHIFT_ON_CLOUD_TASK = "masu.processor.tasks.update_openshift_on_cloud"
 

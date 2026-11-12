@@ -176,10 +176,21 @@ class DelayedCeleryTasks(models.Model):
     def trigger_delayed_tasks(cls):
         """Removes expired records triggering the celery task
         through the pre_delete signal trigger_celery_task.
+
+        The expired rows are locked and deleted in one transaction, so
+        pre_delete sends each row's current payload: a concurrent
+        create_or_reset_timeout (which also locks the row) either finishes
+        first, and its merged date range is what fires, or waits and then
+        finds the row gone and creates a new one. Without the lock, a merge
+        into an expired row (kept expired by keep_earlier_deadline) between
+        the read and the delete was lost: the old range fired and the merged
+        row was deleted.
         """
         now = timezone.now()
-        expired_records = cls.objects.filter(timeout_timestamp__lt=now)
-        expired_records.delete()
+        with transaction.atomic():
+            expired_records = list(cls.objects.select_for_update().filter(timeout_timestamp__lt=now).order_by("pk"))
+            for record in expired_records:
+                record.delete()
 
     @staticmethod
     def _merge_task_kwargs_date_range(existing_kwargs, new_kwargs):
