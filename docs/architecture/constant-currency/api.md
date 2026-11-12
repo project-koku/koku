@@ -197,13 +197,44 @@ Enable a **current tender** ISO 4217 currency for the tenant (not in
 
 **Success:** `200` with empty body.
 
-**Side effects (product behavior):** covering `StaticExchangeRate` definitions
-for this currency are rematerialized into STATIC monthly rates from the current
-month through each definition's end date (so a disable → re-enable cycle
-restores still-valid overrides, including future months). Remaining enabled
-pairs then receive dynamic monthly rates for the current month and the next
-month when market data is available. Missing past months in the retention window
-are filled from the next later monthly rate. Report caches for the tenant are invalidated.
+**When `CURRENCY_URL` is not configured:** enablement requires direct
+conversion coverage from `{code}` to the system default currency and account
+display currency across the retained reporting window through the **next
+month**. Coverage may come from stored monthly rates and/or month-aligned
+static exchange-rate windows. Otherwise `400`:
+
+```json
+{
+  "errors": [
+    {
+      "detail": "Cannot enable EUR without static exchange rates from EUR to USD across the retained reporting window through the next month. Create static rates via /settings/currency/static-rates/ then retry.",
+      "source": "currency",
+      "status": 400
+    }
+  ]
+}
+```
+
+**Side effects (product behavior):** report caches for the tenant are
+invalidated on every successful enable.
+
+When **`CURRENCY_URL` is configured**, enablement runs
+[`populate_dynamic_monthly_rates`](../../../koku/cost_models/monthly_exchange_rate_utils.py).
+Covering `StaticExchangeRate` definitions for this currency are rematerialized
+into STATIC monthly rates from the current month through each definition's end
+date (so a disable → re-enable cycle restores still-valid overrides, including
+future months). Remaining enabled pairs then receive dynamic monthly rates for
+the current month and the next month when market data is available. Missing past
+months in the retention window are filled from the next later monthly rate.
+
+When **`CURRENCY_URL` is not configured**, enablement runs only
+[`rematerialize_open_static_monthly_rates`](../../../koku/cost_models/monthly_exchange_rate_utils.py)
+for the enabled code: surviving static definitions are written as STATIC monthly
+rates for unfinalized months from the current month through each definition's end
+date (again restoring overrides after disable → re-enable). There is no dynamic
+rate fetch and **no** retention-window backfill on enable; months in the retained
+window must already be covered by monthly rates created when static definitions
+were saved (or by earlier pipeline activity).
 
 ---
 
@@ -336,6 +367,22 @@ Past-month rates may be deleted. STATIC monthly overrides in the window,
 including future months, are removed. The current month and the next month are
 restored from ERD when possible, and past gaps use next-later MER backfill.
 Months beyond the next month are left without a dynamic row.
+
+---
+
+## Related denomination validation
+
+When `CURRENCY_URL` is not configured, other APIs that accept a denomination
+currency also require offline conversion readiness:
+
+- cost model create/update
+- price list create/update
+
+Those validations use the same target set as currency enablement (system
+default currency plus account display currency) and the same coverage horizon:
+the retained reporting window through the next month. Validation errors direct
+administrators to create static exchange rates via
+`/settings/currency/static-rates/` or configure dynamic FX.
 
 ---
 

@@ -7,6 +7,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.db.models import Case
+from django.db.models import Q
 from django.test import override_settings
 from django_tenants.utils import schema_context
 
@@ -14,12 +15,19 @@ from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import build_exchange_dictionary
 from api.currency.utils import build_exchange_rate_case
+from api.currency.utils import conversion_coverage
+from api.currency.utils import currency_conversion_ready
+from api.currency.utils import dynamic_fx_available
+from api.currency.utils import enablement_blocked_detail
 from api.currency.utils import ensure_exchange_rate_dictionary
 from api.currency.utils import exchange_dictionary
 from api.currency.utils import get_monthly_exchange_rate
+from api.currency.utils import required_targets_for_enablement
+from api.currency.utils import restrict_enabled_currencies_for_onprem_offline
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
+from cost_models.models import StaticExchangeRate
 from koku.cache import build_enabled_currency_codes_key
 from koku.cache import delete_value_from_cache
 
@@ -131,3 +139,73 @@ class CurrencyUtilsTest(IamTestCase):
         """Raises ExchangeRateNotFound when no MER row exists."""
         with schema_context(self.schema_name), self.assertRaises(ExchangeRateNotFound):
             get_monthly_exchange_rate("USD", "EUR", date(2026, 3, 1))
+
+    @override_settings(CURRENCY_URL="")
+    def test_dynamic_fx_available_false_without_url(self):
+        """Dynamic FX requires a non-empty CURRENCY_URL."""
+        self.assertFalse(dynamic_fx_available())
+
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
+    def test_dynamic_fx_available_true_with_url(self):
+        self.assertTrue(dynamic_fx_available())
+
+    def test_restrict_enabled_currencies_for_onprem_offline(self):
+        """Keeps USD and account display currency; removes other enabled codes."""
+        from reporting.user_settings.models import UserSettings
+
+        with schema_context(self.schema_name):
+            EnabledCurrency.objects.all().delete()
+            for code in ("USD", "EUR", "NOK"):
+                EnabledCurrency.objects.create(currency_code=code)
+            UserSettings.objects.all().delete()
+            UserSettings.objects.create(settings={"currency": "NOK"})
+            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
+
+            removed = restrict_enabled_currencies_for_onprem_offline(self.schema_name)
+            self.assertEqual(set(removed), {"EUR"})
+            enabled = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+            self.assertEqual(enabled, {"USD", "NOK"})
+
+    @override_settings(CURRENCY_URL="")
+    def test_currency_conversion_ready_false_without_static_rates(self):
+        with schema_context(self.schema_name):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            MonthlyExchangeRate.objects.filter(Q(base_currency="EUR") | Q(target_currency="EUR")).delete()
+            self.assertFalse(currency_conversion_ready("EUR"))
+
+    @override_settings(CURRENCY_URL="")
+    def test_conversion_coverage_uses_static_rate_window(self):
+        from api.utils import materialized_view_month_start
+        from api.utils import to_date
+
+        month = date(2026, 3, 1)
+        with schema_context(self.schema_name):
+            StaticExchangeRate.objects.create(
+                base_currency="NOK",
+                target_currency="USD",
+                exchange_rate=Decimal("0.10"),
+                start_date=month,
+                end_date=date(2026, 3, 31),
+            )
+            retention = to_date(materialized_view_month_start(schema_name=self.schema_name))
+            self.assertTrue(conversion_coverage("NOK", "USD", month, month))
+            if retention < month:
+                self.assertFalse(conversion_coverage("NOK", "USD", retention, month))
+
+    @override_settings(CURRENCY_URL="")
+    def test_currency_conversion_ready_requires_display_currency_target(self):
+        """Offline readiness requires coverage to the account display currency as a second target."""
+        from reporting.user_settings.models import UserSettings
+
+        with schema_context(self.schema_name):
+            UserSettings.objects.all().delete()
+            UserSettings.objects.create(settings={"currency": "GBP"})
+
+            self.assertEqual(required_targets_for_enablement(), {"USD", "GBP"})
+            with patch("api.currency.utils.conversion_coverage", side_effect=[True, False]) as mock_coverage:
+                self.assertFalse(currency_conversion_ready("EUR"))
+            self.assertEqual(mock_coverage.call_count, 2)
+            called_targets = {call.args[1] for call in mock_coverage.call_args_list}
+            self.assertEqual(called_targets, {"USD", "GBP"})
+            self.assertIn("GBP", enablement_blocked_detail("EUR"))

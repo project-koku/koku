@@ -100,6 +100,8 @@ class PriceListSerializer(BaseSerializer):
         if data.get("rates"):
             CostModelSerializer.validate_rates_currency(data)
 
+        CostModelSerializer.validate_offline_denomination_currency(data.get("currency"))
+
         return data
 
     def _check_write_freeze(self):
