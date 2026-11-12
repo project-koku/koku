@@ -114,7 +114,7 @@ subject; first line under 72 characters.
 | `cost_models/models.py` or `rate_sync.py` | Test cost model create/update/delete end-to-end |
 | API views or serializers | `docs/specs/openapi.json` |
 | Environment variables | `deploy/clowdapp.yaml`, `koku/koku/settings.py`, `.env.example` |
-| Celery tasks | Ensure `@celery_app.task(name=...)` matches function name (exception: legacy names for backwards compat) |
+| Celery tasks | Ensure `@celery_app.task(name=...)` matches function name (exception: legacy names for backwards compat); behaviour changes (scheduling, locking, retry or deferral, chaining, delayed tasks) → `docs/architecture/celery-tasks.md` |
 | New Unleash flag | `koku/masu/processor/__init__.py` (constant); `koku/koku/feature_flags.py` only if on-prem default needed; follow [`docs/agent/unleash-flags.md`](docs/agent/unleash-flags.md) |
 | Provider-specific code (aws/azure/gcp/ocp) | Check other providers for parity |
 | Django models (field changes) | Include migration in same or paired PR |
