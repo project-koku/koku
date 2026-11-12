@@ -52,6 +52,35 @@ def _iter_month_starts(start_date, end_date):
         month += relativedelta(months=1)
 
 
+def _month_has_conversion(base_currency, target_currency, month_start):
+    """True when MER or a static rate window covers base→target for the month."""
+    if base_currency == target_currency:
+        return True
+    if MonthlyExchangeRate.objects.filter(
+        effective_date=month_start,
+        base_currency=base_currency,
+        target_currency=target_currency,
+    ).exists():
+        return True
+    return _explicit_static_rate_exists(base_currency, target_currency, month_start)
+
+
+def conversion_coverage(base_currency, target_currency, start_month, end_month):
+    """Return True when every month in range has a direct conversion path."""
+    base_currency = base_currency.upper()
+    target_currency = target_currency.upper()
+    if base_currency == target_currency:
+        return True
+    start = to_date(start_month).replace(day=1)
+    end = to_date(end_month).replace(day=1)
+    if start > end:
+        return False
+    for month_start in _iter_month_starts(start, end):
+        if not _month_has_conversion(base_currency, target_currency, month_start):
+            return False
+    return True
+
+
 def _months_in_static_window(start_date, end_date):
     """Months to materialize for a static rate: retention through the rate's end month.
 

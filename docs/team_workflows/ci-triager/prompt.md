@@ -22,7 +22,7 @@ Read this section carefully before diagnosing any failure. It encodes Koku-speci
 
 | Check name | System | What it runs |
 |---|---|---|
-| `Unit Tests` | GitHub Actions (`ci.yml`) | Django test suite via tox/pytest |
+| `Units - 3.11` | GitHub Actions (`ci.yml`) | Django test suite via tox/pytest |
 | `Sanity` | GitHub Actions (`ci.yml`) | pre-commit hooks: black, flake8, reorder-python-imports, pyupgrade, trailing-whitespace, check-pipfile-lock |
 | `codecov/patch` | Codecov | Patch coverage must be ≥90% (5% threshold) |
 | `codecov/project` | Codecov | Project-wide coverage |
@@ -126,7 +126,7 @@ print(json.dumps(filtered))
 ```
 
 For each PR:
-- Check `statusCheckRollup` for failing checks (`Unit Tests`, `Sanity`, `codecov/*`, `koku-ci`)
+- Check `statusCheckRollup` for failing checks (`Units - 3.11`, `Sanity`, `codecov/*`, `koku-ci`)
 - Always run the **migration count check** regardless of check status (see Step 2)
 - Skip PRs where all checks pass and no migration warning is needed
 

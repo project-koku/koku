@@ -40,12 +40,20 @@ def _populate_exchange_rates_for_new_schema(schema_name):
     """Best-effort monthly rate fill after a tenant schema is cloned.
 
     Ensures ExchangeRateDictionary is populated when empty (CURRENCY_URL fetch),
-    then writes MER for this schema. Schema creation must succeed even when the
-    shared dictionary stays empty or the write fails. The daily currency task
-    retries every tenant.
+    then writes MER for this schema. On on-prem without ``CURRENCY_URL``, trim
+    the migration seed to USD (and account display currency) before populating.
+    Schema creation must succeed even when the shared dictionary stays empty or
+    the write fails. The daily currency task retries every tenant.
     """
     try:
+        from django.conf import settings
+
+        from api.currency.utils import dynamic_fx_available
+        from api.currency.utils import restrict_enabled_currencies_for_onprem_offline
         from cost_models.monthly_exchange_rate_utils import populate_monthly_rates_for_schema
+
+        if settings.ONPREM and not dynamic_fx_available():
+            restrict_enabled_currencies_for_onprem_offline(schema_name)
 
         populate_monthly_rates_for_schema(schema_name)
     except Exception as exc:
