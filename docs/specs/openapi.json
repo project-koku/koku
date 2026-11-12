@@ -6626,6 +6626,111 @@
                 }
             }
         },
+        "/settings/currency/enabled/{code}/": {
+            "post": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Enable a currency for the tenant",
+                "operationId": "postSettingsCurrencyEnabled",
+                "description": "Enable a current tender ISO 4217 currency. When CURRENCY_URL is not configured, enablement requires static exchange rate coverage from the currency to the system default and account display currency across the retained reporting window through the next month.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "code",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "ISO 4217 currency code to enable"
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Currency enabled (or already enabled)"
+                    },
+                    "400": {
+                        "description": "Invalid code, or static exchange rates required before enable when dynamic market rates are unavailable",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "example": {
+                                    "errors": [
+                                        {
+                                            "detail": "Cannot enable EUR without static exchange rates from EUR to USD across the retained reporting window through the next month. Create static rates via /settings/currency/static-rates/ then retry.",
+                                            "source": "currency",
+                                            "status": 400
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Disable a currency for the tenant",
+                "operationId": "deleteSettingsCurrencyEnabled",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "code",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Currency disabled"
+                    },
+                    "400": {
+                        "description": "Cannot disable (in use or last enabled currency)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
         "/settings/cost-groups/": {
             "get": {
                 "tags": [
