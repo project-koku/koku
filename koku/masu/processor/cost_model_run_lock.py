@@ -35,6 +35,22 @@ def billing_months(start_date, end_date):
     return [month_start.replace(day=1) for month_start, _ in DateHelper().list_month_tuples(start_date, end_date)]
 
 
+def cost_model_run_months(start_date, end_date):
+    """Billing months a cost model run for [start_date, end_date] writes, in order.
+
+    Its own months, plus the previous month on the 2nd when the range covers the current month:
+    the full-month GPU distribution of such a run covers the whole previous month
+    (OCPReportDBAccessor.populate_distributed_cost_sql, requires_full_month; COST-8586), so the run
+    must hold that month's lock too.
+    """
+    months = billing_months(start_date, end_date)
+    dh = DateHelper()
+    previous = dh.last_month_start.date()
+    if dh.now_utc.day == 2 and dh.this_month_start.date() in months and previous not in months:
+        months.insert(0, previous)
+    return months
+
+
 def _lock_key(provider_uuid, month):
     return f"{provider_uuid}:{month.isoformat()}"
 
