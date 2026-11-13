@@ -30,6 +30,7 @@ class MockUnleashClient:
     """Mock Unleash Client for ONPREM mode."""
 
     ONPREM_FLAG_DEFAULTS = {
+        "cost-management.backend.currency-discovery-optimization": False,
         "cost-management.backend.aws_empty_split_finalization": True,
         "cost-management.backend.ocp_gpu_cost_model": True,
         "cost-management.backend.disable-ingress-rate-limit": True,
