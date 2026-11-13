@@ -2,37 +2,32 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Regression: on-prem GPU/VM cost-model SQL must not bind a raw UUID against a varchar column.
+"""GPU/VM cost-model SQL must not compare a varchar `source` column with an unconverted source_uuid.
 
-Found while triaging a PR #6102 review comment on distribute_unallocated_gpu_cost.sql
-(source = {{source_uuid}} with no cast/filter). openshift_gpu_usage_line_items_daily.source
-and openshift_vm_usage_line_items.source are both deliberately `varchar` (see
-OCPLineItemBase.source in reporting/provider/ocp/self_hosted_models.py: "source is stored
-as varchar to match Trino/parquet storage and existing SQL joins"), but every GPU/VM
-cost-model call site passes source_uuid as a Python uuid.UUID (Provider.uuid / self._provider_uuid),
-not a string. Confirmed live against Postgres: binding a raw uuid.UUID against a varchar
-column with psycopg2/Django's UUID adaptation raises:
+openshift_gpu_usage_line_items_daily.source and openshift_vm_usage_line_items.source are
+deliberately `varchar` (see OCPLineItemBase.source in reporting/provider/ocp/self_hosted_models.py:
+"source is stored as varchar to match Trino/parquet storage and existing SQL joins"). On
+PostgreSQL (on-prem), binding a uuid.UUID against them with psycopg2/Django's UUID adaptation
+raises:
 
     ProgrammingError: operator does not exist: character varying = uuid
 
-This is not a cosmetic inconsistency -- it is the exact class of bug already fixed for
-distribute_unallocated_gpu_cost_rtu.sql (which applies the `| string` Jinja filter at its
-equivalent comparison). At the time of this fix, the SAME bare `<col> = {{source_uuid}}`
-pattern (no cast, no filter) existed -- unfixed -- in 22 template files across both
-self_hosted_sql/ and trino_sql/ (VM hourly/monthly tag-based costs, GPU monthly costs, and
-the GPU UI-summary template), none of which had any test coverage that executes against a
-real database with a real uuid.UUID: the only existing coverage
+Today's callers pass a string (BaseCostModelParams converts source_uuid; the cost model updater's
+_provider_uuid is str(provider.uuid); the GPU usage-only summary converts explicitly), so this is
+a latent hazard rather than a live failure: any caller that passes Provider.uuid as is would
+fail on-prem. The `| string` Jinja filter (already used by distribute_unallocated_gpu_cost_rtu.sql)
+makes the templates independent of the caller. 24 templates across self_hosted_sql/ and trino_sql/
+compared the column unconverted (COST-8120). Existing coverage
 (test_gpu_sql_template_includes_unmatched_models_with_zero_cost et al. in
-test_ocp_report_db_accessor.py) renders the SQL text with a plain *string* source_uuid
-param via JinjaSql.prepare_query and only asserts on the rendered SQL text, never executing
-it -- so it could not have caught this.
+test_ocp_report_db_accessor.py) renders the SQL with a string source_uuid and asserts on the text
+only, so it could not have caught this.
 
 Two things below:
   1. A minimal, direct reproduction of the underlying Postgres mechanism against the actual
      production tables/columns (openshift_gpu_usage_line_items_daily.source and
      openshift_vm_usage_line_items.source), using the exact same JinjaSql param_style
      ("pyformat") that ReportDBAccessorBase.prepare_query uses for the self_hosted_sql path.
-     This generalizes to every one of the 22 fixed files, since they all share these same
+     This generalizes to every one of the 24 fixed files, since they all share these same
      two columns and the same binding mechanism.
   2. A static guard scanning every self_hosted_sql/ and trino_sql/ template for a
      reintroduced bare `<col>.source = {{source_uuid}}` (or `source = {{source_uuid}}`)
@@ -64,8 +59,6 @@ _VARCHAR_SOURCE_TABLES = [
 ]
 
 # Directories containing the affected templates, relative to the `masu/` package root.
-# distribute_unallocated_gpu_cost*.sql is intentionally excluded here -- it already has its
-# own coverage/fix (see PR #6102).
 _SQL_TEMPLATE_DIRS = [
     "database/self_hosted_sql/openshift",
     "database/trino_sql/openshift",
@@ -94,8 +87,7 @@ class SourceUUIDVarcharTypeCastTest(django.test.TransactionTestCase):
 
         Uses the exact JinjaSql param_style ("pyformat") that
         ReportDBAccessorBase.prepare_query uses for every self_hosted_sql template, and a
-        real uuid.UUID object for source_uuid -- exactly what every GPU/VM cost-model call
-        site actually passes (Provider.uuid / self._provider_uuid), never a plain string.
+        real uuid.UUID object for source_uuid, as a caller passing Provider.uuid as is would.
         """
         template = f"SELECT count(*) FROM {{{{schema | sqlsafe}}}}.{table} WHERE {source_uuid_expr}"
         sql, params = self.jinjasql.prepare_query(template, {"schema": self.schema, "source_uuid": self.source_uuid})
@@ -136,7 +128,7 @@ class SourceUUIDVarcharTypeCastStaticGuardTest(django.test.SimpleTestCase):
 
     Scans every .sql file under the affected directories for a bare
     `<alias.>source = {{source_uuid}}` comparison with no `| string` filter or `::` cast.
-    Catches both regressions to the 22 files fixed here and any new call site that copies
+    Catches both regressions to the 24 files fixed here and any new call site that copies
     the old (unsafe) pattern instead of an existing (fixed) sibling.
     """
 
@@ -145,13 +137,8 @@ class SourceUUIDVarcharTypeCastStaticGuardTest(django.test.SimpleTestCase):
         offenders = []
         for rel_dir in _SQL_TEMPLATE_DIRS:
             search_root = repo_masu_dir / rel_dir
-            if not search_root.exists():
-                continue
+            self.assertTrue(search_root.is_dir(), f"template directory moved: {search_root}")
             for sql_file in search_root.rglob("*.sql"):
-                if sql_file.name == "distribute_unallocated_gpu_cost.sql":
-                    # Fixed separately in PR #6102 (still open at the time of writing) --
-                    # excluded here to avoid a merge-order dependency between the two PRs.
-                    continue
                 text = sql_file.read_text()
                 if _UNSAFE_PATTERN.search(text):
                     offenders.append(str(sql_file.relative_to(repo_masu_dir.parent)))
