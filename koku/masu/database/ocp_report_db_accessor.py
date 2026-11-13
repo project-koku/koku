@@ -76,7 +76,7 @@ from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
-from reporting.provider.ocp.models import UI_SUMMARY_TABLES
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES_WITHOUT_COST_BREAKDOWN
 from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
 LOG = logging.getLogger(__name__)
@@ -152,8 +152,16 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the report periods with report period before provided date."""
         return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
 
-    def populate_ui_summary_tables(self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES):
-        """Populate our UI summary tables (formerly materialized views)."""
+    def populate_ui_summary_tables(
+        self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES_WITHOUT_COST_BREAKDOWN
+    ):
+        """Populate our UI summary tables (formerly materialized views).
+
+        The cost breakdown is rebuilt only when `tables` names it. It is built from rates_to_usage alone,
+        which only the cost model update writes, so only that update asks for it: a report summary
+        rebuilding it would recompute the same rows, unlocked, while a cost model run rewrites them
+        (COST-8117). Every OCP summary is followed by a cost model update for the same range.
+        """
         sql_params = {
             "start_date": summary_range.start_date,
             "end_date": summary_range.end_date,
