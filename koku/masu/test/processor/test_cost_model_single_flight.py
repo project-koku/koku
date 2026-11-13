@@ -29,7 +29,7 @@ def _locks(acquired):
 
 @patch("masu.processor.tasks.CostModelCostUpdater")
 class CostModelSingleFlightTaskTest(MasuTestCase):
-    """update_cost_model_costs under the single-flight flag."""
+    """update_cost_model_costs runs one at a time per provider month."""
 
     def setUp(self):
         super().setUp()
@@ -42,18 +42,8 @@ class CostModelSingleFlightTaskTest(MasuTestCase):
             task_name=UPDATE_COST_MODEL_COSTS_TASK, provider_uuid=self.ocp_provider_uuid
         )
 
-    @patch("masu.processor.tasks.is_cost_model_single_flight_enabled", return_value=False)
-    def test_flag_off_runs_without_the_lock(self, _flag, mock_updater):
-        """Flag off: no provider-month lock, the update runs as before."""
-        fake, calls = _locks(True)
-        with patch("masu.processor.tasks.provider_month_locks", fake):
-            update_cost_model_costs(self.schema, self.ocp_provider_uuid, "2026-06-01", "2026-06-10")
-        self.assertEqual(calls, [])
-        mock_updater.return_value.update_cost_model_costs.assert_called_once_with("2026-06-01", "2026-06-10")
-
-    @patch("masu.processor.tasks.is_cost_model_single_flight_enabled", return_value=True)
-    def test_flag_on_runs_under_the_lock_of_every_month(self, _flag, mock_updater):
-        """Flag on: the update runs while holding the lock of each billing month of its range."""
+    def test_runs_under_the_lock_of_every_month(self, mock_updater):
+        """The update runs while holding the lock of each billing month of its range."""
         fake, calls = _locks(True)
         with patch("masu.processor.tasks.provider_month_locks", fake):
             update_cost_model_costs(self.schema, self.ocp_provider_uuid, "2026-06-20", "2026-07-03")
@@ -61,9 +51,8 @@ class CostModelSingleFlightTaskTest(MasuTestCase):
         mock_updater.return_value.update_cost_model_costs.assert_called_once_with("2026-06-20", "2026-07-03")
         self.assertFalse(self._rows().exists())
 
-    @patch("masu.processor.tasks.is_cost_model_single_flight_enabled", return_value=True)
-    def test_busy_lock_defers_instead_of_writing(self, _flag, mock_updater):
-        """Flag on, lock busy: nothing is written; the window goes to the delayed tasks and the worker is free."""
+    def test_busy_lock_defers_instead_of_writing(self, mock_updater):
+        """Lock busy: nothing is written; the window goes to the delayed tasks and the worker is free."""
         fake, _ = _locks(False)
         with patch("masu.processor.tasks.provider_month_locks", fake):
             update_cost_model_costs(
@@ -78,8 +67,7 @@ class CostModelSingleFlightTaskTest(MasuTestCase):
         self.assertEqual(row.queue_name, "cost_model")
         self.assertEqual(row.metadata, {"billing_month": "2026-06-01", "keep_earlier_deadline": True})
 
-    @patch("masu.processor.tasks.is_cost_model_single_flight_enabled", return_value=True)
-    def test_synchronous_runs_without_the_lock(self, _flag, mock_updater):
+    def test_synchronous_runs_without_the_lock(self, mock_updater):
         """Synchronous calls keep today's behaviour: deferring would leave the caller without costs."""
         fake, calls = _locks(False)
         with patch("masu.processor.tasks.provider_month_locks", fake):
