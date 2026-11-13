@@ -10,8 +10,8 @@ provider with different, overlapping windows can run concurrently (WorkerCache k
 If one run's insert lands after the other run's delete, both runs' rows survive: without a lock this
 test leaves 6 Cluster rows instead of 3 and doubles the cost.
 
-Both runs here go through the provider-month lock that update_cost_model_costs takes under the
-single-flight flag. Run A pauses between its delete and its insert; run B, overlapping, cannot get
+Both runs here go through the provider-month lock that update_cost_model_costs holds for the whole
+run (single-flight). Run A pauses between its delete and its insert; run B, overlapping, cannot get
 the lock and writes nothing (the task hands such a run to the delayed tasks).
 """
 import threading

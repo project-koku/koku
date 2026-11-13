@@ -74,7 +74,7 @@ from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
-from reporting.provider.ocp.models import UI_SUMMARY_TABLES
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES_WITHOUT_COST_BREAKDOWN
 from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
 LOG = logging.getLogger(__name__)
@@ -117,8 +117,16 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the report periods with report period before provided date."""
         return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
 
-    def populate_ui_summary_tables(self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES):
-        """Populate our UI summary tables (formerly materialized views)."""
+    def populate_ui_summary_tables(
+        self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES_WITHOUT_COST_BREAKDOWN
+    ):
+        """Populate our UI summary tables (formerly materialized views).
+
+        The cost breakdown is rebuilt only when `tables` names it. It is built from rates_to_usage alone,
+        which only the cost model update writes, so only that update asks for it: a report summary
+        rebuilding it would recompute the same rows, unlocked, while a cost model run rewrites them
+        (COST-8117). Every OCP summary is followed by a cost model update for the same range.
+        """
         sql_params = {
             "start_date": summary_range.start_date,
             "end_date": summary_range.end_date,
@@ -1009,6 +1017,18 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
             if use_rtu:
                 self._delete_distributed_rtu_rows(sql_params, cost_model_key)
+            if config.requires_full_month:
+                # The window can differ from the run's (whole month; the previous month on the 2nd).
+                # The daily summary changed over all of it, so the caller must aggregate and
+                # refresh the UI summaries for this window too (COST-8586).
+                summary_range.full_month_distributions.append(
+                    {
+                        "cost_model_rate_type": config.cost_model_rate_type,
+                        "start_date": sql_params["start_date"],
+                        "end_date": sql_params["end_date"],
+                        "report_period_id": report_period.id,
+                    }
+                )
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
                 continue
@@ -1556,6 +1576,41 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg="aggregating rates_to_usage → daily summary", context=sql_params))
         with self._distribution_provider_lock(source_uuid):
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+
+    def aggregate_distributed_rates_to_daily_summary(
+        self,
+        start_date,
+        end_date,
+        source_uuid,
+        report_period_id,
+        cost_model_rate_type,
+        cost_model_currency="USD",
+    ):
+        """Copy one distribution type's RatesToUsage rows into the daily summary for a window (COST-8586).
+
+        For a full-month distribution, whose window can differ from the run's
+        (see SummaryRangeConfig.full_month_distributions). Replaces only rows of
+        that cost_model_rate_type, so it is safe after aggregate_rates_to_daily_summary.
+        Runs under _distribution_provider_lock, as the aggregate does.
+        """
+        table_name = self._table_map["line_item_daily_summary"]
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/aggregate_distributed_rates_to_daily_summary.sql",
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "source_uuid": source_uuid,
+            "report_period_id": report_period_id,
+            "cost_model_rate_type": cost_model_rate_type,
+            "cost_model_currency": cost_model_currency,
+        }
+        LOG.info(log_json(msg="aggregating distributed rates_to_usage → daily summary", context=sql_params))
+        with self._distribution_provider_lock(source_uuid):
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
     def validate_rates_against_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
         """CI-only: return diff rows between RTU aggregates and daily summary. Empty = correct."""

@@ -37,6 +37,7 @@ from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import RatesToUsage
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 # ---------------------------------------------------------------------------
 # Tier 1 — Unit Tests
@@ -2733,9 +2734,9 @@ class TestLegacyDistributePath(_ReportPeriodMixin, MasuTestCase):
         mock_ui.assert_called_once()
         args, kwargs = mock_ui.call_args
         self.assertEqual(args[1], self.ocp_provider_uuid)
-        # No explicit `tables` override on the RTU path: default UI_SUMMARY_TABLES
-        # (which includes cost breakdown) is used.
-        self.assertNotIn("tables", kwargs)
+        # The RTU path asks for every UI summary table, cost breakdown included (it is not in the default).
+        self.assertEqual(kwargs["tables"], UI_SUMMARY_TABLES)
+        self.assertIn(COST_BREAKDOWN_UI_SUMMARY_TABLE, kwargs["tables"])
 
 
 class TestRTUCapacityColumns(_ReportPeriodMixin, MasuTestCase):
