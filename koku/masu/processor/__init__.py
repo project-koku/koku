@@ -27,6 +27,7 @@ CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
 COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
 CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
+CURRENCY_DISCOVERY_OPTIMIZATION_FLAG = "cost-management.backend.currency-discovery-optimization"
 DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
@@ -54,6 +55,11 @@ def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):
         return UNLEASH_CLIENT.is_enabled(feature_flag, context, fallback_development_true)
     else:
         return UNLEASH_CLIENT.is_enabled(feature_flag, context)
+
+
+def is_currency_discovery_optimization_enabled(schema: str) -> bool:
+    """Keep this rollout OFF unless explicitly enabled, including development."""
+    return is_feature_flag_enabled_by_schema(schema, CURRENCY_DISCOVERY_OPTIMIZATION_FLAG, dev_fallback=False)
 
 
 def is_apply_tag_mappings_enabled(schema):  # pragma: no cover

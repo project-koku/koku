@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import logging
+from datetime import date
 from decimal import Decimal
 
 from django.conf import settings
@@ -150,7 +151,30 @@ def get_monthly_exchange_rate(base_currency, target_currency, month_start):
     return rate
 
 
-def get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, end_date):
+def load_monthly_exchange_rate_snapshot(
+    target_currency: str, start_date: date, end_date: date
+) -> tuple[tuple[str, date, Decimal], ...]:
+    """Read bounded target/month metadata once, before discovering required bases."""
+    return tuple(
+        MonthlyExchangeRate.objects.filter(
+            effective_date__gte=start_date.replace(day=1),
+            effective_date__lte=end_date.replace(day=1),
+            target_currency=target_currency,
+        ).values_list("base_currency", "effective_date", "exchange_rate")
+    )
+
+
+def build_monthly_exchange_rate_snapshot_map(rates, target_currency, start_date, end_date):
+    """Build available annotations without validating currencies absent from facts."""
+    months = DateHelper().list_month_tuples(start_date.replace(day=1), end_date)
+    result = {target_currency: {month: Decimal("1") for month, _end in months}}
+    for base, month, rate in rates:
+        if base != target_currency:
+            result.setdefault(base, {})[month] = rate
+    return result
+
+
+def get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, end_date, *, rates=None):
     """Return monthly exchange rates for each base currency and month in range.
 
     The returned shape is ``{base_currency: {month_start: exchange_rate}}``.
@@ -170,15 +194,17 @@ def get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, 
         return rates_by_currency
 
     end_month = months[-1]
-    rates = MonthlyExchangeRate.objects.filter(
-        effective_date__gte=start_month,
-        effective_date__lte=end_month,
-        base_currency__in=bases_needing_conversion,
-        target_currency=target_currency,
-    ).values_list("base_currency", "effective_date", "exchange_rate")
+    if rates is None:
+        rates = MonthlyExchangeRate.objects.filter(
+            effective_date__gte=start_month,
+            effective_date__lte=end_month,
+            base_currency__in=bases_needing_conversion,
+            target_currency=target_currency,
+        ).values_list("base_currency", "effective_date", "exchange_rate")
 
     for base, effective_date, exchange_rate in rates:
-        rates_by_currency.setdefault(base, {})[effective_date] = exchange_rate
+        if base in bases_needing_conversion and start_month <= effective_date <= end_month:
+            rates_by_currency.setdefault(base, {})[effective_date] = exchange_rate
 
     missing = bases_needing_conversion - set(rates_by_currency.keys())
     if missing:

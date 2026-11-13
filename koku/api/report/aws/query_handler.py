@@ -22,6 +22,7 @@ from api.report.aws.provider_map import AWSProviderMap
 from api.report.aws.provider_map import CSV_FIELD_MAP
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import AWS_MARKUP_COST
+from api.report.queries import currency_coverage_snapshot
 from api.report.queries import ReportQueryHandler
 from api.report.queries import strip_prefix
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
@@ -82,6 +83,13 @@ class AWSReportQueryHandler(ReportQueryHandler):
             previous_filter = copy.deepcopy(self._get_filter(delta=True))
             self.query_exclusions = self._org_unit_conversion_exclusions
             self._org_unit_previous_conversion_filter = previous_filter
+
+    def _supports_aggregate_currency_coverage(self) -> bool:
+        return (
+            self._report_type == "costs"
+            and self.query_table is self._mapper.query_table
+            and not self._org_unit_requested
+        )
 
     @cached_property
     def conversion_queryset(self):
@@ -232,6 +240,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return query_data
 
+    @currency_coverage_snapshot
     def execute_query(self):  # noqa: C901
         """Execute each query needed to return the results.
 
@@ -534,7 +543,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         aggregates = self._mapper.report_type_map.get("aggregates", {})
 
-        total_query = query.aggregate(**aggregates)
+        total_query = query.aggregate(**aggregates, **self._currency_coverage_aggregates())
+        self._validate_currency_coverage(total_query)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
 
