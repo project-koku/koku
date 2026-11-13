@@ -773,6 +773,13 @@ reads from **one** source: `rates_to_usage`. Each leaf row contributes either
 same row — the concrete SELECT uses `COALESCE` / `CASE` to map columns into
 the breakdown tree.
 
+Only the cost model update rebuilds the breakdown: it is the only writer of
+`rates_to_usage`, and it runs under the provider-month lock (COST-8575).
+`populate_ui_summary_tables()` leaves the breakdown out unless `tables` names
+it, so the OCP and OCP-on-cloud report summaries, each followed by a cost
+model update for the same range, no longer rebuild it concurrently with a
+cost model run (COST-8117).
+
 ```sql
 -- Sketch: single-source breakdown population from RatesToUsage
 INSERT INTO {{schema}}.reporting_ocp_cost_breakdown_p (...)

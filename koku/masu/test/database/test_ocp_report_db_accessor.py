@@ -47,11 +47,13 @@ from masu.util.common import SummaryRangeConfig
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
+from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
@@ -2275,6 +2277,25 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_psql.assert_not_called()
         mock_gpu_populate.assert_called_once()
         mock_virt_populate.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_cost_breakdown_ui_summary_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_virtualization_ui_summary_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_gpu_ui_summary_table_with_usage_only")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_ui_summary_tables_rebuilds_cost_breakdown_only_when_asked(
+        self, mock_psql, mock_gpu_populate, mock_virt_populate, mock_breakdown
+    ):
+        """By default (report summaries) the cost breakdown is left alone; the cost model update asks for it."""
+        summary_range = SummaryRangeConfig(start_date=self.dh.this_month_start.date(), end_date=self.dh.today.date())
+        with self.accessor as acc:
+            acc.populate_ui_summary_tables(summary_range, self.ocp_provider_uuid)
+            mock_breakdown.assert_not_called()
+            rebuilt = {call.args[0] for call in mock_psql.call_args_list}
+            self.assertNotIn(COST_BREAKDOWN_UI_SUMMARY_TABLE, rebuilt)
+            self.assertIn("reporting_ocp_cost_summary_p", rebuilt)
+
+            acc.populate_ui_summary_tables(summary_range, self.ocp_provider_uuid, tables=UI_SUMMARY_TABLES)
+            mock_breakdown.assert_called_once()
 
     @patch(
         "masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino",

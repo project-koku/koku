@@ -26,9 +26,9 @@ from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
-from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES_WITHOUT_COST_BREAKDOWN
 
 LOG = logging.getLogger(__name__)
 
@@ -938,7 +938,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     )
                     RTU_MARKUP_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
                 if use_rtu:
-                    accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
+                    # Cost breakdown included: this run wrote the rates_to_usage rows it is built from.
+                    accessor.populate_ui_summary_tables(month_range, self._provider_uuid, tables=UI_SUMMARY_TABLES)
                     self._refresh_full_month_windows(accessor, month_range)
                 else:
                     # Cost breakdown is built exclusively from rates_to_usage, which this
@@ -949,7 +950,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     accessor.populate_ui_summary_tables(
                         month_range,
                         self._provider_uuid,
-                        tables=tuple(t for t in UI_SUMMARY_TABLES if t != COST_BREAKDOWN_UI_SUMMARY_TABLE),
+                        tables=UI_SUMMARY_TABLES_WITHOUT_COST_BREAKDOWN,
                     )
                     accessor.clear_cost_breakdown_ui_summary_table(
                         self._provider_uuid, month_range.start_date, month_range.end_date
@@ -980,7 +981,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
     def _refresh_full_month_windows(self, accessor, month_range: SummaryRangeConfig):
         """Refresh the UI summaries of full-month distribution windows beyond the run's dates (COST-8586)."""
         for window in self._full_month_windows_beyond_run(month_range):
-            accessor.populate_ui_summary_tables(window, self._provider_uuid)
+            accessor.populate_ui_summary_tables(window, self._provider_uuid, tables=UI_SUMMARY_TABLES)
 
     @staticmethod
     def _full_month_windows_beyond_run(month_range: SummaryRangeConfig) -> list[SummaryRangeConfig]:

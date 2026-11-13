@@ -66,6 +66,10 @@ UI_SUMMARY_TABLES = (
     COST_BREAKDOWN_UI_SUMMARY_TABLE,
 )
 
+# The UI summaries a report summary rebuilds. The cost breakdown is built only from rates_to_usage, which
+# only the cost model update writes, so only that update (holding the provider-month lock) rebuilds it.
+UI_SUMMARY_TABLES_WITHOUT_COST_BREAKDOWN = tuple(t for t in UI_SUMMARY_TABLES if t != COST_BREAKDOWN_UI_SUMMARY_TABLE)
+
 
 class OCPUsageReportPeriod(models.Model):
     """The report period information for a Operator Metering report.
