@@ -507,9 +507,12 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 - `tracing_id` - Tracing ID
 
 **Workflow**:
-1. Checks if task is already running or rate-limited
-2. Calls `CostModelCostUpdater` to apply cost model rates
-3. Updates provider's `data_updated_timestamp`
+1. Checks if task is already running or rate-limited (WorkerCache, keyed by schema, provider and the exact date range)
+2. With the `cost-management.backend.cost-model-single-flight` flag on (asynchronous calls only), takes a PostgreSQL session advisory lock per provider and billing month of the range, in month order (`koku/masu/processor/cost_model_run_lock.py`), and holds it for the whole update, distribution and UI summaries included. Different months of a provider still run in parallel.
+3. Calls `CostModelCostUpdater` to apply cost model rates
+4. Updates provider's `data_updated_timestamp`
+
+**Single-flight per provider month** (COST-8575): every cost model writer deletes its window and then inserts, as separate statements, and WorkerCache does not keep apart overlapping but different ranges, so two such runs could double rows. If a month's lock stays busy for two minutes, the run does not block its worker: `defer_busy_cost_model_update` hands its window to the delayed cost-model update of that provider month (see [Delayed cost-model updates](#delayed-cost-model-updates)) with deadline 0 and `keep_earlier_deadline`, and returns. A deferred run returns successfully, so a chained `mark_manifest_complete` / `validate_daily_data` still runs, as for a WorkerCache requeue; for OCP the validation compares usage (`pod_effective_usage_cpu_core_hours`), not cost model costs.
 
 ---
 
@@ -871,8 +874,8 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Workflow**:
 1. Calls `DelayedCeleryTasks.trigger_delayed_tasks()`
-2. Removes expired delay records
-3. Executes ready tasks
+2. Locks the expired delay records (`select_for_update`) and deletes them in one transaction
+3. Each delete fires the record's task through `pre_delete` with the record's current payload; a concurrent `create_or_reset_timeout` on the same record either commits first (its merged range fires) or waits and then creates a new record
 
 #### Delayed cost-model updates
 
@@ -892,6 +895,14 @@ instead of immediately enqueueing `update_cost_model_costs` on the PriorityQueue
   (`DateHelper.list_month_tuples`)
 - **Latency**: after the last edit, wait is approximately `DELAYED_TASK_TIME`
   (default 3600s) plus up to one Beat poll interval (`DELAYED_TASK_POLLING_MINUTES`)
+- **Busy-lock deferrals** (single-flight, see `update_cost_model_costs`): a run whose
+  provider month is locked by another run writes into the same row with deadline 0
+  and `keep_earlier_deadline=True`, which marks the row (`metadata.keep_earlier_deadline`).
+  From then on any reset of that row, including a later edit through
+  `delayed_update_cost_model_costs`, can move its deadline earlier but never later, so the
+  row fires on the next Beat poll whatever arrives meanwhile. The mark goes with the row
+  when it fires; unmarked rows keep the ordinary debounce. A busy deferral is stored even
+  when `disable-celery-task-delay` is ON (firing at once would meet the same busy lock).
 - **Bypass**: when Unleash flag
   `cost-management.backend.disable-celery-task-delay` is ON for the schema, the
   delayed row is deleted immediately so `pre_delete` fires the real task promptly.

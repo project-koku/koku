@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from collections import defaultdict
+from contextlib import nullcontext
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -47,6 +48,7 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderWarn
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_celery_task_delay_disabled
 from masu.processor import is_cost_model_processing_disabled
+from masu.processor import is_cost_model_single_flight_enabled
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -58,6 +60,8 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor._tasks.remove_expired import _remove_expired_trino_partitions
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.cost_model_run_lock import billing_months
+from masu.processor.cost_model_run_lock import provider_month_locks
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
 from masu.processor.report_processor import ReportProcessorDBError
@@ -79,6 +83,10 @@ LOG = logging.getLogger(__name__)
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
+# Deadline of a deferred busy run's delayed-task row. The row fires on the delayed-tasks beat
+# (every DELAYED_TASK_POLLING_MINUTES) once its deadline has passed, so 0 makes it eligible on the
+# next tick; the two-minute lock wait already covers "the other run is almost done".
+COST_MODEL_BUSY_DEFER_SECONDS = 0
 APPLY_TAG_MAPPINGS_TASK = "masu.processor.tasks.apply_tag_mappings"
 UPDATE_OPENSHIFT_ON_CLOUD_TASK = "masu.processor.tasks.update_openshift_on_cloud"
 
@@ -305,6 +313,37 @@ def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_
         )
         if is_celery_task_delay_disabled(schema_name):
             row.delete()
+
+
+def defer_busy_cost_model_update(schema_name, provider_uuid, start_date, end_date, queue_name, tracing_id=None):
+    """Hand a cost model update whose provider-month lock is busy to the delayed tasks.
+
+    Uses the same rows as ``delayed_update_cost_model_costs`` (one per provider and
+    billing month, date range widened to cover both), so any number of runs waiting
+    for one provider month become a single run. The deadline never moves later
+    (``keep_earlier_deadline``), so a stream of triggers cannot postpone that run.
+    The row is always stored, also when task delays are disabled: firing it at once
+    would only meet the same busy lock again.
+    """
+    for month_start, month_end in DateHelper().list_month_tuples(to_date(start_date), to_date(end_date)):
+        task_kwargs = {
+            "start_date": str(month_start),
+            "end_date": str(month_end),
+            "queue_name": queue_name,
+        }
+        if tracing_id is not None:
+            task_kwargs["tracing_id"] = str(tracing_id)
+        DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=UPDATE_COST_MODEL_COSTS_TASK,
+            task_args=[schema_name, str(provider_uuid)],
+            task_kwargs=task_kwargs,
+            provider_uuid=provider_uuid,
+            queue_name=queue_name,
+            timeout_seconds=COST_MODEL_BUSY_DEFER_SECONDS,
+            billing_month=month_start.replace(day=1),
+            merge_date_range=True,
+            keep_earlier_deadline=True,
+        )
 
 
 def record_all_manifest_files(manifest_id, report_files, tracing_id):
@@ -1182,11 +1221,34 @@ def update_cost_model_costs(  # noqa: C901
     }
     LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
 
+    single_flight = not synchronous and is_cost_model_single_flight_enabled(schema_name)
     try:
-        if updater := CostModelCostUpdater(schema_name, provider_uuid, tracing_id):
-            updater.update_cost_model_costs(start_date, end_date)
-        if provider := Provider.objects.filter(uuid=provider_uuid).first():
-            provider.set_data_updated_timestamp()
+        if single_flight:
+            # Same defaults as CostModelCostUpdater.update_cost_model_costs.
+            dh = DateHelper()
+            run_start = to_date(start_date) if start_date else dh.this_month_start.date()
+            run_end = to_date(end_date) if end_date else dh.today.date()
+            run_lock = provider_month_locks(provider_uuid, billing_months(run_start, run_end))
+        else:
+            run_lock = nullcontext(True)
+        with run_lock as acquired:
+            if acquired:
+                if updater := CostModelCostUpdater(schema_name, provider_uuid, tracing_id):
+                    updater.update_cost_model_costs(start_date, end_date)
+                if provider := Provider.objects.filter(uuid=provider_uuid).first():
+                    provider.set_data_updated_timestamp()
+            else:
+                LOG.info(
+                    log_json(tracing_id, msg="cost model update busy for provider month, deferring", context=context)
+                )
+                defer_busy_cost_model_update(
+                    schema_name,
+                    provider_uuid,
+                    run_start,
+                    run_end,
+                    queue_name or get_customer_queue(schema_name, CostModelQueue),
+                    tracing_id=tracing_id,
+                )
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
