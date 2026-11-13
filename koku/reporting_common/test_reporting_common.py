@@ -244,6 +244,47 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertEqual(second.queue_name, "new_queue")
         self.assertGreater(second.timeout_timestamp, original_timeout)
 
+    def test_create_or_reset_timeout_keep_earlier_deadline(self):
+        """With keep_earlier_deadline, a reset never moves the deadline later, but can move it earlier."""
+        provider_uuid = self.aws_provider_uuid
+        kwargs = {"task_name": "test_task", "task_args": [], "provider_uuid": provider_uuid, "queue_name": "q"}
+        first = DelayedCeleryTasks.create_or_reset_timeout(task_kwargs={}, timeout_seconds=60, **kwargs)
+        first_deadline = first.timeout_timestamp
+
+        later = DelayedCeleryTasks.create_or_reset_timeout(
+            task_kwargs={}, timeout_seconds=3600, keep_earlier_deadline=True, **kwargs
+        )
+        later.refresh_from_db()
+        self.assertEqual(later.pk, first.pk)
+        self.assertEqual(later.timeout_timestamp, first_deadline)
+
+        earlier = DelayedCeleryTasks.create_or_reset_timeout(
+            task_kwargs={}, timeout_seconds=0, keep_earlier_deadline=True, **kwargs
+        )
+        earlier.refresh_from_db()
+        self.assertLess(earlier.timeout_timestamp, first_deadline)
+
+    def test_create_or_reset_timeout_keep_earlier_deadline_sticks_to_the_row(self):
+        """Once a reset with keep_earlier_deadline marks a row, later ordinary resets cannot postpone it."""
+        provider_uuid = self.aws_provider_uuid
+        kwargs = {
+            "task_name": "test_task",
+            "task_args": [],
+            "provider_uuid": provider_uuid,
+            "queue_name": "q",
+            "billing_month": date(2026, 6, 1),
+        }
+        marked = DelayedCeleryTasks.create_or_reset_timeout(
+            task_kwargs={}, timeout_seconds=60, keep_earlier_deadline=True, **kwargs
+        )
+        deadline = marked.timeout_timestamp
+
+        reset = DelayedCeleryTasks.create_or_reset_timeout(task_kwargs={}, timeout_seconds=3600, **kwargs)
+        reset.refresh_from_db()
+        self.assertEqual(reset.pk, marked.pk)
+        self.assertEqual(reset.timeout_timestamp, deadline)
+        self.assertEqual(reset.metadata, {"billing_month": "2026-06-01", "keep_earlier_deadline": True})
+
     def test_create_or_reset_timeout_merge_date_range(self):
         """merge_date_range widens start/end against the locked existing row."""
         provider_uuid = self.aws_provider_uuid

@@ -25,6 +25,7 @@ APPLY_TAG_MAPPINGS_FLAG = "cost-management.backend.apply-tag-mappings"
 AWS_EMPTY_SPLIT_FINALIZATION_FLAG = "cost-management.backend.aws_empty_split_finalization"
 CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
+COST_MODEL_SINGLE_FLIGHT_FLAG = "cost-management.backend.cost-model-single-flight"
 COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
 CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
 DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
@@ -140,6 +141,11 @@ def is_celery_task_delay_disabled(schema):  # pragma: no cover
     """Disable DelayedCeleryTasks wait so the task fires immediately."""
     context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled(DISABLE_CELERY_TASK_DELAY_FLAG, context, fallback_development_true)
+
+
+def is_cost_model_single_flight_enabled(schema):  # pragma: no cover
+    """Run cost model updates for one provider and month one at a time (COST-8575)."""
+    return is_feature_flag_enabled_by_schema(schema, COST_MODEL_SINGLE_FLIGHT_FLAG, dev_fallback=True)
 
 
 def is_rate_limit_customer_large(schema):  # pragma: no cover

@@ -150,6 +150,10 @@ class RegionMapping(models.Model):
     region_name = models.CharField(max_length=64, null=False, unique=True)
 
 
+# DelayedCeleryTasks.metadata key: the row's deadline may only move earlier (see create_or_reset_timeout).
+KEEP_EARLIER_DEADLINE = "keep_earlier_deadline"
+
+
 class DelayedCeleryTasks(models.Model):
     """This table tracks summary tasks that are delaying execution."""
 
@@ -172,10 +176,21 @@ class DelayedCeleryTasks(models.Model):
     def trigger_delayed_tasks(cls):
         """Removes expired records triggering the celery task
         through the pre_delete signal trigger_celery_task.
+
+        The expired rows are locked and deleted in one transaction, so
+        pre_delete sends each row's current payload: a concurrent
+        create_or_reset_timeout (which also locks the row) either finishes
+        first, and its merged date range is what fires, or waits and then
+        finds the row gone and creates a new one. Without the lock, a merge
+        into an expired row (kept expired by keep_earlier_deadline) between
+        the read and the delete was lost: the old range fired and the merged
+        row was deleted.
         """
         now = timezone.now()
-        expired_records = cls.objects.filter(timeout_timestamp__lt=now)
-        expired_records.delete()
+        with transaction.atomic():
+            expired_records = list(cls.objects.select_for_update().filter(timeout_timestamp__lt=now).order_by("pk"))
+            for record in expired_records:
+                record.delete()
 
     @staticmethod
     def _merge_task_kwargs_date_range(existing_kwargs, new_kwargs):
@@ -209,6 +224,7 @@ class DelayedCeleryTasks(models.Model):
         timeout_seconds=settings.DELAYED_TASK_TIME,
         billing_month=None,
         merge_date_range=False,
+        keep_earlier_deadline=False,
     ):
         """
         Saves data regarding to the celery task being delayed.
@@ -221,7 +237,12 @@ class DelayedCeleryTasks(models.Model):
         Lookup/update runs under ``select_for_update`` so concurrent resets
         for the same key serialize. When ``merge_date_range`` is True, the
         stored ``start_date`` / ``end_date`` are widened (min/max) against the
-        locked row before save.
+        locked row before save. When ``keep_earlier_deadline`` is True, the
+        row is marked (``metadata.keep_earlier_deadline``) and from then on
+        its deadline can only move earlier, whichever caller resets it, so
+        no stream of calls can postpone the task indefinitely. The mark
+        goes with the row when the task fires; unmarked rows keep the
+        ordinary debounce.
         """
         filters = {"task_name": task_name, "provider_uuid": provider_uuid}
         billing_month_str = None
@@ -243,7 +264,14 @@ class DelayedCeleryTasks(models.Model):
                 existing_task.task_args = task_args
                 existing_task.task_kwargs = task_kwargs
                 existing_task.queue_name = queue_name
+                previous_deadline = existing_task.timeout_timestamp
                 existing_task.set_timeout(timeout_seconds)
+                metadata = existing_task.metadata or {}
+                if keep_earlier_deadline:
+                    metadata = {**metadata, KEEP_EARLIER_DEADLINE: True}
+                    existing_task.metadata = metadata
+                if metadata.get(KEEP_EARLIER_DEADLINE) and previous_deadline < existing_task.timeout_timestamp:
+                    existing_task.timeout_timestamp = previous_deadline
                 existing_task.save()
                 return existing_task
 
@@ -251,6 +279,8 @@ class DelayedCeleryTasks(models.Model):
                 task_kwargs["tracing_id"] = str(uuid4())
 
             metadata = {"billing_month": billing_month_str} if billing_month_str is not None else {}
+            if keep_earlier_deadline:
+                metadata[KEEP_EARLIER_DEADLINE] = True
             new_task = cls(
                 task_name=task_name,
                 task_args=task_args,
