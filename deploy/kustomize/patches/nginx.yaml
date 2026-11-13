@@ -120,7 +120,7 @@
     description: Image tag
     name: NGINX_IMAGE_TAG
     required: true
-    value: latest
+    value: 1-1794514344
 - op: add
   path: /parameters/-
   value:
