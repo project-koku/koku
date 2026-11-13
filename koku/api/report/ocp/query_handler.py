@@ -31,6 +31,7 @@ from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
 from api.report.ocp.capacity.node_capacity import NodeCapacity
 from api.report.ocp.provider_map import OCPProviderMap
+from api.report.queries import currency_coverage_snapshot
 from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
@@ -268,14 +269,45 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Apply the cluster index hint to conversion-input queries."""
         return self._apply_cluster_filter_index_hint(queryset)
 
+    def _supports_aggregate_currency_coverage(self) -> bool:
+        return self._report_type == "costs" and self.query_table is self._mapper.query_table
+
+    def _currency_coverage_condition(self):
+        condition = super()._currency_coverage_condition()
+        missing = [
+            source
+            for source, currency in self.request_source_to_currency_map.items()
+            if currency not in self._fully_covered_conversion_currencies
+        ]
+        if missing:
+            condition |= Q(source_uuid__in=missing)
+        return condition
+
+    def _scoped_model_currencies_for_coverage(self):
+        sources = self._conversion_queryset_values("source_uuid")
+        return {currency for source, currency in self._candidate_source_currency_map.items() if source in sources}
+
     @cached_property
     def source_uuids_for_conversion(self):
-        """Return source UUIDs present in the report-scoped rows."""
+        """Return exact source UUID membership when explicitly needed."""
         return self._conversion_queryset_values("source_uuid")
 
     @cached_property
+    def _candidate_source_currency_map(self):
+        """Load tenant mappings without enumerating report facts."""
+        with tenant_context(self.tenant):
+            return {
+                row["provider_uuid"]: row["cost_model__currency"]
+                for row in CostModelMap.objects.values("provider_uuid", "cost_model__currency")
+                if row["cost_model__currency"]
+            }
+
+    @cached_property
     def request_source_to_currency_map(self):
-        """Return cost-model currencies for sources present in this request."""
+        """Use metadata on the aggregate path and scoped mappings on the legacy path."""
+        if self.aggregate_currency_coverage_enabled:
+            self._conversion_rate_snapshot
+            return self._candidate_source_currency_map
         mapping = CostModelMap.objects.filter(provider_uuid__in=self.source_uuids_for_conversion).values(
             "provider_uuid", "cost_model__currency"
         )
@@ -296,6 +328,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                         }
                     )
                 )
+        if self.aggregate_currency_coverage_enabled:
+            whens.append(When(source_uuid__in=list(self.request_source_to_currency_map), then=Value(None)))
         return Case(*whens, default=1, output_field=DecimalField())
 
     @cached_property
@@ -310,9 +344,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
             exchange_rate_annotation = self._monthly_source_exchange_rate_case()
-            infra_exchange_rate_annotation = self._monthly_exchange_rate_case(
-                self._mapper.cost_units_key, self.raw_currencies_for_conversion
+            bases = (
+                self.monthly_exchange_rate_map
+                if self.aggregate_currency_coverage_enabled
+                else self.raw_currencies_for_conversion
             )
+            infra_exchange_rate_annotation = self._monthly_exchange_rate_case(self._mapper.cost_units_key, bases)
         else:
             source_to_currency_map = self.source_to_currency_map
             if all(currency == self.currency for currency in source_to_currency_map.values()):
@@ -336,6 +373,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def _get_base_currencies_for_conversion(self):
         """Return base currencies from both raw_currency and cost model currencies."""
+        if self.aggregate_currency_coverage_enabled:
+            return set(self.monthly_exchange_rate_map)
         return (self.raw_currencies_for_conversion | set(self.request_source_to_currency_map.values())) - {None}
 
     @cached_property
@@ -562,6 +601,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             row.pop("wasted_cost", None)
             row["score"] = {}
 
+    @currency_coverage_snapshot
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -605,7 +645,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
+                metric_sum = query.aggregate(**aggregates, **self._currency_coverage_aggregates())
+                self._validate_currency_coverage(metric_sum)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             query_data, total_capacity = self.get_capacity(query_data)
