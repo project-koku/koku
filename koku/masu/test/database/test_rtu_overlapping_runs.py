@@ -2,23 +2,21 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Overlapping RTU writes for the same provider must not double rows (work log item 4).
+"""Overlapping RTU writes for one provider must not double rows (work log item 4, COST-8575).
 
-Each rates_to_usage writer deletes its window, then inserts. WorkerCache's single-flight key
-includes start_date/end_date, so update_cost_model_costs runs for the same provider with
-different, overlapping windows run concurrently. Under READ COMMITTED, run B's DELETE does not
-see run A's uncommitted inserts, so both runs' rows survive for the overlapping days and the
-aggregation into the daily summary counts them twice. _distribution_provider_lock already
-serializes the distribution, markup and aggregation writers for this reason (#6162); every RTU
-writer has to take it.
+Each rates_to_usage writer deletes its window, then inserts. WorkerCache's key includes the dates,
+so update_cost_model_costs runs for the same provider with different, overlapping windows can run
+concurrently. Under READ COMMITTED, run B's DELETE does not see run A's uncommitted inserts, so
+both runs' rows survive for the overlapping days and the aggregation into the daily summary counts
+them twice.
 
-Run A executes the writer's SQL in a transaction that stays open (an in-flight statement),
-inside the region the lock covers. Run B writes an overlapping window meanwhile.
+update_cost_model_costs holds the provider-month lock for the whole run (single-flight), so the
+writers take no lock of their own. Both runs here go through that lock: run A keeps its write in
+flight; run B, overlapping, cannot get the lock and writes nothing (the task hands such a run to
+the delayed tasks).
 """
-import inspect
 import threading
 import uuid
-from contextlib import contextmanager
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
@@ -35,13 +33,15 @@ from api.provider.models import Provider
 from cost_models.models import CostModelMap
 from koku.test_provider_delete_cascade import create_test_provider
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.processor.cost_model_run_lock import billing_months
+from masu.processor.cost_model_run_lock import provider_month_locks
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import RatesToUsage
 
 
-class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
-    """populate_usage_rates_to_usage runs overlapping windows of one provider one after the other."""
+class RatesToUsageOverlappingRunsTest(django.test.TransactionTestCase):
+    """populate_usage_rates_to_usage runs of overlapping windows of one provider run one at a time."""
 
     def _fixture_teardown(self):
         """Skip the TRUNCATE flush: the django-tenants FK graph breaks it. tearDown cleans up."""
@@ -54,7 +54,7 @@ class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
         self.assertIsNotNone(customer)
         self.provider = Provider(
             uuid=uuid.uuid4(),
-            name=f"rtu-writer-lock-{uuid.uuid4().hex[:8]}",
+            name=f"rtu-overlap-{uuid.uuid4().hex[:8]}",
             type=Provider.PROVIDER_OCP,
             setup_complete=False,
             active=True,
@@ -67,7 +67,7 @@ class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
         self.day = period_start.date()
         with schema_context(self.schema):
             self.report_period = OCPUsageReportPeriod.objects.create(
-                cluster_id=f"rtu-writer-lock-{uuid.uuid4().hex[:8]}",
+                cluster_id=f"rtu-overlap-{uuid.uuid4().hex[:8]}",
                 report_period_start=period_start,
                 report_period_end=datetime(2026, 7, 1, tzinfo=settings.UTC),
                 provider_id=self.provider.uuid,
@@ -80,8 +80,8 @@ class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
                 report_period=self.report_period,
                 cluster_id=self.report_period.cluster_id,
                 source_uuid=self.provider.uuid,
-                namespace="rtu-writer-lock-ns",
-                node="rtu-writer-lock-node",
+                namespace="rtu-overlap-ns",
+                node="rtu-overlap-node",
                 data_source="Pod",
                 usage_start=self.day,
                 usage_end=self.day,
@@ -101,11 +101,20 @@ class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
         with patch("masu.celery.tasks.delete_archived_data.delay", lambda *args, **kwargs: None):
             self.provider.delete()
 
-    def _write(self, start, end):
+    def _write(self, start, end, accessor=None):
         with schema_context(self.schema):
-            OCPReportDBAccessor(self.schema).populate_usage_rates_to_usage(
+            (accessor or OCPReportDBAccessor(self.schema)).populate_usage_rates_to_usage(
                 start, end, self.provider.uuid, self.report_period.id, self.cost_model_id
             )
+
+    def _locked_write(self, start, end, accessor=None, wait_seconds=0):
+        """Write the window as update_cost_model_costs does, under the provider-month lock; return whether it ran."""
+        with provider_month_locks(
+            str(self.provider.uuid), billing_months(start, end), wait_seconds=wait_seconds, poll_seconds=0.05
+        ) as acquired:
+            if acquired:
+                self._write(start, end, accessor=accessor)
+            return acquired
 
     def _rows(self):
         with schema_context(self.schema):
@@ -115,11 +124,9 @@ class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
         self._write(self.day, self.day + timedelta(days=2))
         single_run_rows = self._rows()
         self.assertGreater(single_run_rows, 0)
-        with schema_context(self.schema):
-            RatesToUsage.objects.filter(report_period_id=self.report_period.id).delete()
 
-        a_written, release_a, b_done = threading.Event(), threading.Event(), threading.Event()
-        errors = []
+        a_written, release_a = threading.Event(), threading.Event()
+        errors, ran = [], {}
 
         def run_a():
             try:
@@ -135,9 +142,7 @@ class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
                         return result
 
                     with patch.object(accessor, "_prepare_and_execute_raw_sql_query", side_effect=in_flight):
-                        accessor.populate_usage_rates_to_usage(
-                            self.day, self.day, self.provider.uuid, self.report_period.id, self.cost_model_id
-                        )
+                        ran["a"] = self._locked_write(self.day, self.day, accessor=accessor)
             except Exception as error:  # surfaced through `errors` below
                 errors.append(error)
             finally:
@@ -146,11 +151,10 @@ class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
 
         def run_b():
             try:
-                self._write(self.day, self.day + timedelta(days=2))
+                ran["b"] = self._locked_write(self.day, self.day + timedelta(days=2), wait_seconds=1)
             except Exception as error:  # surfaced through `errors` below
                 errors.append(error)
             finally:
-                b_done.set()
                 connection.close()
 
         thread_a = threading.Thread(target=run_a)
@@ -158,57 +162,15 @@ class RatesToUsageWriterLockTest(django.test.TransactionTestCase):
         self.assertTrue(a_written.wait(15))
         thread_b = threading.Thread(target=run_b)
         thread_b.start()
-        b_finished_while_a_in_flight = b_done.wait(2)
+        thread_b.join(5)
         release_a.set()
         thread_a.join(30)
         thread_b.join(30)
 
         self.assertEqual(errors, [])
+        self.assertEqual(ran, {"a": True, "b": False}, "run B must not write while run A holds the provider month")
         self.assertEqual(self._rows(), single_run_rows, "overlapping runs left both runs' rows")
-        self.assertFalse(b_finished_while_a_in_flight, "run B wrote while run A's write was still in flight")
 
-
-class RatesToUsageWriterLockDecoratorTest(django.test.SimpleTestCase):
-    """The decorator locks RTU writes only, keyed by the provider argument."""
-
-    WRITERS = {
-        "populate_monthly_cost_sql": "provider_uuid",
-        "populate_tag_cost_sql": "provider_uuid",
-        "populate_vm_usage_costs": "provider_uuid",
-        "populate_usage_rates_to_usage": "provider_uuid",
-        "populate_tag_usage_costs": "source_uuid",
-        "populate_tag_usage_default_costs": "source_uuid",
-        "populate_tag_based_costs": "provider_uuid",
-    }
-
-    @staticmethod
-    def _writer():
-        from masu.database.ocp_report_db_accessor import _rtu_writer_provider_lock
-
-        class Writer:
-            def __init__(self):
-                self.locked_for = []
-
-            @contextmanager
-            def _distribution_provider_lock(self, provider):
-                self.locked_for.append(provider)
-                yield
-
-            @_rtu_writer_provider_lock("provider_uuid")
-            def write(self, start, provider_uuid, use_rtu=False):
-                return (start, provider_uuid, use_rtu, list(self.locked_for))
-
-        return Writer()
-
-    def test_rtu_write_runs_under_the_provider_lock(self):
-        self.assertEqual(self._writer().write("2026-06-01", "p1", use_rtu=True), ("2026-06-01", "p1", True, ["p1"]))
-
-    def test_legacy_write_takes_no_lock(self):
-        self.assertEqual(self._writer().write("2026-06-01", provider_uuid="p1"), ("2026-06-01", "p1", False, []))
-
-    def test_every_rtu_writer_is_wrapped(self):
-        for name, provider_param in self.WRITERS.items():
-            with self.subTest(writer=name):
-                method = getattr(OCPReportDBAccessor, name)
-                self.assertTrue(hasattr(method, "__wrapped__"))
-                self.assertIn(provider_param, inspect.signature(method.__wrapped__).parameters)
+        # Once run A is done, the provider month is free again and a later run writes normally.
+        self.assertTrue(self._locked_write(self.day, self.day + timedelta(days=2)))
+        self.assertEqual(self._rows(), single_run_rows)

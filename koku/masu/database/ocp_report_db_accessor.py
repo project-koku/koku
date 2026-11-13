@@ -5,8 +5,6 @@
 """Database accessor for OCP report data."""
 import copy
 import datetime
-import functools
-import inspect
 import json
 import logging
 import os
@@ -80,39 +78,6 @@ from reporting.provider.ocp.models import UI_SUMMARY_TABLES_WITHOUT_COST_BREAKDO
 from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
 LOG = logging.getLogger(__name__)
-
-
-def _rtu_writer_provider_lock(provider_param):
-    """Run a rates_to_usage writer under _distribution_provider_lock(provider) when it writes RTU.
-
-    Every RTU writer deletes its window, then inserts. update_cost_model_costs runs for the same
-    provider with different, overlapping windows run concurrently (WorkerCache's key includes the
-    dates), and under READ COMMITTED one run's DELETE does not see the other's uncommitted rows:
-    both runs' rows survive and the aggregation into the daily summary counts them twice. The
-    lock already serializes the distribution, markup and aggregation writers for this reason; it
-    covers the method's whole delete-and-insert sequence, which some writers run as separate
-    statements.
-
-    Calls with use_rtu=False (the legacy daily-summary path) run unchanged. Methods without a
-    use_rtu parameter always write RTU.
-    """
-
-    def decorator(method):
-        signature = inspect.signature(method)
-
-        @functools.wraps(method)
-        def wrapper(self, *args, **kwargs):
-            arguments = signature.bind(self, *args, **kwargs)
-            arguments.apply_defaults()
-            provider = arguments.arguments.get(provider_param)
-            if not arguments.arguments.get("use_rtu", True) or provider is None:
-                return method(self, *args, **kwargs)
-            with self._distribution_provider_lock(provider):
-                return method(self, *args, **kwargs)
-
-        return wrapper
-
-    return decorator
 
 
 class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
@@ -1226,7 +1191,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             return "cpu" if distribution == "cpu" else "memory"
         return "cpu"
 
-    @_rtu_writer_provider_lock("provider_uuid")
     def populate_monthly_cost_sql(
         self,
         cost_type,
@@ -1333,7 +1297,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         else:
             self._prepare_and_execute_raw_sql_query(table_name, insert_sql, sql_params, operation="INSERT")
 
-    @_rtu_writer_provider_lock("provider_uuid")
     def populate_tag_cost_sql(
         self,
         cost_type,
@@ -1416,7 +1379,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg="populating tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    @_rtu_writer_provider_lock("provider_uuid")
     def populate_vm_usage_costs(
         self,
         rate_type,
@@ -1526,7 +1488,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    @_rtu_writer_provider_lock("provider_uuid")
     def populate_usage_rates_to_usage(self, start_date, end_date, provider_uuid, report_period_id, cost_model_id):
         """Delete stale rows and insert per-rate cost rows into rates_to_usage (single-pass).
 
@@ -1672,7 +1633,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             operation="VALIDATION_QUERY",
         )
 
-    @_rtu_writer_provider_lock("source_uuid")
     def populate_tag_usage_costs(  # noqa: C901
         self,
         infrastructure_rates,
@@ -1747,7 +1707,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                         LOG.info(log_json(msg="running populate_tag_usage_costs SQL", context=ctx))
                         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
-    @_rtu_writer_provider_lock("source_uuid")
     def populate_tag_usage_default_costs(  # noqa: C901
         self,
         infrastructure_rates,
@@ -2211,7 +2170,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim
 
-    @_rtu_writer_provider_lock("provider_uuid")
     def populate_tag_based_costs(  # noqa: C901
         self,
         start_date,
