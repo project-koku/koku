@@ -49,7 +49,6 @@ from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import COST_BREAKDOWN_RTU_UNLEASH_FLAG
 from masu.processor import is_celery_task_delay_disabled
 from masu.processor import is_cost_model_processing_disabled
-from masu.processor import is_cost_model_single_flight_enabled
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
@@ -62,7 +61,7 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor._tasks.remove_expired import _remove_expired_trino_partitions
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
-from masu.processor.cost_model_run_lock import billing_months
+from masu.processor.cost_model_run_lock import cost_model_run_months
 from masu.processor.cost_model_run_lock import provider_month_locks
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
@@ -1279,14 +1278,16 @@ def update_cost_model_costs(  # noqa: C901
     }
     LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
 
-    single_flight = not synchronous and is_cost_model_single_flight_enabled(schema_name)
+    # Synchronous calls (no production caller) keep running without the lock: deferring would leave
+    # the caller without its costs.
+    single_flight = not synchronous
     try:
         if single_flight:
             # Same defaults as CostModelCostUpdater.update_cost_model_costs.
             dh = DateHelper()
             run_start = to_date(start_date) if start_date else dh.this_month_start.date()
             run_end = to_date(end_date) if end_date else dh.today.date()
-            run_lock = provider_month_locks(provider_uuid, billing_months(run_start, run_end))
+            run_lock = provider_month_locks(provider_uuid, cost_model_run_months(run_start, run_end))
         else:
             run_lock = nullcontext(True)
         with run_lock as acquired:

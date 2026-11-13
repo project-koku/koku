@@ -5,11 +5,15 @@
 """Tests for the provider-month cost model run lock."""
 import uuid
 from datetime import date
+from datetime import timedelta
+from unittest.mock import patch
 
 from django.db import connections
 from django.test import TestCase
 
+from api.utils import DateHelper
 from masu.processor.cost_model_run_lock import billing_months
+from masu.processor.cost_model_run_lock import cost_model_run_months
 from masu.processor.cost_model_run_lock import LOCK_NAMESPACE
 from masu.processor.cost_model_run_lock import provider_month_locks
 
@@ -44,6 +48,29 @@ class ProviderMonthLocksTest(TestCase):
         """Every billing month of the range, first days, in order."""
         self.assertEqual(billing_months(date(2026, 6, 15), date(2026, 6, 20)), [JUNE])
         self.assertEqual(billing_months(date(2026, 6, 15), date(2026, 8, 2)), [JUNE, JULY, date(2026, 8, 1)])
+
+    def _run_months_on_day(self, day, start, end):
+        class OnDay(DateHelper):
+            @property
+            def now_utc(self):
+                return super().now_utc.replace(day=day)
+
+        with patch("masu.processor.cost_model_run_lock.DateHelper", OnDay):
+            return cost_model_run_months(start, end)
+
+    def test_run_months_add_the_previous_month_on_the_2nd(self):
+        """On the 2nd a run covering the current month also writes the previous month (GPU, COST-8586)."""
+        dh = DateHelper()
+        current, previous = dh.this_month_start.date(), dh.last_month_start.date()
+        self.assertEqual(self._run_months_on_day(2, current, current + timedelta(days=1)), [previous, current])
+
+    def test_run_months_are_the_range_on_other_days_and_for_past_months(self):
+        """Any other day, or a range without the current month, locks only the range's own months."""
+        dh = DateHelper()
+        current, previous = dh.this_month_start.date(), dh.last_month_start.date()
+        self.assertEqual(self._run_months_on_day(15, current, current + timedelta(days=1)), [current])
+        self.assertEqual(self._run_months_on_day(2, previous, previous + timedelta(days=3)), [previous])
+        self.assertEqual(self._run_months_on_day(2, previous, current), [previous, current])
 
     def test_holds_the_lock_and_releases_it(self):
         """Another session cannot take a held month; it can once the context exits."""
