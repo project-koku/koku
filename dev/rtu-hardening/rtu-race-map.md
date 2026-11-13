@@ -282,7 +282,7 @@ Reviewed after all work log items were done. In priority order:
 
 ### Next actions (2026-11-11)
 
-1. **#6442** (single-flight, COST-8575): ready for review. Needs the Unleash flag `cost-management.backend.cost-model-single-flight` (flexibleRollout, stickiness `schema`, off in stage and prod) and a reviewer. Known and accepted: a deferred run fires on the `*/30` delayed-tasks beat, so 5 to 35 minutes after it was deferred (26 minutes in E12); watch deferral counts after rollout.
+1. **#6442** (single-flight, COST-8575): **merged 2026-11-13** (`f731bdc0e`), with the review changes: the delayed-task sweep locks its rows, busy deferrals use deadline 0, and the deadline protection sticks to the row. Next: create the Unleash flag `cost-management.backend.cost-model-single-flight` (flexibleRollout, stickiness `schema`, off), enable it for a few tenants in stage, then prod; remove it after a billing cycle.
 2. **S3 spike**: done 2026-11-11. RTU must persist (the GPU full-month distribution reads earlier runs' rows), so the current design stays and S8 sizing is a precondition for the prod flag.
 3. **S7 design**: write the design down (the six points in its row) and review it before changing code. Agreed in principle; no longer forced by S3 (C was dropped), so it stands on its own merits.
 4. **S8 sizing**: read-only prod estimate; can run alongside 3. A precondition for the prod flag now that RTU rows persist (S3).
@@ -306,9 +306,10 @@ Small PRs for the fixes that matter now, independent of the RTU flag, each a dra
 | 8 | [#6435](https://github.com/project-koku/koku/pull/6435) | Test runner recreates a stale kept test DB; testing guide | **merged 2026-11-05** |
 | - | [#6436](https://github.com/project-koku/koku/pull/6436) | Flaky Kafka watchdog test (hit #6430's CI) | **merged 2026-11-05** |
 | - | [#6440](https://github.com/project-koku/koku/pull/6440) | Flaky staged ingress tests racing the claim heartbeat thread (hit #6430's CI) | **merged 2026-11-06** |
-| S2 | [#6442](https://github.com/project-koku/koku/pull/6442) (ready for review) | Single-flight cost model updates per provider month (COST-8575) | the Unleash flag |
+| S2 | [#6442](https://github.com/project-koku/koku/pull/6442) | Single-flight cost model updates per provider month (COST-8575) | **merged 2026-11-13** |
 
 2026-11-06: the branch was rebuilt on `main` without its own commits for the merged #6430, #6433, #6434 and #6435 (backup: local branch `backup/rtu-hardening-pre-rebase-20261106`). Item 6's `price_list_view.py` change now sits on top of #6434's number rendering.
+2026-11-13: rebased on `main` again, dropping the branch's copy of #6442 (main has the reviewed version; the single-flight files now match `main`). Backup: local branch `backup/rtu-hardening-pre-rebase-20261113`.
 
 The RTU work proper (1, 1b, 1c, 3, 4) follows as the code PR plus one PR per migration, per the merge and ship order below.
 
