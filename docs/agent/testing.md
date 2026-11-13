@@ -90,10 +90,10 @@ PGPASSWORD=postgres psql -h localhost -p 15432 -U postgres -d test_postgres
 SET search_path TO org1234567;
 ```
 
-## Python 3.11 Caveat
+## `skipTest()` inside `subTest()`
 
 `self.skipTest()` inside `with self.subTest():` skips the **entire** test method,
-not just the subtest (fixed in 3.12+). Split subtests into separate test methods.
+not just the subtest. Split subtests into separate test methods.
 
 ## Conventions
 
