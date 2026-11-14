@@ -91,7 +91,7 @@ LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
     ON gpu.namespace LIKE cat_ns.namespace
 WHERE gpu.usage_start >= DATE({{start_date}})
   AND gpu.usage_start <= DATE({{end_date}})
-  AND gpu.source = {{source_uuid}}
+  AND gpu.source = {{source_uuid | string}}
   AND gpu.year = {{year}}
   AND gpu.month = {{month}}
   AND gpu.gpu_vendor_name = '{{tag_key | sqlsafe}}'
@@ -148,7 +148,7 @@ WITH cte_unutilized_uptime_hours AS (
             gpu.gpu_model_name,
             gpu.usage_start as interval_date
         FROM {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu
-        WHERE gpu.source = {{source_uuid}}
+        WHERE gpu.source = {{source_uuid | string}}
             AND gpu.year = {{year}}
             AND gpu.month = {{month}}
             AND gpu.usage_start >= DATE({{start_date}})
@@ -162,7 +162,7 @@ WITH cte_unutilized_uptime_hours AS (
         AND node_ut.usage_start <= DATE({{end_date}})
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
-        AND node_ut.source = {{source_uuid}}
+        AND node_ut.source = {{source_uuid | string}}
         AND node_ut.node_labels like '%%"nvidia_com_gpu_present": "True"%%'
     GROUP BY node_ut.node, gpu.gpu_model_name, node_ut.usage_start, gpu.max_slices_per_gpu,
              gpu.physical_gpu_count, gpu.aggregated_slice_uptime, node_ut.node_labels
