@@ -4,6 +4,7 @@
 #
 """Test the Price List views."""
 import logging
+from decimal import Decimal
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -745,7 +746,7 @@ class PriceListRatesUnitTest(IamTestCase):
         super().setUp()
         self.client = APIClient()
 
-    def _create_diverse_price_list(self):
+    def _create_diverse_price_list(self, rates=None):
         """Create a price list with diverse rates via API."""
         url = reverse("price-lists-list")
         data = {
@@ -754,7 +755,7 @@ class PriceListRatesUnitTest(IamTestCase):
             "currency": "USD",
             "effective_start_date": "2026-01-01",
             "effective_end_date": "2026-12-31",
-            "rates": self.DIVERSE_RATES,
+            "rates": self.DIVERSE_RATES if rates is None else rates,
         }
         response = self.client.post(url, data=data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
@@ -917,58 +918,120 @@ class PriceListRatesUnitTest(IamTestCase):
                 self.assertEqual(rate.metric_type, "cpu")
                 self.assertEqual(rate.cost_type, "Infrastructure")
 
-    # --- TC-112: _ensure_rate_sync triggers when rate_id missing ---
+    # --- TC-112: match_rates_to_json maps rates when the JSON lacks rate_id (migration 0013 shape) ---
 
-    @patch("cost_models.price_list_view.sync_rate_table")
-    def test_ensure_rate_sync_triggers_when_rate_id_missing(self, mock_sync):
-        """TC-112/BAC-44: _ensure_rate_sync calls sync_rate_table when JSON lacks rate_id."""
-        from cost_models.price_list_view import PriceListViewSet
+    def test_match_rates_to_json_without_rate_id(self):
+        """TC-112/BAC-44: JSON entries without rate_id/custom_name map to their Rate rows, read-only."""
+        from cost_models.rate_sync import match_rates_to_json
 
-        pl_uuid = self._create_diverse_price_list()
+        pl_uuid = self._create_diverse_price_list(rates=GENERATED_NAME_RATES)
         with tenant_context(self.tenant):
             pl = PriceList.objects.get(uuid=pl_uuid)
-            for entry in pl.rates:
-                entry.pop("rate_id", None)
-            pl.save(update_fields=["rates"])
+            expected = {entry["rate_id"]: entry.get("tiered_rates") for entry in pl.rates}
+            stripped = [{k: v for k, v in entry.items() if k not in ("rate_id", "custom_name")} for entry in pl.rates]
+            PriceList.objects.filter(uuid=pl_uuid).update(rates=stripped)
             pl.refresh_from_db()
 
-        view = PriceListViewSet()
+            matched = match_rates_to_json(pl, Rate.objects.filter(price_list=pl))
+
+            self.assertEqual({rid: entry.get("tiered_rates") for rid, entry in matched.items()}, expected)
+            pl.refresh_from_db()
+            self.assertEqual(pl.rates, stripped)
+
+    def test_sync_rate_table_keeps_rates_of_json_without_rate_id(self):
+        """Syncing JSON in the 0013 shape (no rate_id, no custom_name) keeps every Rate row and its name."""
+        from cost_models.rate_sync import sync_rate_table
+
+        pl_uuid = self._create_diverse_price_list(rates=GENERATED_NAME_RATES)
         with tenant_context(self.tenant):
             pl = PriceList.objects.get(uuid=pl_uuid)
-            view._ensure_rate_sync(pl)
-            mock_sync.assert_called_once()
+            before = dict(Rate.objects.filter(price_list=pl).values_list("uuid", "custom_name"))
+            stripped = [{k: v for k, v in entry.items() if k not in ("rate_id", "custom_name")} for entry in pl.rates]
+            PriceList.objects.filter(uuid=pl_uuid).update(rates=stripped)
+            pl.refresh_from_db()
 
-    # --- TC-113: _ensure_rate_sync skips when rate_id present ---
+            sync_rate_table(pl, stripped)
 
-    @patch("cost_models.price_list_view.sync_rate_table")
-    def test_ensure_rate_sync_skips_when_rate_id_present(self, mock_sync):
-        """TC-113/BAC-44: _ensure_rate_sync does NOT call sync_rate_table when all entries have rate_id."""
-        from cost_models.price_list_view import PriceListViewSet
+            after = dict(Rate.objects.filter(price_list=pl).values_list("uuid", "custom_name"))
+            self.assertEqual(after, before)
+
+    def _legacy_price_list_with_named_second_entry(self):
+        """A price list in the pre-rate-identity shape where a later entry carries a custom_name.
+
+        Two rates share metric and cost type. Their Rate rows are named in order, as migration
+        0013 named them (base for 1.00, base-2 for 2.00). The stored JSON then loses rate_id, and
+        only the second entry carries custom_name = base, which 0013 ignored.
+        """
+        base = "cpu_core_usage_per_hour-Infrastructure"
+        usage = {"usage_start": None, "usage_end": None}
+        rates = [
+            {
+                "metric": {"name": "cpu_core_usage_per_hour"},
+                "cost_type": "Infrastructure",
+                "tiered_rates": [{"value": value, "unit": "USD", "usage": usage}],
+            }
+            for value in ("1.00", "2.00")
+        ]
+        pl_uuid = self._create_diverse_price_list(rates=rates)
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            names = dict(Rate.objects.filter(price_list=pl).values_list("custom_name", "default_rate"))
+            self.assertEqual(names, {base: Decimal("1.00"), f"{base}-2": Decimal("2.00")})
+            legacy = [{k: v for k, v in entry.items() if k not in ("rate_id", "custom_name")} for entry in pl.rates]
+            legacy[1]["custom_name"] = base
+            PriceList.objects.filter(uuid=pl_uuid).update(rates=legacy)
+            pl.refresh_from_db()
+        return pl, base
+
+    def test_match_rates_to_json_legacy_custom_name_does_not_reorder(self):
+        """A custom_name in legacy JSON must not change which Rate row each entry matches (migration order)."""
+        from cost_models.rate_sync import match_rates_to_json
+
+        pl, base = self._legacy_price_list_with_named_second_entry()
+        with tenant_context(self.tenant):
+            rows = {r.custom_name: str(r.uuid) for r in Rate.objects.filter(price_list=pl)}
+            matched = match_rates_to_json(pl, Rate.objects.filter(price_list=pl))
+
+        self.assertEqual(Decimal(matched[rows[base]]["tiered_rates"][0]["value"]), Decimal("1.00"))
+        self.assertEqual(Decimal(matched[rows[f"{base}-2"]]["tiered_rates"][0]["value"]), Decimal("2.00"))
+
+    def test_update_without_rates_keeps_legacy_rows_in_migration_order(self):
+        """A rename of a legacy price list syncs its stored JSON without swapping rows or prices."""
+        from cost_models.price_list_manager import PriceListManager
+
+        pl, base = self._legacy_price_list_with_named_second_entry()
+        with tenant_context(self.tenant):
+            before = {r.uuid: (r.custom_name, r.default_rate) for r in Rate.objects.filter(price_list=pl)}
+
+            PriceListManager(pl.uuid).update(name="Renamed legacy price list")
+
+            after = {r.uuid: (r.custom_name, r.default_rate) for r in Rate.objects.filter(price_list=pl)}
+        self.assertEqual(after, before)
+
+    # --- TC-113: match_rates_to_json uses rate_id when present ---
+
+    def test_match_rates_to_json_with_rate_id(self):
+        """TC-113/BAC-44: JSON entries with rate_id map by rate_id."""
+        from cost_models.rate_sync import match_rates_to_json
 
         pl_uuid = self._create_diverse_price_list()
-        view = PriceListViewSet()
         with tenant_context(self.tenant):
             pl = PriceList.objects.get(uuid=pl_uuid)
-            self.assertTrue(all("rate_id" in e for e in pl.rates))
-            view._ensure_rate_sync(pl)
-            mock_sync.assert_not_called()
+            matched = match_rates_to_json(pl, Rate.objects.filter(price_list=pl))
+            self.assertEqual(set(matched), {entry["rate_id"] for entry in pl.rates})
+            for rate_id, entry in matched.items():
+                self.assertEqual(entry["rate_id"], rate_id)
 
-    # --- TC-114: _ensure_rate_sync skips empty rates ---
+    # --- TC-114: match_rates_to_json on empty rates ---
 
-    @patch("cost_models.price_list_view.sync_rate_table")
-    def test_ensure_rate_sync_skips_empty_rates(self, mock_sync):
-        """TC-114/BAC-44: _ensure_rate_sync returns immediately for empty/None rates."""
-        from cost_models.price_list_view import PriceListViewSet
+    def test_match_rates_to_json_empty_rates(self):
+        """TC-114/BAC-44: no JSON rates map to nothing."""
+        from cost_models.rate_sync import match_rates_to_json
 
-        view = PriceListViewSet()
-        pl = MagicMock()
-        pl.rates = []
-        view._ensure_rate_sync(pl)
-        mock_sync.assert_not_called()
-
-        pl.rates = None
-        view._ensure_rate_sync(pl)
-        mock_sync.assert_not_called()
+        for rates in ([], None):
+            pl = MagicMock()
+            pl.rates = rates
+            self.assertEqual(match_rates_to_json(pl, []), {})
 
     # --- TC-115: _build_rate_response enriches labels ---
 
@@ -1030,6 +1093,12 @@ class PriceListRatesUnitTest(IamTestCase):
             self.assertIn("tag_values", rate_dict["tag_rates"])
 
 
+# Rates as migration 0013 found them: no custom_name (0013 generated the Rate names) and no rate_id.
+GENERATED_NAME_RATES = [
+    {k: v for k, v in rate.items() if k != "custom_name"} for rate in PriceListRatesUnitTest.DIVERSE_RATES
+]
+
+
 class PriceListRatesIntegrationTest(IamTestCase):
     """T2 Integration tests: full HTTP wiring for the rates sub-endpoint (TC-120..TC-126)."""
 
@@ -1044,7 +1113,7 @@ class PriceListRatesIntegrationTest(IamTestCase):
         super().setUp()
         self.client = APIClient()
 
-    def _create_diverse_price_list(self):
+    def _create_diverse_price_list(self, rates=None):
         """Create a price list with diverse rates via API and return its UUID."""
         url = reverse("price-lists-list")
         data = {
@@ -1053,7 +1122,7 @@ class PriceListRatesIntegrationTest(IamTestCase):
             "currency": "USD",
             "effective_start_date": "2026-01-01",
             "effective_end_date": "2026-12-31",
-            "rates": self.DIVERSE_RATES,
+            "rates": self.DIVERSE_RATES if rates is None else rates,
         }
         response = self.client.post(url, data=data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
@@ -1212,21 +1281,38 @@ class PriceListRatesIntegrationTest(IamTestCase):
         names = [r["custom_name"] for r in response.data["data"]]
         self.assertEqual(names, sorted(names))
 
-    # --- TC-124: Lazy sync triggered via HTTP when rate_id missing ---
+    # --- TC-124: Rates endpoint never writes, and serves the 0013 shape completely ---
 
-    @patch("cost_models.price_list_view.sync_rate_table")
-    def test_lazy_sync_triggered_via_http(self, mock_sync):
-        """TC-124/BAC-44: HTTP request triggers sync when JSON lacks rate_id."""
-        pl_uuid = self._create_diverse_price_list()
+    def test_rates_endpoint_reads_without_writes_when_rate_id_missing(self):
+        """TC-124/BAC-44: a price list whose JSON lacks rate_id/custom_name returns the same rates, without writes.
+
+        The API reads pods run on the read replica in production, where any write fails.
+        """
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        pl_uuid = self._create_diverse_price_list(rates=GENERATED_NAME_RATES)
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        baseline = self.client.get(url, {"limit": "100"}, **self.headers).data["data"]
+        self.assertTrue(any("tiered_rates" in rate for rate in baseline))
         with tenant_context(self.tenant):
             pl = PriceList.objects.get(uuid=pl_uuid)
-            for entry in pl.rates:
-                entry.pop("rate_id", None)
-            pl.save(update_fields=["rates"])
+            stripped = [{k: v for k, v in entry.items() if k not in ("rate_id", "custom_name")} for entry in pl.rates]
+            PriceList.objects.filter(uuid=pl_uuid).update(rates=stripped)
 
-        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
-        self.client.get(url, **self.headers)
-        mock_sync.assert_called_once()
+        with CaptureQueriesContext(connection) as captured:
+            response = self.client.get(url, {"limit": "100"}, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["data"], baseline)
+        writes = [
+            q["sql"]
+            for q in captured
+            if q["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE")) or "FOR UPDATE" in q["sql"].upper()
+        ]
+        self.assertEqual(writes, [])
+        with tenant_context(self.tenant):
+            self.assertEqual(PriceList.objects.get(uuid=pl_uuid).rates, stripped)
 
     # --- TC-125: cost_model list filter via HTTP ---
 

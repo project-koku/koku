@@ -142,7 +142,14 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
     to_update = []
     to_create_data = []
 
-    used_names = all_existing_names | {rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")}
+    payload_names = {rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")}
+    # Names a brand-new rate must avoid: every existing and incoming name.
+    used_names = all_existing_names | payload_names
+    # Names generated so far in this payload, as migration 0013 and earlier syncs generated them
+    # (sequentially, among the payload's own names). An entry without custom_name whose generated
+    # name belongs to an existing, unclaimed rate is that rate: generating against all existing
+    # names instead would always produce a fresh "-2" name and replace every Rate row.
+    generated_names = set(payload_names)
 
     for rate_data in rates_data:
         rate_id = rate_data.get("rate_id")
@@ -157,11 +164,18 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
                 incoming_ids.add(rate_uuid)
                 to_update.append((rate_obj, rate_data))
                 used_names.add(rate_obj.custom_name)
+                generated_names.add(rate_obj.custom_name)
                 continue
             LOG.warning("rate_id %s not found; falling back to custom_name matching", rate_id)
 
+        if not rate_data.get("custom_name"):
+            candidate = generate_custom_name(rate_data, generated_names)
+            existing = existing_by_name.get(candidate)
+            if existing is not None and existing.uuid not in incoming_ids:
+                rate_data["custom_name"] = candidate
         custom_name = _resolve_custom_name(rate_data, used_names)
         used_names.add(custom_name)
+        generated_names.add(custom_name)
         if custom_name in existing_by_name:
             rate_obj = existing_by_name[custom_name]
             incoming_ids.add(rate_obj.uuid)
@@ -170,6 +184,45 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
             to_create_data.append(rate_data)
 
     return incoming_ids, to_update, to_create_data
+
+
+def as_migrated(stored_rates):
+    """Read stored rates JSON that was never synced the way migration 0013 read it.
+
+    Stored JSON without any rate_id predates rate identities: every sync writes rate_id back.
+    Migration 0013 named its Rate rows in order and ignored any custom_name in the JSON, so a
+    custom_name there (stored unvalidated before rate identities existed) is not the row's name
+    and must not reserve a name before earlier entries are matched. Drops custom_name from such
+    JSON, in place. Only for stored JSON: a client payload carries the row names the API returns.
+    """
+    entries = [entry for entry in stored_rates or [] if isinstance(entry, dict)]
+    if any(entry.get("rate_id") for entry in entries):
+        return stored_rates
+    for entry in entries:
+        entry.pop("custom_name", None)
+    return stored_rates
+
+
+def match_rates_to_json(price_list, rates):
+    """Map each Rate's UUID (str) to its entry in price_list.rates, without writing anything.
+
+    Uses the same matching as sync_rate_table (rate_id, then custom_name, generating missing names
+    the way migration 0013 did), on a copy of the JSON. For read paths: the API reads pods use the
+    read replica in production, where a sync cannot write.
+    """
+    rates_data = as_migrated(copy.deepcopy(price_list.rates or []))
+    if not rates_data:
+        return {}
+    existing_by_uuid = {r.uuid: r for r in rates}
+    existing_by_name = {r.custom_name: r for r in existing_by_uuid.values()}
+    try:
+        _, to_update, _ = _classify_incoming_rates(
+            rates_data, existing_by_uuid, existing_by_name, set(existing_by_name)
+        )
+    except ValueError as error:
+        LOG.warning(f"Cannot match rates JSON of PriceList {price_list.uuid} to its Rate rows: {error}")
+        return {}
+    return {str(rate_obj.uuid): rate_data for rate_obj, rate_data in to_update}
 
 
 def sync_rate_table(price_list, rates_data):
