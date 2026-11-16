@@ -14,7 +14,7 @@ To submit an issue please visit https://issues.redhat.com/projects/COST/.
 
 ## Getting Started
 
-This project is developed using Python 3.11. Make sure you have at least this version installed.
+This project is developed using Python 3.12. Make sure you have at least this version installed.
 
 ### Prerequisites
 
@@ -275,11 +275,11 @@ This will rebuild the tox virtual env and then run all tests.
 
 To run unit tests specifically:
 
-    tox -e py311
+    tox -e py312
 
 To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the -- separator. For example:
 
-    tox -e py311 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
+    tox -e py312 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
 To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker compose run:
 

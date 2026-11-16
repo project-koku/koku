@@ -21,7 +21,7 @@ Systematically address and resolve all comments from GitHub pull request reviewe
      - Understand the reviewer's concern
      - Implement the suggested fix or improvement
      - Ensure changes follow Koku project standards:
-       - Python 3.11+ features when appropriate
+       - Python 3.12+ features when appropriate
        - PEP 8 style guidelines
        - Black formatting (119 char line length)
        - Type hints for function parameters and return types

@@ -73,6 +73,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -127,6 +129,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -292,6 +296,9 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- name: REDIS_SSL
+  description: Enable TLS for Redis connections.
+  value: "False"
 - name: ONPREM
   description: toggles onprem data processing logic
   value: "False"
