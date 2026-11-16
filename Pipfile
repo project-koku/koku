@@ -58,6 +58,7 @@ pyjwt = ">=2.14.0"  # floor: reject public JWK containers as HMAC secrets (fixed
 certifi = ">=2026.10.19"  # floor: COST-8553 distrust eMudhra (prefer >=2026.10.19; 2026.10.18 too aggressive)
 pyasn1 = ">=0.6.5"  # floor: COST-8534/8536/8537/8543 (fixed in 0.6.5)
 babel = "*"
+kessel-sdk = {editable = true, path = "../kessel-sdk-py"}
 
 [dev-packages]
 argh = ">=0.26.2"

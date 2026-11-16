@@ -65,6 +65,11 @@ IQE_TEST_RUN = ENVIRONMENT.bool("IQE_TEST_RUN", default=False)
 # Allow org admins to bypass RBAC permission checks
 ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
 
+# Local POC: answer AWS account view from a Kessel Check instead of RBAC v1.
+KESSEL_AUTHZ = ENVIRONMENT.bool("KESSEL_AUTHZ", default=False)
+KESSEL_ENDPOINT = ENVIRONMENT.get_value("KESSEL_ENDPOINT", default="localhost:9000")
+KESSEL_WORKSPACE_ID = ENVIRONMENT.get_value("KESSEL_WORKSPACE_ID", default="")
+
 ALLOWED_HOSTS = ["*"]
 
 # Application definition
