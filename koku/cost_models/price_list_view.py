@@ -12,7 +12,6 @@ from operator import or_
 from django.db import transaction
 from django.db.models import Count
 from django.db.models import Q
-from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_filters import BooleanFilter
@@ -25,6 +24,7 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from api.common.pagination import ListPaginator

@@ -5,6 +5,7 @@
 - Use DRF serializers for input validation; return clear field errors
 - Prefer appropriate HTTP status codes; paginate large list responses
 - Validate/sanitize user input (paths, uploads, sizes) at the API boundary
+- In custom DRF detail actions, use `rest_framework.generics.get_object_or_404` for UUID lookups and test malformed path values; Django's shortcut can let model-field `ValidationError` escape as a 500.
 - Query handlers must use `tenant_context(self.tenant)` for tenant models
 
 ## When Changing Endpoints
