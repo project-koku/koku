@@ -26,6 +26,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_KOKU_READS}
         - name: SCHEMA_SUFFIX
@@ -231,6 +233,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_KOKU_WRITES}
         - name: SCHEMA_SUFFIX
@@ -492,6 +496,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_LISTENER}
         - name: SCHEMA_SUFFIX
@@ -646,6 +652,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -848,6 +856,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SCHEDULER}
         - name: SCHEMA_SUFFIX
@@ -1008,6 +1018,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SOURCES_CLIENT}
         - name: SCHEMA_SUFFIX
@@ -1173,6 +1185,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SOURCES_LISTENER}
         - name: SCHEMA_SUFFIX
@@ -1335,6 +1349,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -1531,6 +1547,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -1732,6 +1750,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -1933,6 +1953,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -2134,6 +2156,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -2339,6 +2363,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -2544,6 +2570,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -2749,6 +2777,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -2962,6 +2992,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -3175,6 +3207,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -3376,6 +3410,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -3574,6 +3610,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -3772,6 +3810,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -3970,6 +4010,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -4160,6 +4202,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -4350,6 +4394,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -4561,6 +4607,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -4777,6 +4825,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -4993,6 +5043,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -5188,6 +5240,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -5380,6 +5434,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -5564,6 +5620,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
           value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
@@ -5745,6 +5803,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -5796,6 +5856,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -5963,6 +6025,9 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- description: Enable TLS for Redis connections.
+  name: REDIS_SSL
+  value: "False"
 - description: toggles onprem data processing logic
   name: ONPREM
   value: "False"
