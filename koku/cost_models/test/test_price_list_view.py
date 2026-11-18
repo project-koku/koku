@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Price List views."""
+import copy
 import logging
 from decimal import Decimal
 from unittest.mock import MagicMock
@@ -691,7 +692,7 @@ class PriceListViewTests(IamTestCase):
 
 
 class PriceListRatesUnitTest(IamTestCase):
-    """T1 Unit tests for RateFilter, lazy sync, and response building (TC-100..TC-117)."""
+    """T1 Unit tests for RateFilter, rate matching, and response building (TC-100..TC-117)."""
 
     DIVERSE_RATES = [
         {
@@ -1008,6 +1009,60 @@ class PriceListRatesUnitTest(IamTestCase):
             after = {r.uuid: (r.custom_name, r.default_rate) for r in Rate.objects.filter(price_list=pl)}
         self.assertEqual(after, before)
 
+    # Entries migration 0013 skipped (not a dict, or metric not a dict): they have no Rate row.
+    UNMIGRATED_ENTRIES = ["not-a-rate", {"metric": "cpu_core_usage_per_hour", "cost_type": "Infrastructure"}]
+
+    def _legacy_price_list_with_unmigrated_entries(self):
+        """Legacy JSON (no rate_id, no custom_name) with entries 0013 skipped before and between real ones."""
+        pl_uuid = self._create_diverse_price_list(rates=GENERATED_NAME_RATES)
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            expected = {entry["rate_id"]: entry.get("tiered_rates") for entry in pl.rates}
+            stripped = [{k: v for k, v in entry.items() if k not in ("rate_id", "custom_name")} for entry in pl.rates]
+            legacy = [self.UNMIGRATED_ENTRIES[0], *stripped[:1], self.UNMIGRATED_ENTRIES[1], *stripped[1:]]
+            PriceList.objects.filter(uuid=pl_uuid).update(rates=legacy)
+            pl.refresh_from_db()
+        return pl, expected
+
+    def test_match_rates_to_json_skips_entries_migration_0013_skipped(self):
+        """Legacy entries 0013 skipped do not break the matching of the others (they used to raise AttributeError)."""
+        from cost_models.rate_sync import match_rates_to_json
+
+        pl, expected = self._legacy_price_list_with_unmigrated_entries()
+        with tenant_context(self.tenant):
+            matched = match_rates_to_json(pl, Rate.objects.filter(price_list=pl))
+
+        self.assertEqual({rid: entry.get("tiered_rates") for rid, entry in matched.items()}, expected)
+
+    def test_update_without_rates_skips_entries_migration_0013_skipped(self):
+        """A rename of a legacy price list with entries 0013 skipped keeps every Rate row and drops those entries."""
+        from cost_models.price_list_manager import PriceListManager
+
+        pl, expected = self._legacy_price_list_with_unmigrated_entries()
+        with tenant_context(self.tenant):
+            before = dict(Rate.objects.filter(price_list=pl).values_list("uuid", "custom_name"))
+
+            PriceListManager(pl.uuid).update(name="Renamed legacy price list")
+
+            after = dict(Rate.objects.filter(price_list=pl).values_list("uuid", "custom_name"))
+            pl.refresh_from_db()
+        self.assertEqual(after, before)
+        self.assertEqual({str(entry["rate_id"]) for entry in pl.rates}, set(expected))
+
+    def test_match_rates_to_json_invalid_rate_id_matches_nothing(self):
+        """Stored JSON with a malformed rate_id cannot be matched: the GET gets no JSON entries, not an error."""
+        from cost_models.rate_sync import match_rates_to_json
+
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            broken = copy.deepcopy(pl.rates)
+            broken[0]["rate_id"] = "not-a-uuid"
+            PriceList.objects.filter(uuid=pl_uuid).update(rates=broken)
+            pl.refresh_from_db()
+
+            self.assertEqual(match_rates_to_json(pl, Rate.objects.filter(price_list=pl)), {})
+
     # --- TC-113: match_rates_to_json uses rate_id when present ---
 
     def test_match_rates_to_json_with_rate_id(self):
@@ -1152,6 +1207,29 @@ class PriceListRatesIntegrationTest(IamTestCase):
             self.assertNotIn("rate_id", rate)
             self.assertTrue(rate["custom_name"])
             self.assertIn("cost_type", rate)
+
+    def test_put_rates_without_custom_name_keeps_every_rate(self):
+        """E10: a PUT whose rates carry no custom_name (nor rate_id) matches the existing Rate rows, end to end."""
+        pl_uuid = self._create_diverse_price_list(rates=GENERATED_NAME_RATES)
+        with tenant_context(self.tenant):
+            before = dict(Rate.objects.filter(price_list_id=pl_uuid).values_list("uuid", "custom_name"))
+        self.assertEqual(len(before), len(GENERATED_NAME_RATES))
+
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
+        data = {
+            "name": "Diverse Rates PL",
+            "description": "Price list with diverse rate types",
+            "currency": "USD",
+            "effective_start_date": "2026-01-01",
+            "effective_end_date": "2026-12-31",
+            "rates": GENERATED_NAME_RATES,
+        }
+        response = self.client.put(detail_url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        with tenant_context(self.tenant):
+            after = dict(Rate.objects.filter(price_list_id=pl_uuid).values_list("uuid", "custom_name"))
+        self.assertEqual(after, before)
 
     def test_rates_response_matches_openapi_schema(self):
         """Every field the rates endpoint returns is documented, and no rate identifier is documented."""

@@ -193,14 +193,17 @@ def as_migrated(stored_rates):
     Migration 0013 named its Rate rows in order and ignored any custom_name in the JSON, so a
     custom_name there (stored unvalidated before rate identities existed) is not the row's name
     and must not reserve a name before earlier entries are matched. Drops custom_name from such
-    JSON, in place. Only for stored JSON: a client payload carries the row names the API returns.
+    JSON, in place, and returns only the entries 0013 read: it skipped entries that are not a dict
+    or whose metric is not a dict, so they have no Rate row (and would break the matching). Only
+    for stored JSON: a client payload carries the row names the API returns.
     """
     entries = [entry for entry in stored_rates or [] if isinstance(entry, dict)]
     if any(entry.get("rate_id") for entry in entries):
         return stored_rates
-    for entry in entries:
+    migrated = [entry for entry in entries if isinstance(entry.get("metric"), dict)]
+    for entry in migrated:
         entry.pop("custom_name", None)
-    return stored_rates
+    return migrated
 
 
 def match_rates_to_json(price_list, rates):
