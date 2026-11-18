@@ -1,0 +1,10 @@
+---
+description: "Celery task design, naming, and queue wiring"
+globs:
+  - "**/celery.py"
+  - "**/tasks.py"
+  - "**/queues.py"
+alwaysApply: false
+---
+
+@docs/agent/celery-tasks.md

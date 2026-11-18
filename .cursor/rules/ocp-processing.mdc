@@ -1,0 +1,8 @@
+---
+description: "OpenShift data processing patterns and report types"
+globs:
+  - "**/ocp/**/*.py"
+alwaysApply: false
+---
+
+@docs/agent/ocp-processing.md

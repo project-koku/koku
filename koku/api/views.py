@@ -43,7 +43,9 @@ from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
+from api.report.ocp.view import OCPGpuView
 from api.report.ocp.view import OCPMemoryView
+from api.report.ocp.view import OCPMigProfilesView
 from api.report.ocp.view import OCPNetworkView
 from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.ocp.view import OCPVolumeView
@@ -63,6 +65,8 @@ from api.resource_types.gcp_projects.view import GCPProjectsView
 from api.resource_types.gcp_regions.view import GCPRegionView
 from api.resource_types.gcp_services.view import GCPServiceView
 from api.resource_types.openshift_clusters.view import OCPClustersView
+from api.resource_types.openshift_gpus.view import OCPGpuModelsView
+from api.resource_types.openshift_gpus.view import OCPGpuVendorsView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
 from api.resource_types.openshift_virtual_machines.view import OCPVirtualMachinesView
@@ -83,6 +87,7 @@ from api.settings.tags.view import SettingsDisableTagView
 from api.settings.tags.view import SettingsEnableTagView
 from api.settings.tags.view import SettingsTagView
 from api.settings.views import AccountSettings
+from api.settings.views import GlobalSettingsView
 from api.settings.views import UserCostTypeSettings
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView

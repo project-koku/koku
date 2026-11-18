@@ -6,7 +6,8 @@
 import copy
 
 from api.models import Provider
-from masu.processor import is_cost_6356_enabled
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 
 """Model for our cost model metric map."""
 OCP_METRIC_CPU_CORE_USAGE_HOUR = "cpu_core_usage_per_hour"
@@ -29,6 +30,7 @@ OCP_VM_HOUR = "vm_cost_per_hour"
 OCP_VM_CORE_MONTH = "vm_core_cost_per_month"
 OCP_VM_CORE_HOUR = "vm_core_cost_per_hour"
 OCP_PROJECT_MONTH = "project_per_month"
+OCP_GPU_MONTH = "gpu_cost_per_month"
 
 CPU = "cpu"
 MEM = "memory"
@@ -60,6 +62,7 @@ METRIC_CHOICES = (
     OCP_PROJECT_MONTH,
     OCP_VM_CORE_MONTH,
     OCP_VM_CORE_HOUR,
+    OCP_GPU_MONTH,
 )
 
 COST_TYPE_CHOICES = (
@@ -77,10 +80,13 @@ COST_MODEL_USAGE_RATES = (
     OCP_METRIC_STORAGE_GB_USAGE_MONTH,
     OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
     OCP_NODE_CORE_HOUR,
-    OCP_VM_HOUR,
-    OCP_VM_CORE_HOUR,
     OCP_CLUSTER_CORE_HOUR,
     OCP_CLUSTER_HOUR,
+)
+
+COST_MODEL_VM_USAGE_RATES = (
+    OCP_VM_HOUR,
+    OCP_VM_CORE_HOUR,
 )
 
 COST_MODEL_NODE_RATES = {
@@ -101,7 +107,7 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_OCP: "OpenShift Container Platform",
     Provider.PROVIDER_AWS: "Amazon Web Services",
     Provider.PROVIDER_AZURE: "Microsoft Azure",
-    Provider.PROVIDER_GCP: "Google Cloud Platform",
+    Provider.PROVIDER_GCP: "Google Cloud",
 }
 
 COST_MODEL_METRIC_MAP = {
@@ -249,9 +255,6 @@ COST_MODEL_METRIC_MAP = {
         "label_measurement_unit": "project-month",
         "default_cost_type": "Infrastructure",
     },
-}
-
-UNLEASH_METRICS_COST_6356 = {
     "vm_core_cost_per_month": {
         "source_type": "OCP",
         "metric": "vm_core_cost_per_month",
@@ -270,11 +273,25 @@ UNLEASH_METRICS_COST_6356 = {
     },
 }
 
+UNLEASH_METRICS_GPU = {
+    "gpu_cost_per_month": {
+        "source_type": "OCP",
+        "metric": "gpu_cost_per_month",
+        "label_metric": "GPU",
+        "label_measurement": "Count",
+        "label_measurement_unit": "gpu-month",
+        "default_cost_type": "Infrastructure",
+    },
+}
 
-def get_cost_model_metrics_map():
+
+def get_cost_model_metrics_map(schema=None):
     map_copy = copy.deepcopy(COST_MODEL_METRIC_MAP)
-    if is_cost_6356_enabled():
-        map_copy |= copy.deepcopy(UNLEASH_METRICS_COST_6356)
+
+    # Check GPU unleash flag
+    if is_feature_flag_enabled_by_schema(schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):
+        map_copy |= copy.deepcopy(UNLEASH_METRICS_GPU)
+
     return map_copy
 
 
@@ -286,6 +303,8 @@ NETWORK_UNATTRIBUTED = "network_unattributed"
 NETWORK_UNATTRIBUTED_DEFAULT = False
 STORAGE_UNATTRIBUTED = "storage_unattributed"
 STORAGE_UNATTRIBUTED_DEFAULT = False
+GPU_UNALLOCATED = "gpu_unallocated"
+GPU_UNALLOCATED_DEFAULT = False
 DISTRIBUTION_TYPE = "distribution_type"
 
 DEFAULT_DISTRIBUTION_INFO = {
@@ -294,6 +313,7 @@ DEFAULT_DISTRIBUTION_INFO = {
     WORKER_UNALLOCATED: WORKER_UNALLOCATED_DEFAULT,
     NETWORK_UNATTRIBUTED: NETWORK_UNATTRIBUTED_DEFAULT,
     STORAGE_UNATTRIBUTED: STORAGE_UNATTRIBUTED_DEFAULT,
+    GPU_UNALLOCATED: GPU_UNALLOCATED_DEFAULT,
 }
 
 # The usage metric map is used for the tag based rates

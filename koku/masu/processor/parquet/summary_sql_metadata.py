@@ -13,6 +13,31 @@ from api.utils import DateHelper
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 
 
+def trino_safe_array_literal(items: list[str | None]) -> str:
+    """Escape single quotes per SQL standard ('' not \\') and return a Trino ARRAY literal body.
+
+    Trino does not treat backslash as an escape character; a single-quote must be
+    doubled ('') to be safe inside a string literal.  Python's str(list) uses \\'
+    which would allow a tag value containing a single quote to terminate the array
+    literal and inject arbitrary Trino SQL.
+    """
+    escaped = ["'" + item.replace("'", "''") + "'" for item in items if item is not None]
+    return "[" + ", ".join(escaped) + "]"
+
+
+def hive_partition_day_values(days) -> tuple[str, ...]:
+    """Return zero-padded and legacy unpadded day strings for Hive day filters.
+
+    New OCP writes use zero-padded day partitions (e.g. ``05``). Legacy data may
+    still use unpadded values (``5``). Read-path ``day IN (...)`` filters need both.
+    """
+    values: set[str] = set()
+    for day in days:
+        values.add(str(day.day))
+        values.add(f"{day.day:02d}")
+    return tuple(sorted(values, key=lambda d: (int(d), len(d))))
+
+
 @dataclass
 class SummarySqlMetadata:
     schema: str
@@ -24,8 +49,10 @@ class SummarySqlMetadata:
     bill_id: int
     report_period_id: int
     days_tup: tuple = field(init=False)
+    days_delete_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)
+    matched_tag_strs_sql: str = field(init=False)
 
     def __post_init__(self):
         self._check_date_parameters_format()
@@ -36,6 +63,7 @@ class SummarySqlMetadata:
         if self.start_date > self.end_date:
             raise ValueError("start_date cannot be after end_date.")
         self._generate_sql_params()
+        self.matched_tag_strs_sql = trino_safe_array_literal(self.matched_tag_strs)
 
     def _check_date_parameters_format(self):
         """Checks to make sure the date parameters are in the correct format"""
@@ -47,19 +75,26 @@ class SummarySqlMetadata:
     def _generate_sql_params(self):
         """Populates additional SQL parameters options"""
         days = DateHelper().list_days(self.start_date, self.end_date)
-        self.days_tup = tuple(str(day.day) for day in days)
+        # Dual format for read-path day IN filters (legacy + zero-padded).
+        self.days_tup = hive_partition_day_values(days)
+        # One entry per calendar day for deletes (SQL matches both formats per value).
+        self.days_delete_tup = tuple(f"{day.day:02d}" for day in days)
         self.year = self.start_date.strftime("%Y")
         self.month = self.start_date.strftime("%m")
 
     def build_cost_model_params(self):
         """Set summary parameters based off cost model"""
         cost_model_params = {}
-        with CostModelDBAccessor(self.schema, self.cloud_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self.schema, self.cloud_provider_uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
             cost_model_params["markup"] = markup_value or 0
 
-        with CostModelDBAccessor(self.schema, self.ocp_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self.schema, self.ocp_provider_uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             cost_model_params["distribution"] = cost_model_accessor.distribution_info.get(
                 "distribution_type", DEFAULT_DISTRIBUTION_TYPE
             )
@@ -81,11 +116,12 @@ class SummarySqlMetadata:
             "end_date": self.end_date,
             "month": self.month,
             "year": self.year,
-            "matched_tag_strs": self.matched_tag_strs,
+            "matched_tag_strs": self.matched_tag_strs_sql,
             "ocp_provider_uuid": self.ocp_provider_uuid,
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,
+            "days_delete_tup": self.days_delete_tup,
             "report_period_id": self.report_period_id,
             "bill_id": self.bill_id,
         }
@@ -101,11 +137,12 @@ class SummarySqlMetadata:
             "end_date": self.end_date,
             "month": self.month,
             "year": self.year,
-            "matched_tag_strs": self.matched_tag_strs,
+            "matched_tag_strs": self.matched_tag_strs_sql,
             "ocp_provider_uuid": self.ocp_provider_uuid,
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,
+            "days_delete_tup": self.days_delete_tup,
             "report_period_id": self.report_period_id,
             "bill_id": self.bill_id,
         }

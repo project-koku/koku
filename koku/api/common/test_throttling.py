@@ -1,0 +1,367 @@
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""Tests for API throttling classes."""
+from unittest.mock import Mock
+from unittest.mock import patch
+
+from django.test import TestCase
+
+from api.common.throttling import AwsTagQueryThrottle
+from api.common.throttling import IngressReportsPostThrottle
+from api.common.throttling import OcpReportQueryThrottle
+from api.common.throttling import OcpReportQueryTightenThrottle
+from api.common.throttling import OcpTagQueryThrottle
+
+
+class OcpTagQueryThrottleParseRateTest(TestCase):
+    """Tests for OcpTagQueryThrottle.parse_rate."""
+
+    def test_parse_rate_none_returns_none_none(self):
+        """When rate is None, return (None, None)."""
+        throttle = OcpTagQueryThrottle()
+        self.assertEqual(throttle.parse_rate(None), (None, None))
+
+    def test_parse_rate_invalid_period_returns_none_none(self):
+        """When period does not match digits+unit, return (None, None)."""
+        throttle = OcpTagQueryThrottle()
+        self.assertEqual(throttle.parse_rate("1/invalid"), (None, None))
+        self.assertEqual(throttle.parse_rate("1/"), (None, None))
+
+    def test_parse_rate_valid_returns_requests_and_duration(self):
+        """Valid rate like 1/43200s returns (1, 43200)."""
+        throttle = OcpTagQueryThrottle()
+        self.assertEqual(throttle.parse_rate("1/43200s"), (1, 43200))
+        self.assertEqual(throttle.parse_rate("1/12h"), (1, 43200))
+
+
+class OcpTagQueryThrottleGetCacheKeyTest(TestCase):
+    """Tests for OcpTagQueryThrottle.get_cache_key."""
+
+    def test_get_cache_key_no_customer_returns_none(self):
+        """When request.user has no customer, return None (AttributeError path)."""
+        throttle = OcpTagQueryThrottle()
+        request = Mock()
+        # User with no .customer so request.user.customer raises AttributeError
+        request.user = type("User", (), {})()
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    def test_get_cache_key_no_tag_keys_returns_none(self):
+        """When query has no tag group_by, return None."""
+        throttle = OcpTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct"
+        request.query_params = {"start_date": "2024-01-01", "end_date": "2024-12-31"}
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    def test_get_cache_key_date_range_under_limit_returns_none(self):
+        """When date range < 30 days, return None."""
+        throttle = OcpTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct"
+        request.query_params = {
+            "group_by[tag:app]": "*",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-15",
+        }
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_get_cache_key_flag_disabled_returns_none(self, mock_flag):
+        """When Unleash flag is off, return None."""
+        throttle = OcpTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct"
+        request.query_params = {
+            "group_by[tag:app]": "*",
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
+        }
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_inverted_dates_returns_key(self, mock_flag):
+        """Inverted dates (end_date < start_date) are treated as heavy; throttle must apply."""
+        throttle = OcpTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "org11748336"
+        request.query_params = {
+            "group_by[tag:bhf_pod_name]": "*",
+            "start_date": "2026-06-16",
+            "end_date": "2026-06-15",
+        }
+        key = throttle.get_cache_key(request, None)
+        self.assertIsNotNone(key, "Inverted date range must be treated as heavy and trigger throttle")
+        self.assertEqual(key, "tag_query_throttle:org11748336")
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_success_returns_key(self, mock_flag):
+        """When all conditions pass, return cache key."""
+        throttle = OcpTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        request.query_params = {
+            "group_by[tag:app]": "*",
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
+        }
+        key = throttle.get_cache_key(request, None)
+        self.assertIsNotNone(key)
+        self.assertEqual(key, "tag_query_throttle:acct123")
+
+
+class OcpTagQueryThrottleGetDateRangeDaysTest(TestCase):
+    """Tests for OcpTagQueryThrottle._get_date_range_days."""
+
+    def test_missing_dates_returns_zero(self):
+        """When start_date or end_date missing, return 0."""
+        self.assertEqual(OcpTagQueryThrottle._get_date_range_days({}), 0)
+        self.assertEqual(OcpTagQueryThrottle._get_date_range_days({"start_date": "2024-01-01"}), 0)
+        self.assertEqual(OcpTagQueryThrottle._get_date_range_days({"end_date": "2024-12-31"}), 0)
+
+    def test_valid_dates_returns_days(self):
+        """Valid start_date and end_date return difference in days."""
+        params = {"start_date": "2024-01-01", "end_date": "2024-01-31"}
+        self.assertEqual(OcpTagQueryThrottle._get_date_range_days(params), 30)
+
+    def test_invalid_date_format_returns_zero(self):
+        """Invalid date strings raise ValueError/TypeError; return 0."""
+        params = {"start_date": "not-a-date", "end_date": "2024-12-31"}
+        self.assertEqual(OcpTagQueryThrottle._get_date_range_days(params), 0)
+
+    def test_inverted_dates_returns_negative(self):
+        """When end_date is before start_date, return a negative number of days."""
+        params = {"start_date": "2026-06-16", "end_date": "2026-06-15"}
+        self.assertLess(OcpTagQueryThrottle._get_date_range_days(params), 0)
+
+
+class AwsTagQueryThrottleGetCacheKeyTest(TestCase):
+    """Tests for AwsTagQueryThrottle.get_cache_key."""
+
+    def test_get_cache_key_no_customer_returns_none(self):
+        """When request.user has no customer, return None."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user = type("User", (), {})()
+        request.query_params = {
+            "filter[tag:namespace]": "x",
+            "time_scope_units": "month",
+            "time_scope_value": "-1",
+        }
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    def test_get_cache_key_no_tag_returns_none(self):
+        """When query has no tag in filter or group_by, return None."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        request.query_params = {
+            "time_scope_units": "month",
+            "time_scope_value": "-1",
+        }
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    def test_get_cache_key_light_time_scope_returns_none(self):
+        """When time_scope is not heavy (e.g. day/-1), return None."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        request.query_params = {
+            "filter[tag:namespace]": "x",
+            "time_scope_units": "day",
+            "time_scope_value": "-1",
+        }
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_get_cache_key_flag_disabled_returns_none(self, mock_flag):
+        """When Unleash flag is off, return None."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        request.query_params = {
+            "filter[tag:namespace]": "x",
+            "time_scope_units": "month",
+            "time_scope_value": "-1",
+        }
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_success_returns_aws_key(self, mock_flag):
+        """When all conditions pass, return AWS cache key."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct6083048"
+        request.query_params = {
+            "filter[tag:namespace]": "value",
+            "time_scope_units": "month",
+            "time_scope_value": "-1",
+        }
+        key = throttle.get_cache_key(request, None)
+        self.assertIsNotNone(key)
+        self.assertEqual(key, "tag_query_throttle:aws:acct6083048")
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_group_by_tag_returns_key(self, mock_flag):
+        """When group_by has tag (not only filter), still throttle."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct99"
+        request.query_params = {
+            "group_by[tag:app]": "*",
+            "time_scope_units": "month",
+            "time_scope_value": "-1",
+        }
+        key = throttle.get_cache_key(request, None)
+        self.assertIsNotNone(key)
+        self.assertEqual(key, "tag_query_throttle:aws:acct99")
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_month_minus_2_and_minus_3_are_heavy(self, mock_flag):
+        """Month scope with -2 or -3 (2 or 3 months) is also considered heavy."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        for value in ("-2", "-3"):
+            with self.subTest(time_scope_value=value):
+                request.query_params = {
+                    "filter[tag:env]": "prod",
+                    "time_scope_units": "month",
+                    "time_scope_value": value,
+                }
+                key = throttle.get_cache_key(request, None)
+                self.assertIsNotNone(key, f"time_scope_value={value} should be heavy")
+                self.assertEqual(key, "tag_query_throttle:aws:acct123")
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_filter_prefix_keys_returns_key(self, mock_flag):
+        """Real API sends filter[time_scope_units] and filter[time_scope_value]; throttle must apply."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct7049367"
+        request.query_params = {
+            "filter[tag:namespace]": "vulnerability-engine-stage",
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-1",
+            "filter[resolution]": "monthly",
+            "group_by[service]": "*",
+        }
+        key = throttle.get_cache_key(request, None)
+        self.assertIsNotNone(key, "filter[] param keys must be recognized as heavy")
+        self.assertEqual(key, "tag_query_throttle:aws:acct7049367")
+
+
+class OcpReportQueryThrottleGetCacheKeyTest(TestCase):
+    """Tests for global OcpReportQueryThrottle."""
+
+    def test_get_cache_key_no_customer_returns_none(self):
+        """When request.user has no customer, return None."""
+        throttle = OcpReportQueryThrottle()
+        request = Mock()
+        request.user = type("User", (), {})()
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    def test_get_cache_key_returns_key_for_any_schema(self):
+        """Global baseline applies without an Unleash flag check."""
+        throttle = OcpReportQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        key = throttle.get_cache_key(request, None)
+        self.assertEqual(key, "ocp_report_query_throttle:acct123")
+
+    @patch("api.common.throttling.settings")
+    def test_get_rate_uses_settings(self, mock_settings):
+        """Rate is loaded from OCP_REPORT_THROTTLE_RATE."""
+        mock_settings.OCP_REPORT_THROTTLE_RATE = "30/m"
+        throttle = OcpReportQueryThrottle()
+        self.assertEqual(throttle.rate, "30/m")
+        self.assertEqual(throttle.num_requests, 30)
+        self.assertEqual(throttle.duration, 60)
+
+
+class OcpReportQueryTightenThrottleGetCacheKeyTest(TestCase):
+    """Tests for Unleash-gated OcpReportQueryTightenThrottle."""
+
+    def test_get_cache_key_no_customer_returns_none(self):
+        """When request.user has no customer, return None."""
+        throttle = OcpReportQueryTightenThrottle()
+        request = Mock()
+        request.user = type("User", (), {})()
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_get_cache_key_flag_disabled_returns_none(self, mock_flag):
+        """When Unleash flag is off, return None."""
+        throttle = OcpReportQueryTightenThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        self.assertIsNone(throttle.get_cache_key(request, None))
+        mock_flag.assert_called_once()
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_flag_enabled_returns_key(self, mock_flag):
+        """When flag is on for the schema, return tighten cache key."""
+        throttle = OcpReportQueryTightenThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        key = throttle.get_cache_key(request, None)
+        self.assertEqual(key, "ocp_report_query_tighten_throttle:acct123")
+
+    @patch("api.common.throttling.settings")
+    def test_get_rate_uses_tight_settings(self, mock_settings):
+        """Tighten rate is loaded from OCP_REPORT_THROTTLE_TIGHT_RATE."""
+        mock_settings.OCP_REPORT_THROTTLE_TIGHT_RATE = "5/m"
+        throttle = OcpReportQueryTightenThrottle()
+        self.assertEqual(throttle.rate, "5/m")
+        self.assertEqual(throttle.num_requests, 5)
+        self.assertEqual(throttle.duration, 60)
+
+
+class IngressReportsPostThrottleGetCacheKeyTest(TestCase):
+    """Tests for Unleash-gated IngressReportsPostThrottle."""
+
+    def test_get_cache_key_non_post_returns_none(self):
+        """Non-POST requests are never throttled."""
+        throttle = IngressReportsPostThrottle()
+        for method in ("GET", "PUT", "DELETE", "PATCH"):
+            request = Mock()
+            request.method = method
+            self.assertIsNone(throttle.get_cache_key(request, None))
+
+    def test_get_cache_key_no_customer_returns_none(self):
+        """When request.user has no customer attribute, return None."""
+        throttle = IngressReportsPostThrottle()
+        request = Mock()
+        request.method = "POST"
+        request.user = type("User", (), {})()
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_get_cache_key_flag_disabled_returns_none(self, mock_flag):
+        """When Unleash flag is off, throttle is skipped (returns None)."""
+        throttle = IngressReportsPostThrottle()
+        request = Mock()
+        request.method = "POST"
+        request.user.customer.schema_name = "org1234567"
+        self.assertIsNone(throttle.get_cache_key(request, None))
+        mock_flag.assert_called_once()
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_flag_enabled_returns_key(self, mock_flag):
+        """When flag is on for the schema, the throttle cache key is returned."""
+        throttle = IngressReportsPostThrottle()
+        request = Mock()
+        request.method = "POST"
+        request.user.customer.schema_name = "org1234567"
+        key = throttle.get_cache_key(request, None)
+        self.assertEqual(key, "ingress_reports_post_throttle:org1234567")
+
+    @patch("api.common.throttling.settings")
+    def test_get_rate_uses_settings(self, mock_settings):
+        """Rate is loaded from INGRESS_REPORTS_POST_THROTTLE_RATE setting."""
+        mock_settings.INGRESS_REPORTS_POST_THROTTLE_RATE = "10/m"
+        throttle = IngressReportsPostThrottle()
+        self.assertEqual(throttle.rate, "10/m")
+        self.assertEqual(throttle.num_requests, 10)
+        self.assertEqual(throttle.duration, 60)

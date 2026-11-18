@@ -35,6 +35,7 @@ OPENSHIFT_GCP_CACHE_PREFIX = "openshift-gcp-view"
 OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
 SOURCES_CACHE_PREFIX = "sources"
 TAG_MAPPING_PREFIX = "tag-mapping"
+OCP_ON_CLOUD_MATCHED_TAGS_PREFIX = "ocp-on-cloud-matched-tags"
 
 
 def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name=CacheEnum.api):
@@ -48,6 +49,9 @@ def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
             db=settings.REDIS_DB,
+            username=settings.REDIS_USERNAME,
+            password=settings.REDIS_PASSWORD,
+            ssl=settings.REDIS_SSL,
             **settings.REDIS_CONNECTION_POOL_KWARGS,
         )
         all_keys = cache.keys("*")
@@ -143,11 +147,6 @@ def is_key_in_cache(cache_key, cache_choice=CacheEnum.default):
     return cache.has_key(cache_key)
 
 
-def build_matching_tags_key(schema_name, provider_type):
-    """Return the key for matching tags"""
-    return f"OCP-on-{provider_type}:{schema_name}:matching-tags"
-
-
 def build_trino_schema_exists_key(schema_name):
     return f"schema-exists-trino-{schema_name}"
 
@@ -156,18 +155,43 @@ def build_trino_table_exists_key(schema_name, table_name):
     return f"table-exists-trino-{schema_name}-{table_name}"
 
 
-def get_cached_matching_tags(schema_name, provider_type):
-    """Return cached OCP on Cloud matched tags if exists."""
-    cache = caches[CacheEnum.default]
-    cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
-    return cache.get(cache_key)
+def build_enabled_currency_codes_key(schema_name):
+    """Return the cache key for a tenant's enabled currency codes."""
+    return f"enabled-currency-codes-{schema_name}"
 
 
-def set_cached_matching_tags(schema_name, provider_type, matched_tags):
-    """Return cached OCP on Cloud matched tags if exists."""
+def build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month):
+    """Return the Valkey key for month-wide OCP-on-cloud matched tags."""
+    return f"ocp-on-cloud-matched-tags:{schema_name}:{ocp_provider_uuid}:{cloud_provider_uuid}:{month}"
+
+
+def get_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_provider_uuid, month):
+    """Return cached month-wide OCP-on-cloud matched tags, or None on a miss."""
     cache = caches[CacheEnum.default]
-    cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
-    cache.set(cache_key, matched_tags)
+    return cache.get(build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month))
+
+
+def set_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_provider_uuid, month, matched_tags):
+    """Cache month-wide OCP-on-cloud matched tags, including an empty list."""
+    cache = caches[CacheEnum.default]
+    cache.set(
+        build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month),
+        matched_tags,
+        timeout=settings.WORKER_CACHE_TIMEOUT,
+    )
+
+
+def delete_cached_ocp_on_cloud_matched_tags(schema_name, ocp_provider_uuid, cloud_provider_uuid, month):
+    """Drop one cluster/cloud/month matched-tags cache entry."""
+    cache = caches[CacheEnum.default]
+    cache.delete(build_ocp_on_cloud_matched_tags_key(schema_name, ocp_provider_uuid, cloud_provider_uuid, month))
+
+
+def invalidate_ocp_on_cloud_matched_tags(schema_name):
+    """Drop every matched-tags cache entry for a tenant."""
+    invalidate_cache_for_tenant_and_cache_key(
+        schema_name, OCP_ON_CLOUD_MATCHED_TAGS_PREFIX, cache_name=CacheEnum.default
+    )
 
 
 def get_cached_infra_map(schema_name, provider_type, provider_uuid):

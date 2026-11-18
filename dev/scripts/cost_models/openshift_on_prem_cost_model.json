@@ -5,6 +5,15 @@
     "source_uuids": [
         "PROVIDER_UUID"
     ],
+    "distribution": "cpu",
+    "distribution_info": {
+        "distribution_type": "cpu",
+        "platform_cost": true,
+        "worker_cost": true,
+        "network_unattributed": true,
+        "storage_unattributed": true,
+        "gpu_unallocated": true
+    },
     "rates": [
         {
             "metric": {
@@ -290,6 +299,38 @@
                         "default": false,
                         "tag_value": "cinnamon",
                         "description": ""
+                    }
+                ]
+            },
+            "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "gpu_cost_per_month"
+            },
+            "tag_rates": {
+                "tag_key": "nvidia",
+                "tag_values": [
+                    {
+                        "unit": "USD",
+                        "value": 1000,
+                        "default": false,
+                        "tag_value": "Tesla T4",
+                        "description": "NVIDIA Tesla T4"
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 2500,
+                        "default": false,
+                        "tag_value": "A100",
+                        "description": "NVIDIA A100"
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 5000,
+                        "default": true,
+                        "tag_value": "H100",
+                        "description": "NVIDIA H100"
                     }
                 ]
             },

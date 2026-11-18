@@ -24,6 +24,10 @@ class TestSettingsTagMappingView(MasuTestCase):
         """Set up the tests."""
         super().setUp()
         self.client = APIClient()
+        # Keep delay enabled so resummarize does not send_task against Redis in CI/dev.
+        delay_patcher = patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+        delay_patcher.start()
+        self.addCleanup(delay_patcher.stop)
 
         with tenant_context(self.tenant):
             self.enabled_uuid_list = list(EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True))
@@ -174,6 +178,57 @@ class TestSettingsTagMappingView(MasuTestCase):
         data = {"ids": ["gibberish"]}
         response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("api.settings.tags.mapping.view.resummarize_current_month_by_tag_keys")
+    def test_remove_children_requests_unmapped_rebuild(self, mock_resummarize):
+        """Mapping removal must rebuild from source; in-place apply cannot restore child keys."""
+        url = reverse("tags-mapping-child-add")
+        data = {
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1]],
+        }
+        response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        mock_resummarize.reset_mock()
+
+        url = reverse("tags-mapping-child-remove")
+        response = self.client.put(url, {"ids": [self.enabled_uuid_list[1]]}, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        mock_resummarize.assert_called_once()
+        self.assertTrue(mock_resummarize.call_args.kwargs.get("restore_unmapped"))
+        called_uuids = {str(uuid) for uuid in mock_resummarize.call_args.args[0]}
+        self.assertEqual(called_uuids, {str(self.enabled_uuid_list[0]), str(self.enabled_uuid_list[1])})
+
+    @patch("api.settings.tags.mapping.view.resummarize_current_month_by_tag_keys")
+    def test_remove_parent_requests_unmapped_rebuild(self, mock_resummarize):
+        url = reverse("tags-mapping-child-add")
+        data = {
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1]],
+        }
+        response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        mock_resummarize.reset_mock()
+
+        url = reverse("tags-mapping-parent-remove")
+        response = self.client.put(url, {"ids": [self.enabled_uuid_list[0]]}, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        mock_resummarize.assert_called_once()
+        self.assertTrue(mock_resummarize.call_args.kwargs.get("restore_unmapped"))
+        called_uuids = {str(uuid) for uuid in mock_resummarize.call_args.args[0]}
+        self.assertEqual(called_uuids, {str(self.enabled_uuid_list[0]), str(self.enabled_uuid_list[1])})
+
+    @patch("api.settings.tags.mapping.view.resummarize_current_month_by_tag_keys")
+    def test_add_children_does_not_request_unmapped_rebuild(self, mock_resummarize):
+        url = reverse("tags-mapping-child-add")
+        data = {
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1]],
+        }
+        response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        mock_resummarize.assert_called_once()
+        self.assertFalse(mock_resummarize.call_args.kwargs.get("restore_unmapped", False))
 
     def test_filter_by_source_type(self):
         """Test the filter by source_type."""

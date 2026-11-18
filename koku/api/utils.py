@@ -516,9 +516,21 @@ class DateHelper:
         return [{"year": date.strftime("%Y"), "month": date.strftime("%m")} for date in dates]
 
 
-def materialized_view_month_start(dh=DateHelper()):
-    """Datetime of midnight on the first of the month where materialized summary starts."""
-    return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
+def materialized_view_month_start(dh=DateHelper(), schema_name=None):
+    """Datetime of midnight on the first of the month where materialized summary starts.
+
+    When schema_name is provided, reads per-tenant retention via
+    get_data_retention_months; otherwise falls back to settings.RETAIN_NUM_MONTHS.
+    """
+    if schema_name is not None:
+        from api.settings.utils import get_data_retention_months
+
+        retain = get_data_retention_months(schema_name)
+        if retain is None:
+            retain = settings.RETAIN_NUM_MONTHS
+    else:
+        retain = settings.RETAIN_NUM_MONTHS
+    return dh.this_month_start - relativedelta(months=retain - 1)
 
 
 def to_date(date_input: str | datetime.datetime | datetime.date | None) -> datetime.date | None:
@@ -553,21 +565,19 @@ def to_date(date_input: str | datetime.datetime | datetime.date | None) -> datet
 def get_months_in_date_range(
     start: str | datetime.datetime | None = None,
     end: str | datetime.datetime | None = None,
-    invoice_month: str | None = None,
     *,
     report: bool = False,
-) -> list[tuple[datetime.date, datetime.date, str | None]]:
+) -> list[tuple[datetime.date, datetime.date]]:
     """Return the month periods in a given date range from report.
 
     Args:
         start (str | datetime.datetime | None): Start date/datetime or date string
         end (str | datetime.datetime | None): End date/datetime or date string
-        invoice_month (str | None): Invoice month string in YYYYMM format
         report (bool): Whether this is for report processing
 
     Returns:
-        list[tuple[datetime.date, datetime.date, str | None]]: List of month period tuples
-            with (start_date, end_date, invoice_month)
+        list[tuple[datetime.date, datetime.date]]: List of month period tuples
+            with (start_date, end_date)
     """
     dh = DateHelper()
     today_date = dh.today.date()
@@ -575,36 +585,21 @@ def get_months_in_date_range(
     # Converting inputs to date objects
     dt_start = to_date(start)
     dt_end = to_date(end)
-
-    dt_invoice_month = invoice_month
-
     if report:
         if dt_start and dt_end:
             LOG.info(f"using start: {dt_start} and end: {dt_end} dates from manifest")
-            if dt_invoice_month:
-                LOG.info(f"using invoice_month: {dt_invoice_month}")
         else:
             LOG.info("generating start and end dates for manifest")
             dt_start = today_date - datetime.timedelta(days=2) if today_date.day > 2 else today_date.replace(day=1)
             dt_end = today_date
 
-    elif dt_invoice_month:
-        dt_start = dt_start or today_date
-        dt_end = dt_end or today_date
-
-        # For report_data masu API
-        return [(dt_start, dt_end, dt_invoice_month)]
-
     # Grabbing ingest delta for initial ingest/summary
     summary_month = (today_date - relativedelta(months=Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
+
     if not dt_start or dt_start < summary_month:
         dt_start = summary_month.replace(day=1)
 
     if not dt_end or dt_end < summary_month:
         dt_end = today_date
 
-    if report and dt_invoice_month:
-        return [(dt_start, dt_end, dt_invoice_month)]
-
-    months = dh.list_month_tuples(dt_start, dt_end)
-    return [(start, end, dt_invoice_month) for start, end in months]
+    return list(dh.list_month_tuples(dt_start, dt_end))

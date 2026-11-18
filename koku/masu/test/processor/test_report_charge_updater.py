@@ -72,3 +72,15 @@ class CostModelCostUpdaterTest(MasuTestCase):
         except Exception as err:
             self.fail(f"Failed with exception: {err}")
         self.assertIsNone(updater._updater)
+
+    def test_updater_is_none_if_setup_not_complete(self):
+        """
+        Test that the internal updater is not set if provider setup is not complete.
+        """
+        provider = self.aws_provider
+        provider.setup_complete = False
+        provider.save()
+        with self.assertLogs("masu.processor.cost_model_cost_updater", level="DEBUG") as logger:
+            updater = CostModelCostUpdater(self.schema, provider.uuid)
+            self.assertIsNone(updater._updater)
+            self.assertIn("Provider setup is not complete", str(logger.output))

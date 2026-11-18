@@ -4,6 +4,7 @@
 #
 """Test the sources view."""
 import json
+import unittest
 from random import randint
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -11,19 +12,29 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import requests_mock
+from django.conf import settings
 from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
+from django_tenants.utils import schema_context
+from rest_framework import mixins
+from rest_framework.response import Response
 
 from api.common.permissions import RESOURCE_TYPE_MAP
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
-from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
+from reporting.models import TenantAPIProvider
+from sources.api.source_type_mapping import PROVIDER_TYPE_TO_CMMO_ID
+from sources.api.view import DestroySourceMixin
+from sources.api.view import SourceFilter
 from sources.api.view import SourcesViewSet
 
 
@@ -63,6 +74,10 @@ class SourcesViewTests(IamTestCase):
         mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
         SourcesViewSet.url = mock_url
 
+    @unittest.skipIf(
+        settings.ONPREM or settings.DEVELOPMENT,
+        "SaaS-only: PATCH is allowed when ONPREM or DEVELOPMENT is True",
+    )
     def test_source_patch(self):
         """Test the PATCH endpoint."""
         credentials = {"subscription_id": "subscription-uuid"}
@@ -83,6 +98,10 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 405)
 
+    @unittest.skipIf(
+        settings.ONPREM or settings.DEVELOPMENT,
+        "SaaS-only: PUT is allowed when ONPREM or DEVELOPMENT is True",
+    )
     def test_source_put(self):
         """Test the PUT endpoint."""
         credentials = {"subscription_id": "subscription-uuid"}
@@ -116,6 +135,7 @@ class SourcesViewTests(IamTestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(body.get("meta").get("count"), 1)
 
+    @unittest.skipIf(settings.ONPREM, "AWS S3 regions Sources action is SaaS-only")
     def test_aws_s3_regions(self):
         """Given a request for AWS S3 regions, a subset of all available regions should be returned"""
         all_regions = {
@@ -148,12 +168,16 @@ class SourcesViewTests(IamTestCase):
             "us-west-2",
         }
 
-        response = self.client.get(reverse("sources-aws-s3-regions"), **self.request_context["request"].META)
+        response = self.client.get(
+            reverse("sources-aws-s3-regions"), {"limit": 1000}, **self.request_context["request"].META
+        )
         regions = response.json()["data"]
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(set(regions).issubset(all_regions))
+        self.assertLessEqual(all_regions, set(regions))
+        self.assertTrue(all_regions.issubset(set(regions)))
 
+    @unittest.skipIf(settings.ONPREM, "AWS S3 regions Sources action is SaaS-only")
     def test_aws_s3_regions_pagination(self):
         """Test that the API response is paginated"""
         limit = 4
@@ -203,6 +227,7 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 200)
             self.assertIsNotNone(body)
+            self.assertIsNotNone(body["updated_timestamp"])
 
     def test_source_get_other_header(self):
         """Test the GET endpoint other header not matching test data."""
@@ -225,6 +250,10 @@ class SourcesViewTests(IamTestCase):
             response = self.client.get(url, content_type="application/json", **request_context["request"].META)
             self.assertEqual(response.status_code, 404)
 
+    @unittest.skipIf(
+        settings.ONPREM or settings.DEVELOPMENT,
+        "SaaS-only: DELETE is allowed when ONPREM or DEVELOPMENT is True",
+    )
     def test_source_destroy_not_allowed(self):
         """Test access to the destroy endpoint."""
         url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
@@ -240,7 +269,7 @@ class SourcesViewTests(IamTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
 
-    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    @patch("sources.api.view.bulk_source_details", return_value={})
     def test_source_list_zerror(self, _):
         """Test provider_linked is False in list when Provider does not exist."""
         cache.clear()
@@ -251,12 +280,11 @@ class SourcesViewTests(IamTestCase):
         self.assertIsNotNone(body)
         self.assertTrue(body.get("data"))
         self.assertFalse(body.get("data")[0]["provider_linked"])
+        self.assertIsNone(body.get("data")[0]["created_timestamp"])
+        self.assertIsNotNone(body.get("data")[0]["updated_timestamp"])
 
-    @patch("sources.api.view.ProviderManager")
-    def test_source_list_provider_success(self, mock_provider_manager):
+    def test_source_list_provider_success(self):
         """Test provider_linked is True in list when Provider exists."""
-        provider_manager = ProviderManager(self.azure_provider.uuid)
-        mock_provider_manager.return_value = provider_manager
         url = reverse("sources-list")
         response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
         body = response.json()
@@ -265,6 +293,8 @@ class SourcesViewTests(IamTestCase):
         self.assertTrue(body.get("data"))
         self.assertTrue(body.get("data")[0]["provider_linked"])
         self.assertTrue(body.get("data")[0]["active"])
+        self.assertIsNotNone(body.get("data")[0]["created_timestamp"])
+        self.assertIsNotNone(body.get("data")[0]["updated_timestamp"])
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_retrieve_error(self, _):
@@ -276,6 +306,8 @@ class SourcesViewTests(IamTestCase):
         self.assertIsNotNone(body)
         self.assertFalse(body["provider_linked"])
         self.assertFalse(body["active"])
+        self.assertIsNone(body["created_timestamp"])
+        self.assertIsNotNone(body["updated_timestamp"])
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_get_stats_error(self, _):
@@ -324,6 +356,7 @@ class SourcesViewTests(IamTestCase):
             self.assertEqual(response.status_code, 404)
             self.assertIsNotNone(body)
 
+    @unittest.skipIf(settings.ONPREM, "SaaS-only: per-resource-type filtering is bypassed in ONPREM mode")
     def test_sources_access(self):
         """Test the limiting of source type visibility."""
         mock_user = Mock(admin=True)
@@ -360,3 +393,558 @@ class SourcesViewTests(IamTestCase):
             Provider.PROVIDER_GCP_LOCAL,
         ]
         self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))
+
+
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: write endpoints require ONPREM=True")
+@override_settings(ROOT_URLCONF="sources.urls")
+class SourcesViewPatchTests(IamTestCase):
+    """PATCH syncs Source changes to linked Provider (enabled when ONPREM or DEVELOPMENT)."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+        self.test_source_id = 8801
+        self.source_name = "Patch Azure Source"
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+
+        self.azure_creds = {
+            "client_id": "test_client",
+            "tenant_id": "test_tenant",
+            "client_secret": "x",
+            "subscription_id": "test_sub",
+        }
+        self.azure_billing = {"resource_group": "test-rg", "storage_account": "test-sa"}
+        auth = ProviderAuthentication.objects.create(credentials=self.azure_creds)
+        billing = ProviderBillingSource.objects.create(data_source=self.azure_billing)
+        self.azure_provider = Provider(
+            name=self.source_name,
+            type=Provider.PROVIDER_AZURE,
+            customer=customer_obj,
+            authentication=auth,
+            billing_source=billing,
+        )
+        self.azure_provider.save()
+        with schema_context(self.tenant.schema_name):
+            TenantAPIProvider.objects.create(
+                uuid=self.azure_provider.uuid,
+                name=self.azure_provider.name,
+                type=self.azure_provider.type,
+                provider=self.azure_provider,
+            )
+
+        self.azure_obj = Sources(
+            source_id=self.test_source_id,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=8801,
+            source_type=Provider.PROVIDER_AZURE,
+            name=self.source_name,
+            authentication={"credentials": self.azure_creds},
+            billing_source={"data_source": self.azure_billing},
+            source_uuid=self.azure_provider.uuid,
+            koku_uuid=self.azure_provider.uuid,
+        )
+        self.azure_obj.provider = self.azure_provider
+        self.azure_obj.save()
+
+        mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
+        SourcesViewSet.url = mock_url
+
+        self.url = reverse("sources-detail", kwargs={"pk": str(self.azure_provider.uuid)})
+        self.meta = self.request_context["request"].META
+
+    @patch("providers.provider_access.ProviderAccessor.cost_usage_source_ready", return_value=True)
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_patch_syncs_all_fields_to_provider(self, _mock_invalidate, _mock_ready):
+        """PATCH syncs paused, authentication, and billing_source to Source and linked Provider."""
+        cache.clear()
+        new_creds = {
+            "client_id": "new_client",
+            "tenant_id": "new_tenant",
+            "client_secret": "new_secret",
+            "subscription_id": "new_sub",
+        }
+        new_billing = {"resource_group": "new-rg", "storage_account": "new-sa"}
+
+        response = self.client.patch(
+            self.url,
+            json.dumps(
+                {
+                    "paused": True,
+                    "authentication": {"credentials": new_creds},
+                    "billing_source": {"data_source": new_billing},
+                }
+            ),
+            content_type="application/json",
+            **self.meta,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.azure_obj.refresh_from_db()
+        self.azure_provider.refresh_from_db()
+
+        self.assertTrue(self.azure_obj.paused)
+        self.assertTrue(self.azure_provider.paused)
+        self.assertEqual(self.azure_obj.authentication["credentials"], new_creds)
+        self.assertEqual(self.azure_provider.authentication.credentials, new_creds)
+        self.assertEqual(self.azure_obj.billing_source["data_source"], new_billing)
+        self.assertEqual(self.azure_provider.billing_source.data_source, new_billing)
+
+        response = self.client.patch(
+            self.url,
+            json.dumps({"paused": False}),
+            content_type="application/json",
+            **self.meta,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.azure_provider.refresh_from_db()
+        self.assertFalse(self.azure_provider.paused)
+
+
+@override_settings(ROOT_URLCONF="sources.urls")
+class SourceFilterTests(IamTestCase):
+    """Test Cases for SourceFilter custom filters."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+
+        # Create an OCP source with cluster_id
+        self.ocp_provider = Provider(name="Test OCP", type=Provider.PROVIDER_OCP, customer=customer_obj)
+        self.ocp_provider.save()
+        self.ocp_source = Sources(
+            source_id=10,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=10,
+            source_type=Provider.PROVIDER_OCP,
+            name="Test OCP Source",
+            authentication={"credentials": {"cluster_id": "test-cluster-abc"}},
+            source_uuid=self.ocp_provider.uuid,
+        )
+        self.ocp_source.save()
+
+        # Create an Azure source
+        self.azure_provider = Provider(name="Test Azure", type=Provider.PROVIDER_AZURE, customer=customer_obj)
+        self.azure_provider.save()
+        self.azure_source = Sources(
+            source_id=11,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=11,
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test Azure Source",
+            authentication={"credentials": {"client_id": "test_client"}},
+            source_uuid=self.azure_provider.uuid,
+        )
+        self.azure_source.save()
+
+        mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
+        SourcesViewSet.url = mock_url
+
+    def test_filter_by_source_type_id_ocp(self):
+        """Test filtering sources by source_type_id for OCP."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_type_id": PROVIDER_TYPE_TO_CMMO_ID[Provider.PROVIDER_OCP]},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        for source in body["data"]:
+            self.assertEqual(source["source_type"], Provider.PROVIDER_OCP)
+
+    def test_filter_by_source_type_id_azure(self):
+        """Test filtering sources by source_type_id for Azure."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_type_id": PROVIDER_TYPE_TO_CMMO_ID[Provider.PROVIDER_AZURE]},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        for source in body["data"]:
+            self.assertEqual(source["source_type"], Provider.PROVIDER_AZURE)
+
+    def test_filter_by_source_type_id_invalid(self):
+        """Test filtering sources by invalid source_type_id returns empty."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_type_id": "999"},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["meta"]["count"], 0)
+
+    def test_filter_by_source_ref(self):
+        """Test filtering sources by source_ref (cluster_id)."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_ref": "test-cluster-abc"},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["meta"]["count"], 1)
+        self.assertEqual(body["data"][0]["source_type"], Provider.PROVIDER_OCP)
+
+    def test_filter_by_source_ref_no_match(self):
+        """Test filtering sources by source_ref with no match."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_ref": "nonexistent-cluster"},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["meta"]["count"], 0)
+
+    def test_filter_by_source_type_id_unit(self):
+        """Test SourceFilter.filter_by_source_type_id directly."""
+        queryset = Sources.objects.all()
+        source_filter = SourceFilter()
+        # Valid source_type_id
+        filtered = source_filter.filter_by_source_type_id(queryset, "source_type_id", "1")
+        for source in filtered:
+            self.assertEqual(source.source_type, Provider.PROVIDER_OCP)
+
+        # Invalid source_type_id returns empty
+        filtered = source_filter.filter_by_source_type_id(queryset, "source_type_id", "999")
+        self.assertEqual(filtered.count(), 0)
+
+    def test_filter_by_source_ref_unit(self):
+        """Test SourceFilter.filter_by_source_ref directly."""
+        queryset = Sources.objects.all()
+        source_filter = SourceFilter()
+        filtered = source_filter.filter_by_source_ref(queryset, "source_ref", "test-cluster-abc")
+        self.assertTrue(filtered.exists())
+        for source in filtered:
+            self.assertEqual(
+                source.authentication.get("credentials", {}).get("cluster_id"),
+                "test-cluster-abc",
+            )
+
+
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: write endpoints require ONPREM=True")
+@override_settings(ROOT_URLCONF="sources.urls")
+class SourcesViewCreateTests(IamTestCase):
+    """Test Cases for the SourcesViewSet.create method."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_create_method_success(self, mock_invalidate):
+        """Test the create method calls super and invalidates cache."""
+        viewset = SourcesViewSet()
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch.object(mixins.CreateModelMixin, "create", return_value=Response(status=201)):
+            result = viewset.create(request=mock_request)
+            self.assertEqual(result.status_code, 201)
+            mock_invalidate.assert_called_once()
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_create_method_storage_error(self, mock_invalidate):
+        """Test the create method raises SourcesException on SourcesStorageError."""
+        from sources.api.view import SourcesException
+        from sources.storage import SourcesStorageError
+
+        viewset = SourcesViewSet()
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch.object(mixins.CreateModelMixin, "create", side_effect=SourcesStorageError("test error")):
+            with self.assertRaises(SourcesException):
+                viewset.create(request=mock_request)
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_create_method_dependency_error(self, mock_invalidate):
+        """Test the create method raises SourcesDependencyException on SourcesDependencyError."""
+        from sources.api.serializers import SourcesDependencyError
+        from sources.api.view import SourcesDependencyException
+
+        viewset = SourcesViewSet()
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch.object(mixins.CreateModelMixin, "create", side_effect=SourcesDependencyError("dep error")):
+            with self.assertRaises(SourcesDependencyException):
+                viewset.create(request=mock_request)
+
+
+class DestroySourceMixinTests(IamTestCase):
+    """Test Cases for the DestroySourceMixin.destroy with ONPREM publish."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+
+        self.provider = Provider(name="Test OCP", type=Provider.PROVIDER_OCP, customer=customer_obj)
+        self.provider.save()
+        self.source = Sources(
+            source_id=20,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=20,
+            source_type=Provider.PROVIDER_OCP,
+            name="Test OCP Source",
+            authentication={"credentials": {"cluster_id": "destroy-test-cluster"}},
+            source_uuid=self.provider.uuid,
+            koku_uuid=self.provider.uuid,
+        )
+        self.source.save()
+
+    @patch("sources.api.view.publish_application_destroy_event")
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @override_settings(ONPREM=True)
+    def test_destroy_publishes_kafka_event_when_onprem(self, mock_invalidate, mock_publish):
+        """Test that destroy publishes Kafka event when ONPREM is True."""
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+        mock_request.user.customer.account_id = self.test_account
+        mock_request.user.customer.org_id = self.test_org_id
+        mock_request.user.identity_header = {"encoded": "test-header"}
+
+        class TestDestroyView(DestroySourceMixin):
+            def get_object(self):
+                return self.source
+
+        view = TestDestroyView()
+        view.source = self.source
+
+        with (
+            patch.object(view, "get_object", return_value=self.source),
+            patch("sources.api.view.ProviderBuilder") as mock_builder,
+            patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Response(status=204)),
+        ):
+            mock_builder.return_value.destroy_provider.return_value = None
+            DestroySourceMixin.destroy(view, request=mock_request)
+
+            mock_publish.assert_called_once_with(self.source)
+
+    @patch("sources.api.view.publish_application_destroy_event")
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @override_settings(ONPREM=False)
+    def test_destroy_skips_kafka_event_when_not_onprem(self, mock_invalidate, mock_publish):
+        """Test that destroy does NOT publish Kafka event when ONPREM is False."""
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+        mock_request.user.customer.account_id = self.test_account
+        mock_request.user.customer.org_id = self.test_org_id
+        mock_request.user.identity_header = {"encoded": "test-header"}
+
+        class TestDestroyView(DestroySourceMixin):
+            def get_object(self):
+                return None
+
+        view = TestDestroyView()
+
+        with (
+            patch.object(view, "get_object", return_value=self.source),
+            patch("sources.api.view.ProviderBuilder") as mock_builder,
+            patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Response(status=204)),
+        ):
+            mock_builder.return_value.destroy_provider.return_value = None
+            DestroySourceMixin.destroy(view, request=mock_request)
+
+            mock_publish.assert_not_called()
+
+
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: RBAC enforcement is only enabled for on-prem")
+@override_settings(ROOT_URLCONF="koku.urls")
+class SourcesViewRbacTests(IamTestCase):
+    """Test RBAC permission enforcement on the sources endpoint."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.admin_request_context = self._create_request_context(
+            customer, user_data, create_customer=True, is_admin=True
+        )
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+
+        self.ocp_provider = Provider(name="RBAC Test OCP", type=Provider.PROVIDER_OCP, customer=customer_obj)
+        self.ocp_provider.save()
+        self.ocp_source = Sources(
+            source_id=9901,
+            auth_header=self.admin_request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=9901,
+            source_type=Provider.PROVIDER_OCP,
+            name="RBAC Test OCP Source",
+            authentication={"credentials": {"cluster_id": "cluster-a"}},
+            source_uuid=self.ocp_provider.uuid,
+        )
+        self.ocp_source.save()
+
+        # A second source, on a different cluster, to prove a resource-scoped
+        # reader cannot reach any source (there is no per-source filtering).
+        self.ocp_provider_b = Provider(name="RBAC Test OCP B", type=Provider.PROVIDER_OCP, customer=customer_obj)
+        self.ocp_provider_b.save()
+        self.ocp_source_b = Sources(
+            source_id=9902,
+            auth_header=self.admin_request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=9902,
+            source_type=Provider.PROVIDER_OCP,
+            name="RBAC Test OCP Source B",
+            authentication={"credentials": {"cluster_id": "cluster-b"}},
+            source_uuid=self.ocp_provider_b.uuid,
+        )
+        self.ocp_source_b.save()
+
+        mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
+        SourcesViewSet.url = mock_url
+
+    @RbacPermissions({"sources": {"read": ["*"], "write": ["*"]}})
+    def test_list_with_sources_read_access(self):
+        """Test that a user with sources:*:read can list sources."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({"sources": {"read": ["*"], "write": ["*"]}})
+    def test_retrieve_with_sources_read_access(self):
+        """Test that a user with sources:*:read can retrieve a source."""
+        url = reverse("sources-detail", kwargs={"pk": self.ocp_source.source_id})
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({})
+    def test_list_without_sources_access_returns_403(self):
+        """Test that a user without sources access gets 403 on list."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_list_with_provider_read_access(self):
+        """A provider viewer (e.g. Cost OpenShift Viewer) can list sources for the cost UI."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_create_with_provider_read_access_returns_403(self):
+        """Provider read access does not permit creating a source."""
+        url = reverse("sources-list")
+        payload = {
+            "name": "Forbidden Source",
+            "source_type": Provider.PROVIDER_OCP,
+            "authentication": {"credentials": {"cluster_id": "forbidden-cluster"}},
+        }
+        response = self.client.post(url, json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["cluster-a"]}})
+    def test_scoped_provider_reader_cannot_reach_any_source(self):
+        """A reader scoped to cluster-a gets 403 on list/retrieve/stats -- including its own source.
+
+        The on-prem sources endpoint does no per-source filtering, so a scoped
+        provider read must not open it at all (that would expose every source's
+        authentication and billing metadata, cluster-b included).
+        """
+        cache.clear()
+        list_resp = self.client.get(reverse("sources-list"), content_type="application/json")
+        self.assertEqual(list_resp.status_code, 403)
+
+        for source in (self.ocp_source, self.ocp_source_b):
+            with self.subTest(source=source.name):
+                detail = self.client.get(
+                    reverse("sources-detail", kwargs={"pk": source.source_id}), content_type="application/json"
+                )
+                self.assertEqual(detail.status_code, 403)
+                stats = self.client.get(
+                    reverse("sources-stats", kwargs={"pk": source.source_id}), content_type="application/json"
+                )
+                self.assertEqual(stats.status_code, 403)
+
+    @RbacPermissions({})
+    def test_retrieve_without_sources_access_returns_403(self):
+        """Test that a user without sources access gets 403 on retrieve."""
+        url = reverse("sources-detail", kwargs={"pk": self.ocp_source.source_id})
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({"sources": {"read": ["*"]}})
+    def test_list_with_read_only_access(self):
+        """Test that a user with sources read-only access can list."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({"sources": {"read": ["*"]}})
+    def test_create_with_read_only_access_returns_403(self):
+        """Test that a user with only read access gets 403 on create."""
+        url = reverse("sources-list")
+        payload = {
+            "name": "Forbidden Source",
+            "source_type": Provider.PROVIDER_OCP,
+            "authentication": {"credentials": {"cluster_id": "forbidden-cluster"}},
+        }
+        response = self.client.post(url, json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({"sources": {"read": ["*"], "write": ["*"]}})
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_stats_with_sources_access(self, _):
+        """Test that a user with sources access can view stats."""
+        url = reverse("sources-stats", kwargs={"pk": self.ocp_source.source_id})
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({})
+    def test_stats_without_sources_access_returns_403(self):
+        """Test that a user without sources access gets 403 on stats."""
+        url = reverse("sources-stats", kwargs={"pk": self.ocp_source.source_id})
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 403)

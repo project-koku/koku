@@ -17,9 +17,11 @@ import datetime
 import logging
 import os
 import re
+import ssl
 import sys
 from enum import StrEnum
 from json import JSONDecodeError
+from urllib.parse import quote
 
 import boto3
 import pandas as pd
@@ -53,6 +55,12 @@ SECRET_KEY = ENVIRONMENT.get_value(
 # SECURITY WARNING: don't run with debug turned on in production!
 # Default value: False
 DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
+
+ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
+
+# Enables masu endpoints that are normally SaaS-only so IQE/integration tests can reach them.
+# Never enable this in production.
+IQE_TEST_RUN = ENVIRONMENT.bool("IQE_TEST_RUN", default=False)
 
 # Allow org admins to bypass RBAC permission checks
 ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
@@ -108,19 +116,16 @@ TENANT_APPS = ("reporting", "cost_models")
 TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int("TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2)
 TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int("TENANT_MULTIPROCESSING_CHUNKS", default=2)
 
-ACCOUNT_ENHANCED_METRICS = ENVIRONMENT.bool("ACCOUNT_ENHANCED_METRICS", default=False)
 
 PROMETHEUS_BEFORE_MIDDLEWARE = "django_prometheus.middleware.PrometheusBeforeMiddleware"
 PROMETHEUS_AFTER_MIDDLEWARE = "django_prometheus.middleware.PrometheusAfterMiddleware"
 
-if ACCOUNT_ENHANCED_METRICS:
-    PROMETHEUS_BEFORE_MIDDLEWARE = "koku.middleware.AccountEnhancedMetricsBeforeMiddleware"
-    PROMETHEUS_AFTER_MIDDLEWARE = "koku.middleware.AccountEnhancedMetricsAfterMiddleware"
 
 ### Middleware setup
 MIDDLEWARE = [
     PROMETHEUS_BEFORE_MIDDLEWARE,
     "koku.middleware.RequestTimingMiddleware",
+    "koku.middleware.RequestTimeoutMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
@@ -174,7 +179,19 @@ UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.j
 MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
 
 ### Currency URL
-CURRENCY_URL = ENVIRONMENT.get_value("CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD")
+# Empty by default. SaaS sets this via app-interface / deploy parameters.
+# When unset, the daily get_daily_currency_rates Celery beat is not scheduled.
+CURRENCY_URL = (ENVIRONMENT.get_value("CURRENCY_URL", default="") or "").strip()
+
+### Currency catalog denylist
+# Comma-separated ISO codes excluded from the Settings enablement catalog and
+# from new enablement (babel tender list minus this set). Already-enabled
+# denylisted codes remain visible so admins can disable them. Example: KPW.
+CURRENCY_CATALOG_DENYLIST = frozenset(
+    code.strip().upper()
+    for code in ENVIRONMENT.list("CURRENCY_CATALOG_DENYLIST", default=[])
+    if code and str(code).strip()
+)
 
 ### End Middleware
 
@@ -182,6 +199,10 @@ AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.AllowAllUsersModelBacke
 
 MASU = ENVIRONMENT.bool("MASU", default=False)
 SOURCES = ENVIRONMENT.bool("SOURCES", default=False)
+# Shared secret for on-prem Masu admin endpoints (Bearer token).
+# When ONPREM=True and MASU=True, empty/missing values fail closed (401).
+# Wired by the Operator from a Secret (see COST-8059 follow-up).
+MASU_ADMIN_TOKEN = (ENVIRONMENT.get_value("MASU_ADMIN_TOKEN", default="") or "").strip()
 ROOT_URLCONF = "koku.urls"
 if MASU:
     ROOT_URLCONF = "masu.urls"
@@ -214,18 +235,43 @@ WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS = ENVIRONMENT.get_value(
 )
 CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
 
+# OCP report API throttles (req/min per schema). Tunable via app-interface / clowdapp.
+OCP_REPORT_THROTTLE_RATE = ENVIRONMENT.get_value("OCP_REPORT_THROTTLE_RATE", default="10000/m")
+OCP_REPORT_THROTTLE_TIGHT_RATE = ENVIRONMENT.get_value("OCP_REPORT_THROTTLE_TIGHT_RATE", default="500/m")
+
+# Ingress reports POST throttle (req/min per schema). Tunable via app-interface / clowdapp.
+INGRESS_REPORTS_POST_THROTTLE_RATE = ENVIRONMENT.get_value("INGRESS_REPORTS_POST_THROTTLE_RATE", default="20/m")
+
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
 REDIS_PORT = CONFIGURATOR.get_in_memory_db_port()
 REDIS_DB = 1
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+REDIS_USERNAME = ENVIRONMENT.get_value("REDIS_USERNAME", default="") or None
+REDIS_PASSWORD = ENVIRONMENT.get_value("REDIS_PASSWORD", default="") or None
+REDIS_SSL = ENVIRONMENT.bool("REDIS_SSL", default=False)
+REDIS_SSL_CA_CERTS = ENVIRONMENT.get_value("REDIS_SSL_CA_CERTS", default="")
+
+_redis_scheme = "rediss" if REDIS_SSL else "redis"
+if REDIS_USERNAME and REDIS_PASSWORD:
+    _redis_auth = f"{quote(REDIS_USERNAME)}:{quote(REDIS_PASSWORD)}@"
+elif REDIS_PASSWORD:
+    _redis_auth = f":{quote(REDIS_PASSWORD)}@"
+else:
+    _redis_auth = ""
+REDIS_URL = f"{_redis_scheme}://{_redis_auth}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
 REDIS_HEALTH_CHECK_INTERVAL = 5
 REDIS_RETRY_ON_TIMEOUT = True
 REDIS_CONNECTION_POOL_KWARGS = {
     "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
+if REDIS_SSL:
+    REDIS_SSL_CERT_REQS = ssl.CERT_REQUIRED if REDIS_SSL_CA_CERTS else ssl.CERT_NONE
+    REDIS_CONNECTION_POOL_KWARGS["ssl_cert_reqs"] = REDIS_SSL_CERT_REQS
+    if REDIS_SSL_CA_CERTS:
+        REDIS_CONNECTION_POOL_KWARGS["ssl_ca_certs"] = REDIS_SSL_CA_CERTS
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 
@@ -278,7 +324,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.api: {
@@ -292,7 +338,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.rbac: {
@@ -304,7 +350,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.worker: {
@@ -325,6 +371,11 @@ HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
 HIVE_DATABASE_NAME = ENVIRONMENT.get_value("HIVE_DATABASE_NAME", default="hive")
 HIVE_DATABASE_PASSWORD = ENVIRONMENT.get_value("HIVE_DATABASE_PASSWORD", default="hive")
 HIVE_PARTITION_DELETE_RETRIES = 5
+
+# Postgres deadlocks are expected, transient conditions under concurrent writers.
+# The deadlock detector always rolls one transaction back cleanly, so retrying the
+# statement is safe and is the standard recommended way to handle them.
+DB_DEADLOCK_RETRIES = 4
 
 #
 TENANT_MODEL = "api.Tenant"
@@ -465,12 +516,6 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": LOGGING_FORMATTER,
         },
-        "file": {
-            "level": KOKU_LOGGING_LEVEL,
-            "class": "logging.FileHandler",
-            "filename": LOGGING_FILE,
-            "formatter": LOGGING_FORMATTER,
-        },
     },
     "loggers": {
         "gunicorn.access": {
@@ -552,6 +597,14 @@ LOGGING = {
     },
 }
 
+if "file" in LOGGING_HANDLERS:
+    LOGGING["handlers"]["file"] = {
+        "level": KOKU_LOGGING_LEVEL,
+        "class": "logging.FileHandler",
+        "filename": LOGGING_FILE,
+        "formatter": LOGGING_FORMATTER,
+    }
+
 if "watchtower" in LOGGING_HANDLERS:
     LOGGING["handlers"]["watchtower"] = WATCHTOWER_HANDLER
     print("CloudWatch configured.")
@@ -609,6 +662,7 @@ PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=2
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
+OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS = ENVIRONMENT.int("OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS", default=28800000)
 TRINO_S3A_OR_S3 = ENVIRONMENT.get_value("TRINO_S3A_OR_S3", default="s3a")
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
@@ -651,6 +705,10 @@ except JSONDecodeError:
 ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)
 
 # Celery configuration
+#
+# Broker security: CELERY_BROKER_URL shares REDIS_URL (cache + broker).
+# Production on-prem must set REDIS_PASSWORD (and optionally REDIS_SSL). Serializers are
+# pinned to JSON only — never enable pickle. Do not set CELERY_TASK_ALWAYS_EAGER outside tests.
 
 # Set Broker
 CELERY_BROKER_URL = REDIS_URL
@@ -661,9 +719,20 @@ CELERY_BROKER_POOL_LIMIT = None
 CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
 CELERY_RESULTS_URL = REDIS_URL
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_DISABLE_PREFETCH = True
 CELERY_WORKER_CONCURRENCY = 1
 CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = REDIS_HEALTH_CHECK_INTERVAL
 CELERY_REDIS_RETRY_ON_TIMEOUT = REDIS_RETRY_ON_TIMEOUT
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+if REDIS_SSL:
+    _celery_ssl_conf = {"ssl_cert_reqs": REDIS_SSL_CERT_REQS}
+    if REDIS_SSL_CA_CERTS:
+        _celery_ssl_conf["ssl_ca_certs"] = REDIS_SSL_CA_CERTS
+    CELERY_BROKER_USE_SSL = _celery_ssl_conf
+    CELERY_REDIS_BACKEND_USE_SSL = _celery_ssl_conf
 
 # HCS debugging
 ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)
@@ -677,6 +746,9 @@ DISABLE_ROS_MSG = ENVIRONMENT.bool("DISABLE_ROS_MSG", default=False)
 
 # Delay Celery Tasks Timeout
 DELAYED_TASK_TIME = ENVIRONMENT.int("DELAYED_TASK_TIME", default=3600)
+
+# First day to retry creating next month's partitions every eight hours.
+PRECREATE_PARTITIONS_START_DAY = ENVIRONMENT.int("PRECREATE_PARTITIONS_START_DAY", default=15)
 
 AZURE_COST_MGMT_CLIENT_API_VERSION = ENVIRONMENT.get_value(
     "AZURE_COST_MGMT_CLIENT_API_VERSION", default="2023-07-01-preview"

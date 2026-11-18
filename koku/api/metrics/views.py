@@ -20,7 +20,6 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
 from api.metrics import constants as metric_constants
 from api.metrics.serializers import QueryParamsSerializer
-from masu.processor import is_cost_6356_enabled
 
 
 @api_view(["GET"])  # noqa: C901
@@ -32,7 +31,13 @@ def metrics(request):
     source_type = request.query_params.get("source_type")
     serializer = QueryParamsSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
-    cost_model_metric_map_copy = list(metric_constants.get_cost_model_metrics_map().values())
+    # Get schema from request user for feature flag evaluation
+    schema = None
+    try:
+        schema = request.user.customer.schema_name
+    except AttributeError:
+        pass
+    cost_model_metric_map_copy = list(metric_constants.get_cost_model_metrics_map(schema=schema).values())
     if source_type:
         # Filter on source type
         cost_model_metric_map_copy = list(

@@ -1,0 +1,6 @@
+---
+description: "Koku cost management domain concepts and terminology"
+alwaysApply: true
+---
+
+@docs/agent/domain-context.md

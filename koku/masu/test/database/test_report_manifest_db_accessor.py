@@ -87,6 +87,15 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         self.assertIn("end", after_state.state.get("download"))
         self.assertIn("time_taken_seconds", after_state.state.get("download"))
 
+    def test_update_manifest_state_missing_manifest(self):
+        """update_manifest_state returns silently when manifest was deleted (race condition)."""
+        non_existent_id = 999999999
+        # Must not raise CostUsageReportManifest.DoesNotExist
+        try:
+            self.manifest_accessor.update_manifest_state(ManifestStep.SUMMARY, ManifestState.FAILED, non_existent_id)
+        except CostUsageReportManifest.DoesNotExist:
+            self.fail("update_manifest_state raised DoesNotExist for a deleted manifest")
+
     def test_mark_manifests_as_completed_none_manifest(self):
         """Test that a none manifest doesn't complete failure."""
         try:

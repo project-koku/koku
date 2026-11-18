@@ -14,6 +14,7 @@ from django.db.models import Value
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
+from api.report.filter_collection import ocp_all_storage_filter_collection
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAllComputeSummaryPT
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -148,9 +149,11 @@ class OCPAllProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {
@@ -255,9 +258,11 @@ class OCPAllProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {
@@ -364,24 +369,16 @@ class OCPAllProviderMap(ProviderMap):
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
-                        "filter": [
-                            {"field": "unit", "operation": "in", "parameter": ["GB-Mo", "gibibyte month"]},
-                        ],
-                        "or_filter": [
-                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},  # all
-                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},  # all
-                            {
-                                "field": "product_code",
-                                "operation": "in",
-                                "parameter": ["Filestore", "Data Transfer"],
-                            },  # GCP Specific
-                        ],
+                        "filter": [{}],
+                        "composed_filters": ocp_all_storage_filter_collection(),
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
@@ -484,22 +481,16 @@ class OCPAllProviderMap(ProviderMap):
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{}],
-                        "or_filter": [
-                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
-                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
-                            {
-                                "field": "product_code",
-                                "operation": "in",
-                                "parameter": ["Filestore", "Data Transfer"],
-                            },  # GCP Specific
-                        ],
+                        "composed_filters": ocp_all_storage_filter_collection(),
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
@@ -598,9 +589,11 @@ class OCPAllProviderMap(ProviderMap):
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -709,9 +702,11 @@ class OCPAllProviderMap(ProviderMap):
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -777,4 +772,5 @@ class OCPAllProviderMap(ProviderMap):
                 ("account", "service"): OCPAllNetworkSummaryPT,
             },
         }
+        self.add_cluster_summary_views()
         super().__init__(provider, report_type, schema_name)

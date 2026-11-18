@@ -6,25 +6,112 @@ from datetime import datetime
 from datetime import timedelta
 from pprint import pprint
 
+from celery import bootsteps
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.schedules import ParseException
 from celery.signals import celeryd_after_setup
 from celery.signals import worker_process_init
-from celery.signals import worker_process_shutdown
 from django.conf import settings
 from kombu.exceptions import OperationalError
-from UnleashClient.periodic_tasks import fetch_and_load_features
 
 from .database import FKViolation
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
+from koku.probe_server import install_parent_heartbeat
+from koku.probe_server import parent_heartbeat_liveness_response
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
+from koku.probe_server import touch_parent_heartbeat
 
 LOG = logging.getLogger(__name__)
+
+CURRENCY_RATES_BEAT_NAME = "get_daily_currency_rates"
+CHECK_REPORT_UPDATES_BEAT_NAME = "check-report-updates-batched"
+SAAS_ONLY_BEAT_NAMES = (
+    "finalize_hcs_reports",
+    "scrape_azure_storage_capacities",
+    "crawl_account_hierarchy",
+    "source_status_beat",
+    "delete_source_beat",
+)
+ONPREM_ONLY_BEAT_NAMES = ("create_source_beat",)
+
+
+def precreate_partitions_schedule(start_day: int) -> crontab:
+    """Run every eight hours from start_day through the end of each month."""
+    if not 1 <= start_day <= 28:
+        raise ValueError(f"PRECREATE_PARTITIONS_START_DAY must be between 1 and 28, got {start_day}")
+    return crontab(hour="5,13,21", minute=30, day_of_month=f"{start_day}-31")
+
+
+def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
+    """Register the daily currency rates beat only when CURRENCY_URL is set.
+
+    Works for SaaS and on-prem (legacy currency path). Empty CURRENCY_URL means
+    the beat is not scheduled and workers do not attempt outbound FX API calls.
+    """
+    if not (currency_url or "").strip():
+        return False
+    beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
+        "task": "masu.celery.tasks.get_daily_currency_rates",
+        "schedule": schedule or crontab(hour=1, minute=0),
+    }
+    return True
+
+
+def register_onprem_only_beats(beat_schedule, *, onprem=False):
+    """Register on-prem-only Celery beats; skip entirely when not on-prem."""
+    if not onprem:
+        return False
+
+    beat_schedule["create_source_beat"] = {
+        "task": "sources.tasks.create_source_beat",
+        "schedule": crontab(minute="*/5"),
+    }
+    return True
+
+
+def register_saas_only_beats(beat_schedule, *, onprem=False, source_status_schedule=None):
+    """Register SaaS-only Celery beats; skip entirely when on-prem."""
+    if onprem:
+        return False
+
+    beat_schedule["delete_source_beat"] = {
+        "task": "sources.tasks.delete_source_beat",
+        "schedule": crontab(minute="0", hour="4"),
+    }
+    beat_schedule["source_status_beat"] = {
+        "task": "sources.tasks.source_status_beat",
+        "schedule": source_status_schedule or crontab(hour=3, minute=0),
+    }
+    beat_schedule["scrape_azure_storage_capacities"] = {
+        "task": "masu.celery.tasks.scrape_azure_storage_capacities",
+        "schedule": crontab(hour=2, minute=0),
+    }
+    beat_schedule["crawl_account_hierarchy"] = {
+        "task": "masu.celery.tasks.crawl_account_hierarchy",
+        "schedule": crontab(hour=0, minute=0),
+    }
+    beat_schedule["finalize_hcs_reports"] = {
+        "task": "hcs.tasks.collect_hcs_report_finalization",
+        "schedule": crontab(0, 0, day_of_month="15"),
+    }
+    return True
+
+
+def register_report_check_beat(beat_schedule, *, onprem=False, schedule_report_checks=False, schedule=None):
+    """Register the batched report-check beat for SaaS when SCHEDULE_REPORT_CHECKS is enabled."""
+    if onprem or not schedule_report_checks:
+        return False
+    beat_schedule[CHECK_REPORT_UPDATES_BEAT_NAME] = {
+        "task": "masu.celery.tasks.check_report_updates",
+        "schedule": schedule or crontab(minute=0),
+        "kwargs": {},
+    }
+    return True
 
 
 class LogErrorsTask(Task):  # pragma: no cover
@@ -51,23 +138,27 @@ class LoggingCelery(Celery):
         return super().task(*args, **kwargs)
 
 
-class WorkerProbeServer(ProbeServer):  # pragma: no cover
+class WorkerProbeServer(ProbeServer):
     """HTTP server for liveness/readiness probes."""
 
     _collector = lambda *args: None  # noqa: E731
     _last_query_time = datetime.min
 
     @classmethod
-    def update_last_query_time(cls, value):
+    def update_last_query_time(cls, value):  # pragma: no cover
         """Update the last query time."""
         cls._last_query_time = value
 
-    def metrics_check(self):
+    def metrics_check(self):  # pragma: no cover
         """Get the metrics."""
         if datetime.now() - timedelta(minutes=1) > self._last_query_time:
             self.update_last_query_time(datetime.now())
             self._collector()
         super(ProbeServer, self).do_GET()
+
+    def liveness_check(self):
+        """Fail /livez when the Celery parent heartbeat is missing or stale after startup."""
+        self._write_response(parent_heartbeat_liveness_response(self.ready))
 
     def readiness_check(self):
         """Set the readiness check response."""
@@ -85,6 +176,23 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
         self._write_response(ProbeResponse(status, msg))
 
 
+class ParentHeartbeatStep(bootsteps.StartStopStep):
+    """Re-arm parent /livez heartbeat on every asynloop start, including reconnect.
+
+    Celery 5.6.3 ``asynloop`` calls ``hub.timer.clear()`` on broker connection
+    errors. ``celeryd_after_setup`` runs once, so ``call_repeatedly`` must be
+    installed again here — the same parent hub/timer, not a daemon thread.
+    """
+
+    label = "ParentHeartbeat"
+
+    def register_with_event_loop(self, worker, hub) -> None:
+        """Re-install the heartbeat after hub.timer.clear() on reconnect."""
+        timer = getattr(hub, "timer", None) or getattr(worker, "timer", None)
+        if timer is not None:
+            install_parent_heartbeat(timer)
+
+
 def validate_cron_expression(expression, default="0 * * * *"):
     if len(expression.split(" ", 5)) != 5:
         print(f"Invalid cron expression: {expression}. Falling back to default {default}")
@@ -98,6 +206,11 @@ def validate_cron_expression(expression, default="0 * * * *"):
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
+# Celery's Django fixup runs Django's system checks when a worker starts. The URL check
+# imports every API view and its dependencies (~100 MB per worker process before forecast
+# imported statsmodels lazily, ~12 MB after). The checks still run in CI, migrate and the API.
+# Set CELERY_SKIP_CHECKS to an empty value to run them in workers again.
+os.environ.setdefault("CELERY_SKIP_CHECKS", "1")
 
 print("starting celery")
 # 'app' is the recommended convention from celery docs
@@ -106,6 +219,7 @@ app = LoggingCelery(
     "koku", log="koku.log:TaskRootLogging", backend=settings.CELERY_RESULTS_URL, broker=settings.CELERY_BROKER_URL
 )
 app.config_from_object("django.conf:settings", namespace="CELERY")
+app.steps["worker"].add(ParentHeartbeatStep)
 
 print("celery autodiscover tasks")
 
@@ -117,20 +231,22 @@ app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 WORKER_PROC_ALIVE_TIMEOUT = ENVIRONMENT.int("WORKER_PROC_ALIVE_TIMEOUT", default=4)
 app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
 
-# Toggle to enable/disable scheduled checks for new reports.
-if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
+# Toggle to enable/disable scheduled checks for new reports (SaaS only).
+schedule_report_checks = ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False)
+report_download_schedule = None
+if schedule_report_checks and not settings.ONPREM:
     download_fallback = validate_cron_expression("0 * * * *")
-    download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
     download_expression = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_fallback)
     REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(download_expression, download_fallback)
-    report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
-    CHECK_REPORT_UPDATES_DEF = {
-        "task": download_task,
-        "schedule": report_schedule,
-        "kwargs": {},
-    }
-    app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_DEF
+    report_download_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
+if schedule_report_checks and not register_report_check_beat(
+    app.conf.beat_schedule,
+    onprem=settings.ONPREM,
+    schedule_report_checks=schedule_report_checks,
+    schedule=report_download_schedule,
+):
+    LOG.info("Report check beat not registered (ONPREM=%s)", settings.ONPREM)
 
 # Specify the day of the month for removal of expired report data.
 REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)
@@ -173,48 +289,34 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "args": [],
 }
 
-# task to clean up sources with `pending_delete=t`
-app.conf.beat_schedule["delete_source_beat"] = {
-    "task": "sources.tasks.delete_source_beat",
-    "schedule": crontab(minute="0", hour="4"),
+# Create next month's partitions ahead of time (from the configured day, every 8 hours) so the
+# first of the month does not need partition DDL on the processing path. A table that
+# is busy on one run is retried at a different time of day on the next.
+app.conf.beat_schedule["precreate-upcoming-partitions"] = {
+    "task": "masu.celery.tasks.precreate_upcoming_partitions",
+    "schedule": precreate_partitions_schedule(settings.PRECREATE_PARTITIONS_START_DAY),
+    "args": [],
 }
 
-# Specify the frequency for pushing source status.
+# SaaS-only beats (HCS, Azure scrape, AWS org crawl, Sources status/delete)
 status_fallback = validate_cron_expression("0 3 * * *")
 status_expression = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_fallback)
 SOURCE_STATUS_SCHEDULE = validate_cron_expression(status_expression, status_fallback)
 source_status_schedule = crontab(*SOURCE_STATUS_SCHEDULE.split(" ", 5))
 
-# task to push source status`
-app.conf.beat_schedule["source_status_beat"] = {
-    "task": "sources.tasks.source_status_beat",
-    "schedule": source_status_schedule,
-}
+if not register_saas_only_beats(
+    app.conf.beat_schedule,
+    onprem=settings.ONPREM,
+    source_status_schedule=source_status_schedule,
+):
+    LOG.info("SaaS-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
 
-# Beat used to collect Azure disk capacities
-app.conf.beat_schedule["scrape_azure_storage_capacities"] = {
-    "task": "masu.celery.tasks.scrape_azure_storage_capacities",
-    "schedule": crontab(hour=2, minute=0),
-}
+if not register_onprem_only_beats(app.conf.beat_schedule, onprem=settings.ONPREM):
+    LOG.info("On-prem-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
 
-
-# Beat used to crawl the account hierarchy
-app.conf.beat_schedule["crawl_account_hierarchy"] = {
-    "task": "masu.celery.tasks.crawl_account_hierarchy",
-    "schedule": crontab(hour=0, minute=0),
-}
-
-# Beat used to fetch daily rates
-app.conf.beat_schedule["get_daily_currency_rates"] = {
-    "task": "masu.celery.tasks.get_daily_currency_rates",
-    "schedule": crontab(hour=1, minute=0),
-}
-
-# Beat used for HCS report finalization
-app.conf.beat_schedule["finalize_hcs_reports"] = {
-    "task": "hcs.tasks.collect_hcs_report_finalization",
-    "schedule": crontab(0, 0, day_of_month="15"),
-}
+# Beat used to fetch daily rates (only when CURRENCY_URL is configured)
+if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
+    LOG.info("Daily currency rates beat not registered (CURRENCY_URL is empty)")
 
 # Specify the frequency for checking delayed summary tasks
 DELAYED_TASK_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_TASK_POLLING_MINUTES", default="30")
@@ -222,6 +324,16 @@ trigger_delayed_tasks_schedule = crontab(minute=f"*/{DELAYED_TASK_POLLING_MINUTE
 app.conf.beat_schedule["delayed_tasks_trigger"] = {
     "task": "masu.celery.tasks.trigger_delayed_tasks",
     "schedule": trigger_delayed_tasks_schedule,
+}
+
+# Register S3 inbox markers, then enqueue staging rows a worker has not finished.
+app.conf.beat_schedule["reconcile_ingress_staging"] = {
+    "task": "masu.external.downloader.ocp.payload_landing.reconcile_ingress_staging",
+    "schedule": crontab(minute="*"),
+}
+app.conf.beat_schedule["expire_ingress_staging"] = {
+    "task": "masu.external.downloader.ocp.payload_landing.expire_ingress_staging",
+    "schedule": crontab(minute=0),
 }
 
 
@@ -244,24 +356,29 @@ if "scheduler" in hostname:
 
 
 @celeryd_after_setup.connect
-def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
+def wait_for_migrations(sender, instance, **kwargs):
     """Wait for migrations to complete before completing worker startup."""
     from masu.celery.tasks import collect_queue_metrics
 
     from .database import check_migrations
 
     httpd = start_probe_server(WorkerProbeServer)
+    # Touch before the hub/timer is running so kube does not kill the pod during migration wait.
+    touch_parent_heartbeat()
 
     # This is a special case because check_migrations() returns three values
     # True means migrations are up-to-date
     while check_migrations() != True:  # noqa
         LOG.warning("Migrations not done. Sleeping")
+        touch_parent_heartbeat()
         time.sleep(5)
 
     httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
     httpd.RequestHandlerClass._collector = collect_queue_metrics
+    # Parent hub/timer: same loop that freezes if the worker is wedged (not a daemon thread).
+    install_parent_heartbeat(instance.timer)
 
-    if ENVIRONMENT.bool("DEBUG_ATTACH", default=False):
+    if ENVIRONMENT.bool("DEBUG_ATTACH", default=False):  # pragma: no cover
         import debugpy
 
         debugpy.listen(("0.0.0.0", 5678))
@@ -269,34 +386,77 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
         debugpy.wait_for_client()
 
 
+def _initialize_unleash_for_celery_worker():
+    from koku.feature_flags import MockUnleashClient, UNLEASH_CLIENT
+
+    if isinstance(UNLEASH_CLIENT, MockUnleashClient):
+        UNLEASH_CLIENT.initialize_client()
+        return
+
+    request_timeout = UNLEASH_CLIENT.unleash_request_timeout
+    startup_request_timeout = min(
+        request_timeout,
+        max(1, WORKER_PROC_ALIVE_TIMEOUT // 2),
+    )
+    transport = UNLEASH_CLIENT._transport
+    register = transport.register
+    registration_succeeded = False
+
+    def register_or_raise(payload):
+        nonlocal registration_succeeded
+        registration_started = time.monotonic()
+        UNLEASH_CLIENT.unleash_request_timeout = startup_request_timeout
+        try:
+            registered = register(payload)
+        except Exception:
+            LOG.exception(
+                "Unleash registration raised after %.3f seconds.",
+                time.monotonic() - registration_started,
+            )
+            raise
+        finally:
+            UNLEASH_CLIENT.unleash_request_timeout = request_timeout
+
+        elapsed = time.monotonic() - registration_started
+        if not registered:
+            LOG.error("Unleash registration failed in %.3f seconds.", elapsed)
+            raise RuntimeError("Unleash registration failed")
+        LOG.info("Unleash registration succeeded in %.3f seconds.", elapsed)
+        registration_succeeded = True
+        return registered
+
+    # Limit the synchronous registration request to the Celery startup budget.
+    LOG.info(
+        "Using a %s-second timeout for Unleash registration " "(Celery child deadline: %s seconds).",
+        startup_request_timeout,
+        WORKER_PROC_ALIVE_TIMEOUT,
+    )
+    transport.register = register_or_raise
+    try:
+        UNLEASH_CLIENT.initialize_client()
+        if not registration_succeeded:
+            raise RuntimeError("Unleash registration was not verified")
+    finally:
+        transport.register = register
+
+
 @worker_process_init.connect
 def init_worker(**kwargs):
-    from koku.feature_flags import UNLEASH_CLIENT
-
-    LOG.debug("Initializing UNLEASH_CLIENT for celery worker.")
-    UNLEASH_CLIENT.initialize_client()
-    fetch_and_load_features(
-        url=UNLEASH_CLIENT.unleash_url,
-        app_name=UNLEASH_CLIENT.unleash_app_name,
-        instance_id=UNLEASH_CLIENT.unleash_instance_id,
-        headers=UNLEASH_CLIENT.metrics_headers,
-        custom_options=UNLEASH_CLIENT.unleash_custom_options,
-        cache=UNLEASH_CLIENT.cache,
-        engine=UNLEASH_CLIENT.engine,
-        request_timeout=UNLEASH_CLIENT.unleash_request_timeout,
-        request_retries=UNLEASH_CLIENT.unleash_request_retries,
-        project=UNLEASH_CLIENT.unleash_project_name,
-        event_callback=UNLEASH_CLIENT.unleash_event_callback,
-        ready_callback=UNLEASH_CLIENT._ready_callback,
+    started = time.monotonic()
+    try:
+        _initialize_unleash_for_celery_worker()
+    except Exception as exc:
+        LOG.exception(
+            "Unleash initialization failed after %.3f seconds; terminating " "Celery child.",
+            time.monotonic() - started,
+        )
+        # Celery's signal dispatcher catches Exception and continues. SystemExit
+        # escapes that handler so this child cannot report ready after init failed.
+        raise SystemExit(1) from exc
+    LOG.info(
+        "Unleash initialized for Celery child in %.3f seconds.",
+        time.monotonic() - started,
     )
-
-
-@worker_process_shutdown.connect
-def shutdown_worker(**kwargs):
-    from koku.feature_flags import UNLEASH_CLIENT
-
-    LOG.debug("Shutting down UNLEASH_CLIENT for celery worker.")
-    UNLEASH_CLIENT.destroy()
 
 
 def is_task_currently_running(task_name, task_id, check_args=None):

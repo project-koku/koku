@@ -60,8 +60,6 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
     for invoice_month in data_frame["invoice.month"].unique():
         invoice_filter = data_frame["invoice.month"] == invoice_month
         invoice_month_data = data_frame[invoice_filter]
-        # We may be able to completely remove invoice month in the future
-        date_range["invoice_month"] = str(invoice_month)
         partition_dates = invoice_month_data.partition_date.unique()
         for partition_date in partition_dates:
             partition_date_filter = invoice_month_data["partition_date"] == partition_date

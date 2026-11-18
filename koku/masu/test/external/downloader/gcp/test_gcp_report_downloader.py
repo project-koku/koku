@@ -17,7 +17,6 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
-from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
 from masu.test import MasuTestCase
@@ -76,7 +75,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     def tearDown(self):
         """Remove files and directories created during the test run."""
         super().tearDown()
-        shutil.rmtree(DATA_DIR, ignore_errors=True)
+        shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
@@ -211,9 +210,9 @@ class GCPReportDownloaderTest(MasuTestCase):
         ]
         start_date = self.dh.this_month_start
         daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, {}
         )
-        expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+        expected_date_range = {"start": "2022-08-01", "end": "2022-08-01"}
         self.assertEqual(date_range, expected_date_range)
         self.assertIsInstance(daily_file_names, list)
         mock_s3.assert_called()
@@ -234,7 +233,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         start_date = self.dh.this_month_start
         daily_file_names, _ = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, {}
         )
         for daily_file in daily_file_names:
             with open(daily_file) as file:
@@ -252,7 +251,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             err_msg = "unable to create daily archives from: fake"
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(CreateDailyArchivesError, err_msg):
-                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
+                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", {})
 
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""
@@ -281,9 +280,10 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_scan_start_setup_not_complete(self):
         """Test scan start provider setup is not complete"""
+        provider = self.gcp_provider
+        provider.setup_complete = False
+        provider.save()
         downloader = self.downloader
-        if self.gcp_provider.setup_complete:
-            self.gcp_provider.setup_complete = False
         months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
         expected_scan_start = self.dh.today.date() - relativedelta(months=months_delta)
         expected_scan_start = expected_scan_start.replace(day=1)
@@ -453,7 +453,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 context,
                 "ingress_reports",
             )
-            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01"}
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)
             mock_s3.assert_called()

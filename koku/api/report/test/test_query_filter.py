@@ -201,16 +201,24 @@ class QueryFilterCollectionTest(TestCase):
         table = self.fake.word()
         field = self.fake.word()
         operation = self.fake.word()
+        # Distinct parameters on purpose: QueryFilterCollection.add() drops a filter
+        # equal to one already in the collection, and two random words are equal
+        # about once in a thousand runs.
         filts = [
             QueryFilter(
-                table=table, field=field, operation=operation, parameter=self.fake.word(), logical_operator="and"
+                table=table,
+                field=field,
+                operation=operation,
+                parameter=parameter,
+                logical_operator="and",
             )
-            for _ in range(2)
+            for parameter in ("one", "two")
         ]
 
         expected = filts[0].composed_Q() & filts[1].composed_Q()
         qf_coll.add(filts[0])
         qf_coll.add(filts[1])
+        self.assertEqual(len(qf_coll), 2)
         self.assertEqual(qf_coll.compose(), expected)
 
     def test_compose_with_filter_with_or_operator(self):
@@ -219,15 +227,21 @@ class QueryFilterCollectionTest(TestCase):
         table = self.fake.word()
         field = self.fake.word()
         operation = self.fake.word()
+        # Distinct parameters on purpose (see the and-operator test).
         filts = [
             QueryFilter(
-                table=table, field=field, operation=operation, parameter=self.fake.word(), logical_operator="or"
+                table=table,
+                field=field,
+                operation=operation,
+                parameter=parameter,
+                logical_operator="or",
             )
-            for _ in range(2)
+            for parameter in ("one", "two")
         ]
         expected = filts[0].composed_Q() | filts[1].composed_Q()
         qf_coll.add(filts[0])
         qf_coll.add(filts[1])
+        self.assertEqual(len(qf_coll), 2)
         self.assertEqual(qf_coll.compose(), expected)
 
     def test_compose_with_or_operator(self):

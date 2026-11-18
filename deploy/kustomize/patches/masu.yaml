@@ -19,6 +19,10 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_MASU}
         - name: SCHEMA_SUFFIX
@@ -33,8 +37,18 @@
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -55,6 +69,20 @@
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: MASU_ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: koku-masu-admin-token
+              optional: true # template Secret is only applied in ephemeral
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -86,8 +114,6 @@
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: DATE_OVERRIDE
@@ -154,9 +180,6 @@
           cpu: ${CPU_REQUEST_MASU}
           memory: ${MEMORY_REQUEST_MASU}
       volumeMounts:
-      - name: aws-credentials
-        mountPath: /etc/aws
-        readOnly: true
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
@@ -165,12 +188,6 @@
       volumes:
       - name: tmp-data
         emptyDir: {}
-      - name: aws-credentials
-        secret:
-          items:
-          - key: aws-credentials
-            path: aws-credentials
-          secretName: koku-aws
       - name: gcp-credentials
         secret:
           secretName: koku-gcp

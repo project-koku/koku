@@ -1,0 +1,8 @@
+---
+description: "Koku-specific Python style (Black 119, imports, patches)"
+globs:
+  - "**/*.py"
+alwaysApply: false
+---
+
+@docs/agent/python-conventions.md

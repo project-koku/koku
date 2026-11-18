@@ -4,7 +4,12 @@
 #
 """Custom Koku Middleware."""
 import binascii
+import faulthandler
+import hmac
 import logging
+import os
+import signal
+import sys
 import threading
 import time
 from http import HTTPStatus
@@ -19,14 +24,13 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
-from django_prometheus.middleware import Metrics
-from django_prometheus.middleware import PrometheusAfterMiddleware
-from django_prometheus.middleware import PrometheusBeforeMiddleware
 from django_tenants.middleware import TenantMainMiddleware
+from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 
 from api.common import log_json
@@ -53,18 +57,93 @@ SOURCES = settings.SOURCES
 UNIQUE_ACCOUNT_COUNTER = Counter("hccm_unique_account", "Unique Account Counter")
 UNIQUE_USER_COUNTER = Counter("hccm_unique_user", "Unique User Counter", ["account", "user"])
 
-EXTENDED_METRICS = [
-    "django_http_requests_latency_seconds_by_view_method",
-    "django_http_responses_total_by_status_view_method",
-    "django_http_requests_total_by_view_transport_method",
-]
-
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
-    no_auth_list = ["/status", "openapi.json", "/metrics"]
+    # Paths that don't require authentication:
+    # - /status: health check endpoint
+    # - openapi.json: API documentation
+    # - application_types: sources-compatible endpoint for ROS housekeeper
+    # - source_types: sources-compatible endpoint
+    no_auth_list = ["/status", "openapi.json", "application_types", "source_types"]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth or MASU or SOURCES
+
+
+# Paths that stay open without MASU_ADMIN_TOKEN when the on-prem gate is active.
+# /livez and /readyz are listed defensively; probes usually hit the gunicorn probe
+# server, not Django. /status remains for liveness-style Masu health checks.
+_MASU_ADMIN_TOKEN_EXEMPT_PATHS = ("/status", "openapi.json", "/livez", "/readyz")
+
+
+def _extract_masu_admin_token(request):
+    """Return the Bearer token from Authorization, or None."""
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    if not auth_header:
+        return None
+    scheme, _, value = auth_header.partition(" ")
+    if scheme.lower() != "bearer" or not value:
+        return None
+    return value.strip()
+
+
+def _path_after_api_prefix(path):
+    """Strip API_PATH_PREFIX so exempt matching ignores the configured prefix.
+
+    Prevents a prefix that contains an exempt substring (e.g. ``/api/status``)
+    from bypassing the token gate on every Masu route.
+    """
+    prefix = (settings.API_PATH_PREFIX or "").rstrip("/")
+    if not prefix:
+        return path
+    if not prefix.startswith("/"):
+        prefix = f"/{prefix}"
+    if path == prefix:
+        return "/"
+    if path.startswith(f"{prefix}/"):
+        return path[len(prefix) :]
+    return path
+
+
+def requires_masu_admin_token(request):
+    """Return True when this Masu request must present MASU_ADMIN_TOKEN.
+
+    Gate applies only when MASU=True and ONPREM=True. SaaS keeps relying on
+    network isolation. /status (and probe/doc paths) stay exempt.
+    """
+    if not (MASU and settings.ONPREM):
+        return False
+    route_path = _path_after_api_prefix(request.path)
+    return not any(exempt in route_path for exempt in _MASU_ADMIN_TOKEN_EXEMPT_PATHS)
+
+
+def check_masu_admin_token(request):
+    """Validate the shared secret; return 401 response or None if OK.
+
+    Fail closed when MASU_ADMIN_TOKEN is empty/missing in on-prem Masu mode.
+    """
+    # Strip configured value too: k8s Secret / env mounts often add a trailing
+    # newline, while the inbound Bearer already goes through .strip().
+    configured = (settings.MASU_ADMIN_TOKEN or "").strip()
+    provided = _extract_masu_admin_token(request) or ""
+    # compare_digest raises ValueError on length mismatch (Py<3.12); treat as reject.
+    token_ok = (
+        bool(configured)
+        and bool(provided)
+        and len(provided) == len(configured)
+        and hmac.compare_digest(provided, configured)
+    )
+    if not token_ok:
+        LOG.warning(
+            log_json(
+                msg="Masu admin token rejected",
+                path=request.path,
+                has_token=bool(provided),
+                token_configured=bool(configured),
+            )
+        )
+        return HttpResponseUnauthorizedRequest()
+    return None
 
 
 def is_no_entitled(request):
@@ -117,6 +196,19 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
         try:
             Tenant.objects.get(schema_name=schema_name)
         except Tenant.DoesNotExist:
+            paginator = EmptyResultsSetPagination([], request)
+            return paginator.get_paginated_response()
+
+        # Tenant row exists but the PostgreSQL schema may not have been created
+        # yet — transient state during async first-source initialization.
+        # Only intercept ProgrammingError (missing-relation) to avoid masking
+        # unrelated exceptions such as request timeouts.
+        if isinstance(exception, ProgrammingError) and not schema_exists(schema_name):
+            LOG.info(
+                "Tenant schema '%s' found in DB but PG schema not yet created "
+                "(async init window). Returning empty response.",
+                schema_name,
+            )
             paginator = EmptyResultsSetPagination([], request)
             return paginator.get_paginated_response()
 
@@ -289,6 +381,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         """
         connection.set_schema_to_public()
 
+        if requires_masu_admin_token(request):
+            unauthorized = check_masu_admin_token(request)
+            if unauthorized is not None:
+                return unauthorized
+
         if is_no_auth(request):
             request.user = User("", "")
             return
@@ -371,6 +468,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 LOG.debug(f"User added to cache: {user_key}")
             else:
                 user = USER_CACHE[user_key]
+                user.customer = customer
 
             user.identity_header = {"encoded": rh_auth_header, "decoded": json_rh_auth}
             user.admin = is_admin
@@ -460,6 +558,110 @@ class RequestTimingMiddleware(MiddlewareMixin):
         return response
 
 
+class RequestTimeoutError(Exception):
+    """Raised when a request exceeds the soft timeout."""
+
+
+def sentry_before_send(event, hint):
+    exc_info = hint.get("exc_info")
+    if exc_info and exc_info[0] is RequestTimeoutError:
+        event.setdefault("tags", {})["timeout"] = "soft"
+    return event
+
+
+def capture_soft_timeout_exception(exception):
+    """Report a soft timeout to Sentry without serializing frame locals.
+
+    Soft-timeout handling already spent the request budget. Evaluating
+    ``repr()`` on frame locals (the SDK default) can re-run expensive work
+    such as Django QuerySets and push the worker into Gunicorn's hard timeout.
+    """
+    import sentry_sdk
+    from sentry_sdk.utils import event_from_exception
+
+    client = sentry_sdk.get_client()
+    event, hint = event_from_exception(
+        exception,
+        client_options={**client.options, "include_local_variables": False},
+    )
+    sentry_sdk.capture_event(event, hint=hint)
+
+
+def _parse_soft_timeout(default=90):
+    raw = os.environ.get("REQUEST_SOFT_TIMEOUT")
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_faulthandler_timeout(default=95):
+    raw = os.environ.get("REQUEST_FAULTHANDLER_TIMEOUT")
+    if raw is None:
+        return default
+    try:
+        timeout = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return timeout if timeout > 0 else default
+
+
+class RequestTimeoutMiddleware(MiddlewareMixin):
+    """Abort requests that exceed a soft timeout, before gunicorn kills the worker.
+
+    Uses SIGALRM to raise RequestTimeoutError with full request context,
+    replacing the uninformative SystemExit:1 that gunicorn's SIGABRT produces.
+    The faulthandler watchdog records every thread's Python stack shortly before
+    gunicorn's hard timeout. Both timeouts are process-wide, so they are active
+    only for sync workers (the main thread).
+    """
+
+    SOFT_TIMEOUT = _parse_soft_timeout()
+    FAULTHANDLER_TIMEOUT = _parse_faulthandler_timeout()
+
+    def process_request(self, request):
+        if threading.current_thread() is not threading.main_thread():
+            return
+
+        def handler(signum, frame):
+            duration = time.time() - getattr(request, "start_time", time.time())
+            raise RequestTimeoutError(
+                f"Request exceeded {self.SOFT_TIMEOUT}s: {request.method} {request.path} ({duration:.1f}s elapsed)"
+            )
+
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(self.SOFT_TIMEOUT)
+        faulthandler.dump_traceback_later(
+            self.FAULTHANDLER_TIMEOUT,
+            repeat=False,
+            file=sys.stderr,
+            exit=False,
+        )
+
+    def process_response(self, request, response):
+        if threading.current_thread() is threading.main_thread():
+            signal.alarm(0)
+            faulthandler.cancel_dump_traceback_later()
+        return response
+
+    def process_exception(self, request, exception):
+        """Report a soft timeout and return before the upstream proxy deadline."""
+        if not isinstance(exception, RequestTimeoutError):
+            return None
+
+        try:
+            capture_soft_timeout_exception(exception)
+        except Exception:
+            LOG.warning("Unable to send request-timeout stack trace to Sentry.", exc_info=True)
+
+        return JsonResponse(
+            {"errors": [{"detail": "Request timed out.", "status": HTTPStatus.GATEWAY_TIMEOUT}]},
+            status=HTTPStatus.GATEWAY_TIMEOUT,
+        )
+
+
 class DisableCSRF(MiddlewareMixin):
     """Middleware to disable CSRF for 3scale usecase."""
 
@@ -469,40 +671,3 @@ class DisableCSRF(MiddlewareMixin):
             request (object): The request object
         """
         setattr(request, "_dont_enforce_csrf_checks", True)
-
-
-class AccountEnhancedMetrics(Metrics):
-    """A metric with an account label."""
-
-    def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
-        """Override the metric registration to include an account label."""
-        if name in EXTENDED_METRICS:
-            labelnames.extend(("account",))
-        return super().register_metric(metric_cls, name, documentation, labelnames=labelnames, **kwargs)
-
-
-class AccountEnhancedMetricsBeforeMiddleware(PrometheusBeforeMiddleware):
-    """Set the metric class for account enhanced in before middlemware."""
-
-    metrics_cls = AccountEnhancedMetrics
-
-
-class AccountEnhancedMetricsAfterMiddleware(PrometheusAfterMiddleware):
-    """Add specific account label to metrics on API calls."""
-
-    metrics_cls = AccountEnhancedMetrics
-
-    def label_metric(self, metric, request, response=None, **labels):
-        """Add an account label to a prometheus metric."""
-        new_labels = labels
-        if metric._name in EXTENDED_METRICS:
-            account = "unknown"
-            identity_header = request.user.identity_header
-            if identity_header:
-                try:
-                    account = identity_header.get("decoded", {}).get("identity", {}).get("account_number", "unknown")
-                except ValueError:
-                    pass
-            new_labels = {"account": account}
-            new_labels.update(labels)
-        return super().label_metric(metric, request, response=response, **new_labels)

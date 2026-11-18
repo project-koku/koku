@@ -11,6 +11,10 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.serializers import OCPFilterSerializer
+from api.report.ocp.serializers import OCPGpuFilterSerializer
+from api.report.ocp.serializers import OCPGpuGroupBySerializer
+from api.report.ocp.serializers import OCPGpuOrderBySerializer
+from api.report.ocp.serializers import OCPGpuQueryParamSerializer
 from api.report.ocp.serializers import OCPGroupBySerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
 from api.report.ocp.serializers import OCPOrderBySerializer
@@ -646,3 +650,158 @@ class OCPCostQueryParamSerializerTest(IamTestCase):
                     serializer = OCPInventoryQueryParamSerializer(data=param, context=self.ctx_w_path)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
+
+
+class OCPGpuGroupBySerializerTest(TestCase):
+    """Tests for the GPU group_by serializer."""
+
+    def test_gpu_group_by_params_valid_fields(self):
+        """Test parse of GPU group_by params with valid fields."""
+        group_by_params = {
+            "cluster": ["cluster1"],
+            "project": ["project1"],
+            "gpu_vendor": ["nvidia"],
+            "gpu_model": ["Tesla T4"],
+        }
+        serializer = OCPGpuGroupBySerializer(data=group_by_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_group_by_params_invalid_fields(self):
+        """Test parse of GPU group_by params with invalid fields."""
+        group_by_params = {"invalid_field": ["value"]}
+        serializer = OCPGpuGroupBySerializer(data=group_by_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPGpuFilterSerializerTest(TestCase):
+    """Tests for the GPU filter serializer."""
+
+    def test_gpu_filter_params_valid_fields(self):
+        """Test parse of GPU filter params with valid fields."""
+        filter_params = {
+            "cluster": ["cluster1"],
+            "node": ["node1"],
+            "project": ["project1"],
+            "gpu_vendor": ["nvidia"],
+            "gpu_model": ["Tesla T4"],
+            "category": ["Platform"],
+        }
+        serializer = OCPGpuFilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_filter_params_invalid_fields(self):
+        """Test parse of GPU filter params with invalid fields."""
+        filter_params = {"invalid_field": ["value"]}
+        serializer = OCPGpuFilterSerializer(data=filter_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPGpuOrderBySerializerTest(TestCase):
+    """Tests for the GPU order_by serializer."""
+
+    def test_gpu_order_by_params_valid_fields(self):
+        """Test parse of GPU order_by params with valid fields."""
+        valid_fields = [
+            "cluster",
+            "node",
+            "project",
+            "gpu_vendor",
+            "gpu_model",
+            "cost_model_gpu_cost",
+            "cost",
+            "gpu_memory",
+            "gpu_count",
+        ]
+        for field in valid_fields:
+            serializer = OCPGpuOrderBySerializer(data={field: "asc"})
+            self.assertTrue(serializer.is_valid(), f"Field {field} should be valid")
+
+    def test_gpu_order_by_params_invalid_fields(self):
+        """Test that uptime and usage are NOT valid."""
+        invalid_params = [{"uptime": "asc"}, {"invalid_field": "asc"}, {"usage": "desc"}]
+        for param in invalid_params:
+            serializer = OCPGpuOrderBySerializer(data=param)
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
+        # Verify invalid fields are not in _opfields
+        self.assertNotIn("uptime", OCPGpuOrderBySerializer._opfields)
+        self.assertNotIn("usage", OCPGpuOrderBySerializer._opfields)
+        # Verify gpu_count IS in _opfields (now supported)
+        self.assertIn("gpu_count", OCPGpuOrderBySerializer._opfields)
+
+
+class OCPGpuQueryParamSerializerTest(IamTestCase):
+    """Tests for the GPU query parameter serializer."""
+
+    def test_gpu_query_params_valid(self):
+        """Test GPU query params with valid input."""
+        query_params = {
+            "filter": {"gpu_vendor": ["nvidia"], "gpu_model": ["Tesla T4"]},
+            "group_by": {"cluster": ["*"]},
+            "order_by": {"cost": "desc"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_order_by_allowlist_fields(self):
+        """Test that memory, and gpu_count are in order_by_allowlist."""
+        self.assertIn("gpu_memory", OCPGpuQueryParamSerializer.order_by_allowlist)
+        self.assertIn("gpu_count", OCPGpuQueryParamSerializer.order_by_allowlist)
+
+    def test_gpu_query_params_order_by_new_fields(self):
+        """Test GPU query params with new order_by fields (gpu_memory, gpu_count)."""
+        for field in ["gpu_memory", "gpu_count"]:
+            query_params = {
+                "filter": {"gpu_vendor": ["nvidia"]},
+                "group_by": {"gpu_model": ["*"]},
+                "order_by": {field: "desc"},
+            }
+            self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+            serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+            self.assertTrue(serializer.is_valid(), f"order_by with {field} should be valid")
+
+    def test_gpu_query_params_combined(self):
+        """Test GPU query params with combined filter, group_by, and order_by."""
+        query_params = {
+            "filter": {"gpu_vendor": ["nvidia"], "node": ["node1", "node2"]},
+            "group_by": {"project": ["*"]},
+            "order_by": {"cost": "desc"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_order_by_model_with_group_by_model(self):
+        """Test that order_by[gpu_model] works with group_by[gpu_model]."""
+        query_params = {
+            "group_by": {"gpu_model": ["*"]},
+            "order_by": {"gpu_model": "asc"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_order_by_vendor_with_group_by_vendor(self):
+        """Test that order_by[gpu_vendor] works with group_by[gpu_vendor]."""
+        query_params = {
+            "group_by": {"gpu_vendor": ["*"]},
+            "order_by": {"gpu_vendor": "desc"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_query_params_tag_filter_dropped(self):
+        """Tag filter keys are dropped so GPU API accepts request without error; GPU cannot filter by tag."""
+        query_params = {
+            "filter": {"gpu_vendor": ["nvidia"], "tag:application": ["Istio"]},
+            "group_by": {"gpu_model": ["*"]},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertNotIn("tag:application", serializer.validated_data.get("filter", {}))
+        self.assertIn("gpu_vendor", serializer.validated_data.get("filter", {}))

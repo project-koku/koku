@@ -4,6 +4,7 @@
 #
 """View for update_cost_model_costs endpoint."""
 import logging
+import uuid
 
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -20,10 +21,12 @@ from api.utils import get_months_in_date_range
 from common.queues import get_customer_queue
 from common.queues import PriorityQueue
 from common.queues import QUEUE_LIST
+from masu.processor.tasks import delayed_update_cost_model_costs
 from masu.processor.tasks import update_cost_model_costs as cost_task
 
 LOG = logging.getLogger(__name__)
 RESULT_KEY = "Update Cost Model Cost Task ID"
+DELAYED_RESULT_KEY = "Update Cost Model Cost Tracing ID"
 
 
 @never_cache
@@ -42,6 +45,7 @@ def update_cost_model_costs(request):
     end_date = params.get("end_date", default=default_end_date)
     fallback_queue = get_customer_queue(schema_name, PriorityQueue)
     queue_name = params.get("queue") or fallback_queue
+    delayed = params.get("delayed", "false").lower() == "true"
 
     if provider_uuid is None or schema_name is None:
         errmsg = "provider_uuid and schema are required parameters."
@@ -55,14 +59,31 @@ def update_cost_model_costs(request):
     except Provider.DoesNotExist:
         return Response({"Error": "Provider does not exist."}, status=status.HTTP_400_BAD_REQUEST)
 
-    months = get_months_in_date_range(start=start_date, end=end_date)
-    for month in months:
+    if delayed:
+        tracing_id = str(uuid.uuid4())
+        LOG.info(
+            "Queueing delayed update_cost_model_costs for schema %s provider %s with tracing_id %s",
+            schema_name,
+            provider_uuid,
+            tracing_id,
+        )
+        delayed_update_cost_model_costs(
+            schema_name,
+            provider_uuid,
+            start_date,
+            end_date,
+            queue_name=queue_name,
+            tracing_id=tracing_id,
+        )
+        return Response({DELAYED_RESULT_KEY: tracing_id})
+
+    for month_start, month_end in get_months_in_date_range(start=start_date, end=end_date):
         LOG.info("Calling update_cost_model_costs async task.")
         async_result = (
-            cost_task.s(schema_name, provider_uuid, month[0], month[1], queue_name=queue_name)
+            cost_task.s(schema_name, provider_uuid, month_start, month_end, queue_name=queue_name)
             .set(queue=queue_name)
             .apply_async()
         )
-        async_results.append({str(month): str(async_result)})
+        async_results.append({str(month_start): str(async_result)})
 
     return Response({RESULT_KEY: async_results})

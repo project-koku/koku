@@ -14,39 +14,65 @@ from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
-from masu.util.common import convert_account
 
 LOG = logging.getLogger(__name__)
 
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
+# Unleash flag names. Keep sorted by constant name: new flags then land in different
+# places instead of all appending at the end, which conflicts between concurrent PRs.
+APPLY_TAG_MAPPINGS_FLAG = "cost-management.backend.apply-tag-mappings"
+AWS_EMPTY_SPLIT_FINALIZATION_FLAG = "cost-management.backend.aws_empty_split_finalization"
+CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
+COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
+COST_MODEL_SINGLE_FLIGHT_FLAG = "cost-management.backend.cost-model-single-flight"
+COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
+CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
+DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
+DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
+GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
+INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
+INGRESS_STAGING_LISTENER_FLAG = "cost-management.backend.ingress-staging-listener"
+OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
+OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG = "cost-management.backend.ocp_hive_zero_pad_partitions"
+OCP_INGRESS_ENFORCE_PAYLOAD_LIMITS_FLAG = "cost-management.backend.ocp-ingress-enforce-payload-limits"
+OCP_INGRESS_POST_RATE_LIMIT_FLAG = "cost-management.backend.ocp-ingress-post-rate-limit"
+OCP_ON_CLOUD_MONTH_WIDE_MATCHED_TAGS_FLAG = "cost-management.backend.ocp-on-cloud-month-wide-matched-tags"
+OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG = "cost-management.backend.ocp_on_cloud_pg_idempotent_delete"
+OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
+OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
+OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG = "cost-management.backend.ocp-special-matched-tags-from-summary"
+OCP_TAG_MAPPING_DIAGNOSTICS_FLAG = "cost-management.backend.ocp_tag_mapping_diagnostics"
+OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG = "cost-management.backend.ocp_tag_mapping_materialized_candidates"
+OCP_TAG_MAPPING_PRE_ANALYZE_FLAG = "cost-management.backend.ocp_tag_mapping_pre_analyze"
+OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG = "cost-management.backend.ocp_tag_mapping_statement_timeout"
+TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 
-def is_cost_6356_enabled():
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.cost-6356-vm-cost-model-metrics", fallback_function=fallback_development_true
-    )
+
+def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover
+    """Generic method for checking if a feature flag is enabled."""
+    context = {"schema": schema}
+    if dev_fallback:
+        return UNLEASH_CLIENT.is_enabled(feature_flag, context, fallback_development_true)
+    else:
+        return UNLEASH_CLIENT.is_enabled(feature_flag, context)
 
 
-def is_feature_unattributed_storage_enabled_azure(account):
-    """Should unattributed storage feature be enabled."""
-    unleash_flag = "cost-management.backend.unattributed_storage"
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+def is_apply_tag_mappings_enabled(schema):  # pragma: no cover
+    """Apply tag mappings without a full current-month re-summary."""
+    return is_feature_flag_enabled_by_schema(schema, APPLY_TAG_MAPPINGS_FLAG, dev_fallback=True)
 
 
-def is_purge_trino_files_enabled(account):  # pragma: no cover
-    """Helper to determine if account is enabled for deleting trino files."""
-    account = convert_account(account)
-    context = {"schema": account}
+def is_purge_trino_files_enabled(schema):  # pragma: no cover
+    """Helper to determine if schema is enabled for deleting trino files."""
+    context = {"schema": schema}
     LOG.debug(f"is_purge_trino_files_enabled context: {context}")
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-purge-turnpike", context)
 
 
-def is_cloud_source_processing_disabled(account):  # pragma: no cover
+def is_cloud_source_processing_disabled(schema):  # pragma: no cover
     """Disable processing for a cloud source."""
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-cloud-source-processing", context)
     if res:
         LOG.info(log_json(msg="processing disabled", context=context))
@@ -54,10 +80,9 @@ def is_cloud_source_processing_disabled(account):  # pragma: no cover
     return res
 
 
-def is_summary_processing_disabled(account):  # pragma: no cover
+def is_summary_processing_disabled(schema):  # pragma: no cover
     """Disable summary processing."""
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-summary-processing", context)
     if res:
         LOG.info(log_json(msg="summary processing disabled", context=context))
@@ -65,10 +90,19 @@ def is_summary_processing_disabled(account):  # pragma: no cover
     return res
 
 
-def is_ocp_on_cloud_summary_disabled(account):  # pragma: no cover
+def is_cost_model_processing_disabled(schema):  # pragma: no cover
+    """Disable cost model processing."""
+    context = {"schema": schema}
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-cost-model-processing", context)
+    if res:
+        LOG.info(log_json(msg="cost model processing disabled", context=context))
+
+    return res
+
+
+def is_ocp_on_cloud_summary_disabled(schema):  # pragma: no cover
     """Disable OCP on Cloud summary."""
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-on-cloud-summary", context)
     if res:
         LOG.info(log_json(msg="OCP-on-Cloud summary processing disabled", context=context))
@@ -76,31 +110,53 @@ def is_ocp_on_cloud_summary_disabled(account):  # pragma: no cover
     return res
 
 
-def is_customer_large(account):  # pragma: no cover
+def is_ocp_on_cloud_month_wide_matched_tags_enabled(schema):  # pragma: no cover
+    """Use one month-wide Trino matched-tags query, cached per cluster and cloud source."""
+    return is_feature_flag_enabled_by_schema(schema, OCP_ON_CLOUD_MONTH_WIDE_MATCHED_TAGS_FLAG, dev_fallback=True)
+
+
+def is_cost_model_writes_disabled(schema):  # pragma: no cover
+    """Disable cost model writes during migration."""
+    context = {"schema": schema}
+    res = UNLEASH_CLIENT.is_enabled(COST_MODEL_WRITE_FREEZE_FLAG, context)
+    if res:
+        LOG.info(log_json(msg="cost model writes disabled for migration", context=context))
+
+    return res
+
+
+def is_customer_large(schema):  # pragma: no cover
     """Flag the customer as large."""
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
 
 
-def is_customer_penalty(account):  # pragma: no cover
+def is_customer_penalty(schema):  # pragma: no cover
     """Flag the customer as penalised."""
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.penalty-customer", context)
 
 
-def is_rate_limit_customer_large(account):  # pragma: no cover
+def is_celery_task_delay_disabled(schema):  # pragma: no cover
+    """Disable DelayedCeleryTasks wait so the task fires immediately."""
+    context = {"schema": schema}
+    return UNLEASH_CLIENT.is_enabled(DISABLE_CELERY_TASK_DELAY_FLAG, context, fallback_development_true)
+
+
+def is_cost_model_single_flight_enabled(schema):  # pragma: no cover
+    """Run cost model updates for one provider and month one at a time (COST-8575)."""
+    return is_feature_flag_enabled_by_schema(schema, COST_MODEL_SINGLE_FLIGHT_FLAG, dev_fallback=True)
+
+
+def is_rate_limit_customer_large(schema):  # pragma: no cover
     """Flag the customer as large and to be rate limited."""
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer.rate-limit", context)
 
 
-def is_validation_enabled(account):  # pragma: no cover
+def is_validation_enabled(schema):  # pragma: no cover
     """Flag if customer is enabled to run validation."""
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable_data_validation", context)
 
 
@@ -128,7 +184,7 @@ def is_ingress_rate_limiting_disabled():  # pragma: no cover
     return res
 
 
-def check_group_by_limit(account, group_by_length):
+def check_group_by_limit(schema, group_by_length):
     """
     Checks to see if the customer has exceeded the group by limit.
 
@@ -137,8 +193,7 @@ def check_group_by_limit(account, group_by_length):
     limit = 2  # default
     if group_by_length <= limit:
         return
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     if UNLEASH_CLIENT.is_enabled("cost-management.backend.override_customer_group_by_limit", context):
         limit = settings.MAX_GROUP_BY
         if group_by_length <= limit:
@@ -146,46 +201,35 @@ def check_group_by_limit(account, group_by_length):
     raise ValidationError({"group_by": (f"Cost Management supports a max of {limit} group_by options.")})
 
 
-def is_feature_unattributed_storage_enabled_aws(account):
-    """Should unattributed storage feature be enabled."""
-    unleash_flag = "cost-management.backend.unattributed_storage.aws"
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
-
-
-def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
+def is_feature_cost_4403_ec2_compute_cost_enabled(schema):  # pragma: no cover
     """Should EC2 individual VM compute cost be enabled."""
     unleash_flag = "cost-management.backend.feature-4403-enable-ec2-compute-processing"
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
-def is_feature_cost_20_openshift_vms_enabled(account):  # pragma: no cover
-    """Should Openshift vms cost be enabled."""
-    unleash_flag = "cost-management.backend.feature_cost_20_openshift_vms"
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
-
-
-def is_customer_cost_model_large(account):  # pragma: no cover
-    """Flag the customer as having a large amount of data for cost model updates."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer-cost-model", context)
-
-
-def is_tag_processing_disabled(account):  # pragma: no cover
+def is_tag_processing_disabled(schema):  # pragma: no cover
     """Flag the customer as tag processing disabled."""
-    account = convert_account(account)
-    context = {"schema": account}
+    context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_tag_processing_disabled", context)
 
 
-def is_status_api_update_enabled(account):  # pragma: no cover
-    """Flag to enable the new source status retrieval method."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
+def is_ingress_rbac_grace_period_enabled(schema):  # pragma: no cover
+    """Flag to enable ingress report processing."""
+    context = {"schema": schema}
+    enabled = UNLEASH_CLIENT.is_enabled("cost-management.backend.ingress-rbac-grace-period-enabled", context)
+    return enabled
+
+
+def is_ocp_tag_cleanup_disabled(schema):  # pragma: no cover
+    """
+    Kill switch for cleanup_ocp_tags_values in ocp_report_db_cleaner.py
+
+    This is a temporary safeguard to allow us to turn off purge of ocp tags if we
+    experience issues in production.
+    """
+    context = {"schema": schema}
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-tag-cleanup", context)
+    if res:
+        LOG.info(log_json(msg="OCP tag cleanup disabled", context=context))
+    return res

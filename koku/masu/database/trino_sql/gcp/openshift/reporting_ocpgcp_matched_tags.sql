@@ -7,7 +7,7 @@ WITH cte_unnested_gcp_tags AS (
         AND year = {{year}}
         AND month = {{month}}
         AND usage_start_time >= {{start_date}}
-        AND usage_start_time < date_add('day', 1, {{start_date}})
+        AND usage_start_time < date_add('day', 1, {{end_date}})
 ),
 cte_unnested_ocp_tags AS (
     SELECT DISTINCT pod_key,
@@ -21,7 +21,7 @@ cte_unnested_ocp_tags AS (
     ) AS pod_tags(pod_key, pod_value, volume_key, volume_value)
     WHERE source IN {{ocp_source_uuids | inclause}}
         AND year = {{year}}
-        AND lpad(month, 2, '0') = {{month}}
+        AND month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND day IN {{days | inclause}}
 )
 SELECT '{"' || key || '": "' || value || '"}' as tag

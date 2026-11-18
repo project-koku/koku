@@ -1,0 +1,10 @@
+---
+description: "DRF API design, serializers, views, and OpenAPI updates"
+globs:
+  - "**/api/**/*.py"
+  - "**/cost_models/**/*.py"
+  - "**/forecast/**/*.py"
+alwaysApply: false
+---
+
+@docs/agent/api-design.md

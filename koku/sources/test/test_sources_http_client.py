@@ -17,7 +17,7 @@ from requests.exceptions import RequestException
 from api.provider.models import Provider
 from api.provider.models import Sources
 from sources.config import Config
-from sources.kafka_listener import storage_callback
+from sources.kafka_listener import STORAGE_CALLBACK_DISPATCH_UID
 from sources.sources_http_client import APP_EXTRA_FIELD_MAP
 from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import convert_header_to_dict
@@ -79,7 +79,7 @@ class SourcesHTTPClientTest(TestCase):
     def setUp(self):
         """Test case setup."""
         super().setUp()
-        post_save.disconnect(storage_callback, sender=Sources)
+        post_save.disconnect(dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID, sender=Sources)
         self.name = "Test Source"
         self.application_type = COST_MGMT_APP_TYPE_ID
         self.source_id = 1

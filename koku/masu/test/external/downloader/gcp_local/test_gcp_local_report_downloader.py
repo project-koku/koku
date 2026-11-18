@@ -14,14 +14,12 @@ from faker import Faker
 
 from api.models import Provider
 from api.utils import DateHelper
-from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import create_daily_archives
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 
-DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
@@ -192,9 +190,9 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
 
         start_date = DateHelper().this_month_start
         daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, {}
         )
-        expected_date_range = {"start": "2020-11-08", "end": "2020-11-11", "invoice_month": "202011"}
+        expected_date_range = {"start": "2020-11-08", "end": "2020-11-11"}
         self.assertEqual(date_range, expected_date_range)
         self.assertIsInstance(daily_file_names, list)
 

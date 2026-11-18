@@ -23,6 +23,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
 from masu.external import AWS_REGIONS
 from masu.external import UNCOMPRESSED
+from masu.external.downloader.aws.aws_report_downloader import _aws_empty_split_finalization_enabled
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
@@ -35,7 +36,6 @@ from masu.util.aws import common as utils
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
-DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
@@ -44,6 +44,7 @@ PREFIX = FAKE.word()
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
+EMPTY_SPLIT_FLAG_TARGET = "masu.external.downloader.aws.aws_report_downloader.is_feature_flag_enabled_by_schema"
 REGION = random.choice(AWS_REGIONS)
 
 
@@ -146,6 +147,17 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     fake = Faker()
 
+    def _private_temp_dir(self):
+        """Return a per-test temp dir instead of the process-wide temp root.
+
+        These tests copy a report file under its own base name. Two downloader
+        modules that use the same base name in the shared root end up in a race
+        under ``--parallel``: one worker deletes the file another is reading.
+        """
+        temp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        return temp_dir
+
     @classmethod
     def setUpClass(cls):
         """Set up shared class variables."""
@@ -163,7 +175,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     def setUp(self, fake_session):
         """Set up shared variables."""
         super().setUp()
-        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(Config.TMP_DIR, exist_ok=True)
 
         self.credentials = {"role_arn": self.auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
@@ -207,10 +219,15 @@ class AWSReportDownloaderTest(MasuTestCase):
         )
         self.aws_manifest = CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first()
         self.aws_manifest_id = self.aws_manifest.id
+        self.daily_archives_context = {
+            "account": "account",
+            "provider_type": Provider.PROVIDER_AWS_LOCAL,
+            "provider_uuid": self.aws_provider_uuid,
+        }
 
     def tearDown(self):
         """Remove test generated data."""
-        shutil.rmtree(DATA_DIR, ignore_errors=True)
+        shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
 
     @patch("masu.external.downloader.aws.aws_report_downloader.create_daily_archives")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._check_size")
@@ -462,7 +479,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     def test_remove_manifest_file(self):
         """Test that we remove the manifest file."""
-        manifest_file = f"{DATA_DIR}/test_manifest.json"
+        manifest_file = f"{Config.TMP_DIR}/test_manifest.json"
 
         with open(manifest_file, "w") as f:
             f.write("Test")
@@ -673,6 +690,200 @@ class AWSReportDownloaderTest(MasuTestCase):
                     self.assertEqual(process_date, expected_date)
                     os.remove(temp_path)
 
+    @patch(EMPTY_SPLIT_FLAG_TARGET, return_value=True)
+    def test_get_processing_date_empty_frame_does_not_lock_daily_start(self, _mock_flag):
+        """Header-only CUR split must not lock daily_archive_start_date when flag ON."""
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        provider.setup_complete = True
+        provider.save(update_fields=["setup_complete"])
+
+        manifest = CostUsageReportManifest.objects.get(id=self.aws_manifest_id)
+        manifest.daily_archive_start_date = None
+        manifest.save(update_fields=["daily_archive_start_date"])
+
+        file_name = "empty_frame.csv"
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = self._private_temp_dir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+
+        start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
+        end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2).date()
+
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+            return_value=start_date,
+        ) as mock_get_or_clear:
+            _, _, process_date = get_processing_date(
+                temp_path,
+                "s3_csv_path",
+                self.aws_manifest_id,
+                self.aws_provider_uuid,
+                start_date,
+                end_date,
+                None,
+                "tracing_id",
+            )
+
+        mock_get_or_clear.assert_not_called()
+        self.assertEqual(process_date, start_date)
+        manifest.refresh_from_db()
+        self.assertIsNone(manifest.daily_archive_start_date)
+        os.remove(temp_path)
+
+    @patch(EMPTY_SPLIT_FLAG_TARGET, return_value=False)
+    def test_get_processing_date_empty_frame_locks_when_flag_off(self, _mock_flag):
+        """Flag OFF keeps legacy incremental path for header-only CUR splits."""
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        provider.setup_complete = True
+        provider.save(update_fields=["setup_complete"])
+
+        manifest = CostUsageReportManifest.objects.get(id=self.aws_manifest_id)
+        manifest.daily_archive_start_date = None
+        manifest.save(update_fields=["daily_archive_start_date"])
+
+        file_name = "empty_frame.csv"
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = self._private_temp_dir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+
+        start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
+        end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2).date()
+        incremental_date = start_date.replace(day=15)
+
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+            return_value=incremental_date,
+        ) as mock_get_or_clear:
+            _, _, process_date = get_processing_date(
+                temp_path,
+                "s3_csv_path",
+                self.aws_manifest_id,
+                self.aws_provider_uuid,
+                start_date,
+                end_date,
+                None,
+                "tracing_id",
+            )
+
+        mock_get_or_clear.assert_called_once()
+        self.assertEqual(process_date, incremental_date)
+        os.remove(temp_path)
+
+    def test_aws_empty_split_finalization_enabled_missing_provider(self):
+        """No provider means no schema; helper returns False (codecov no-schema branch)."""
+        self.assertFalse(_aws_empty_split_finalization_enabled("00000000-0000-0000-0000-000000000000"))
+
+    def test_aws_empty_split_finalization_enabled_provider_without_customer(self):
+        """Provider with no customer means no schema; helper returns False."""
+        provider = Mock(customer=None)
+        with patch("masu.external.downloader.aws.aws_report_downloader.Provider.objects.filter") as mock_filter:
+            mock_filter.return_value.select_related.return_value.first.return_value = provider
+            self.assertFalse(_aws_empty_split_finalization_enabled(self.aws_provider_uuid))
+
+    @patch(EMPTY_SPLIT_FLAG_TARGET, return_value=True)
+    def test_get_processing_date_empty_then_invoice_allows_month_start(self, _mock_flag):
+        """Empty split first must not block InvoiceId full-month finalization when flag ON."""
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        provider.setup_complete = True
+        provider.save(update_fields=["setup_complete"])
+
+        manifest = CostUsageReportManifest.objects.get(id=self.aws_manifest_id)
+        manifest.daily_archive_start_date = None
+        manifest.save(update_fields=["daily_archive_start_date"])
+
+        start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
+        end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2).date()
+        incremental_date = start_date.replace(day=15)
+        temp_dir = self._private_temp_dir()
+
+        empty_name = "empty_frame.csv"
+        empty_src = f"./koku/masu/test/data/aws/{empty_name}"
+        empty_path = os.path.join(temp_dir, empty_name)
+        shutil.copy2(empty_src, empty_path)
+
+        invoice_name = "2023-06-01.csv"
+        invoice_src = f"./koku/masu/test/data/aws/{invoice_name}"
+        invoice_path = os.path.join(temp_dir, invoice_name)
+        shutil.copy2(invoice_src, invoice_path)
+
+        def lock_incremental_daily_start(*args, **kwargs):
+            """Simulate get_or_clear locking an incremental (mid-month) date."""
+            return ReportManifestDBAccessor().set_manifest_daily_start_date(self.aws_manifest_id, incremental_date)
+
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+            side_effect=lock_incremental_daily_start,
+        ) as mock_get_or_clear:
+            get_processing_date(
+                empty_path,
+                "s3_csv_path",
+                self.aws_manifest_id,
+                self.aws_provider_uuid,
+                start_date,
+                end_date,
+                None,
+                "tracing_id",
+            )
+            mock_get_or_clear.assert_not_called()
+
+            _, _, process_date = get_processing_date(
+                invoice_path,
+                "s3_csv_path",
+                self.aws_manifest_id,
+                self.aws_provider_uuid,
+                start_date,
+                end_date,
+                None,
+                "tracing_id",
+            )
+
+        self.assertEqual(process_date, start_date)
+        manifest.refresh_from_db()
+        self.assertEqual(manifest.daily_archive_start_date.date(), start_date)
+        os.remove(empty_path)
+        os.remove(invoice_path)
+
+    def test_get_processing_date_not_final_still_uses_incremental_path(self):
+        """Non-empty unfinalized CUR must still call get_or_clear_daily_s3_by_date."""
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        provider.setup_complete = True
+        provider.save(update_fields=["setup_complete"])
+
+        manifest = CostUsageReportManifest.objects.get(id=self.aws_manifest_id)
+        manifest.daily_archive_start_date = None
+        manifest.save(update_fields=["daily_archive_start_date"])
+
+        file_name = "2023-06-01-not-final.csv"
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+
+        start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
+        end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2).date()
+        incremental_date = start_date.replace(day=15)
+
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+            return_value=incremental_date,
+        ) as mock_get_or_clear:
+            _, _, process_date = get_processing_date(
+                temp_path,
+                "s3_csv_path",
+                self.aws_manifest_id,
+                self.aws_provider_uuid,
+                start_date,
+                end_date,
+                None,
+                "tracing_id",
+            )
+
+        mock_get_or_clear.assert_called_once()
+        self.assertEqual(process_date, incremental_date)
+        os.remove(temp_path)
+
     @patch("masu.util.aws.common.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives(self, mock_copy):
         """Test that we correctly create daily archive files."""
@@ -687,14 +898,27 @@ class AWSReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2023-06-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
         start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
-        with patch(
-            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-            return_value=start_date,
+        with (
+            patch(
+                "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+                return_value=start_date,
+            ),
+            patch(
+                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+                return_value=start_date,
+            ),
         ):
             daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+                "trace_id",
+                "account",
+                self.aws_provider_uuid,
+                temp_path,
+                file_name,
+                manifest_id,
+                start_date,
+                self.daily_archives_context,
             )
-            expected_date_range = {"start": "2023-06-01", "end": "2023-06-01", "invoice_month": None}
+            expected_date_range = {"start": "2023-06-01", "end": "2023-06-01"}
             mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)
@@ -716,12 +940,25 @@ class AWSReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
 
-        with patch(
-            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-            return_value=start_date,
+        with (
+            patch(
+                "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+                return_value=start_date,
+            ),
+            patch(
+                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+                return_value=start_date,
+            ),
         ):
             daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+                "trace_id",
+                "account",
+                self.aws_provider_uuid,
+                temp_path,
+                file_name,
+                manifest_id,
+                start_date,
+                self.daily_archives_context,
             )
 
         for daily_file in daily_file_names:
@@ -735,6 +972,10 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     def test_create_daily_archives_dates_out_of_range(self):
         """Test that we correctly create daily archive files."""
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        provider.setup_complete = False
+        provider.save()
+
         file = "2023-06-01"
         file_name = f"{file}.csv"
         manifest_id = self.aws_manifest_id
@@ -745,23 +986,40 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         start_date = self.dh.this_month_start.replace(year=2023, month=9).date()
         daily_file_names, date_range = create_daily_archives(
-            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+            "trace_id",
+            "account",
+            self.aws_provider_uuid,
+            temp_path,
+            file_name,
+            manifest_id,
+            start_date,
+            self.daily_archives_context,
         )
         self.assertEqual(date_range, {})
         self.assertEqual(daily_file_names, [])
 
     def test_create_daily_archives_empty_frame(self):
         """Test that we correctly create daily archive files."""
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        provider.setup_complete = False
+        provider.save()
         file = "empty_frame"
         file_name = f"{file}.csv"
         manifest_id = self.aws_manifest_id
         file_path = f"./koku/masu/test/data/aws/{file_name}"
-        temp_dir = tempfile.gettempdir()
+        temp_dir = self._private_temp_dir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
         daily_file_names, date_range = create_daily_archives(
-            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+            "trace_id",
+            "account",
+            self.aws_provider_uuid,
+            temp_path,
+            file_name,
+            manifest_id,
+            start_date,
+            self.daily_archives_context,
         )
         self.assertEqual(date_range, {})
         self.assertIsInstance(daily_file_names, list)
@@ -781,14 +1039,27 @@ class AWSReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2022-07-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
         start_date = self.dh.this_month_start.replace(year=2022, month=7).date()
-        with patch(
-            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-            return_value=start_date,
+        with (
+            patch(
+                "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+                return_value=start_date,
+            ),
+            patch(
+                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+                return_value=start_date,
+            ),
         ):
             daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+                "trace_id",
+                "account",
+                self.aws_provider_uuid,
+                temp_path,
+                file_name,
+                manifest_id,
+                start_date,
+                self.daily_archives_context,
             )
-            expected_date_range = {"start": "2022-07-01", "end": "2022-07-01", "invoice_month": None}
+            expected_date_range = {"start": "2022-07-01", "end": "2022-07-01"}
             mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)

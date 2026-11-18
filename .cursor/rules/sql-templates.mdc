@@ -1,0 +1,8 @@
+---
+description: "Jinja2 SQL template patterns for PostgreSQL and Trino"
+globs:
+  - "**/*.sql"
+alwaysApply: false
+---
+
+@docs/agent/sql-templates.md

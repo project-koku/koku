@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from collections import defaultdict
+from contextlib import nullcontext
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -24,6 +25,7 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
 from api.utils import get_months_in_date_range
+from api.utils import to_date
 from common.queues import CostModelQueue
 from common.queues import DEFAULT
 from common.queues import DownloadQueue
@@ -33,12 +35,20 @@ from common.queues import PriorityQueue
 from common.queues import RefreshQueue
 from common.queues import SummaryQueue
 from koku import celery_app
+from koku.cache import delete_cached_ocp_on_cloud_matched_tags
+from koku.cache import invalidate_cache_for_tenant_and_cache_key
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.cache import TAG_MAPPING_PREFIX
 from koku.middleware import KokuTenantMiddleware
+from koku.trino_database import TrinoQueryNotFoundError
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import is_celery_task_delay_disabled
+from masu.processor import is_cost_model_processing_disabled
+from masu.processor import is_cost_model_single_flight_enabled
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -50,6 +60,8 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor._tasks.remove_expired import _remove_expired_trino_partitions
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.cost_model_run_lock import billing_months
+from masu.processor.cost_model_run_lock import provider_month_locks
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
 from masu.processor.report_processor import ReportProcessorDBError
@@ -61,7 +73,6 @@ from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.util.common import get_latest_openshift_on_cloud_manifest
 from masu.util.common import set_summary_timestamp
-from masu.util.gcp.common import deduplicate_reports_for_gcp
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
@@ -71,6 +82,13 @@ from reporting_common.states import ManifestStep
 LOG = logging.getLogger(__name__)
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
+UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
+# Deadline of a deferred busy run's delayed-task row. The row fires on the delayed-tasks beat
+# (every DELAYED_TASK_POLLING_MINUTES) once its deadline has passed, so 0 makes it eligible on the
+# next tick; the two-minute lock wait already covers "the other run is almost done".
+COST_MODEL_BUSY_DEFER_SECONDS = 0
+APPLY_TAG_MAPPINGS_TASK = "masu.processor.tasks.apply_tag_mappings"
+UPDATE_OPENSHIFT_ON_CLOUD_TASK = "masu.processor.tasks.update_openshift_on_cloud"
 
 
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
@@ -86,10 +104,6 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
                 schema_name = report.get("schema_name")
 
     reports_deduplicated = []
-    dedup_func_map = {
-        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
-        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
-    }
 
     kwargs = {}
     if schema_name:
@@ -97,30 +111,25 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
 
     LOG.info(log_json("summarize_reports", msg="deduplicating reports", **kwargs))
     for report_list in reports_by_source.values():
-        if report and report.get("provider_type") in dedup_func_map:
-            provider_type = report.get("provider_type")
-            dedup_func = dedup_func_map.get(provider_type)
-            reports_deduplicated.extend(dedup_func(report_list))
-        else:
-            starts = []
-            ends = []
-            for report in report_list:
-                if report.get("start") and report.get("end"):
-                    starts.append(report.get("start"))
-                    ends.append(report.get("end"))
-            start = min(starts) if starts != [] else None
-            end = max(ends) if ends != [] else None
-            reports_deduplicated.append(
-                {
-                    "manifest_id": report.get("manifest_id"),
-                    "tracing_id": report.get("tracing_id"),
-                    "schema_name": report.get("schema_name"),
-                    "provider_type": report.get("provider_type"),
-                    "provider_uuid": report.get("provider_uuid"),
-                    "start": start,
-                    "end": end,
-                }
-            )
+        starts = []
+        ends = []
+        for report in report_list:
+            if report.get("start") and report.get("end"):
+                starts.append(report.get("start"))
+                ends.append(report.get("end"))
+        start = min(starts) if starts != [] else None
+        end = max(ends) if ends != [] else None
+        reports_deduplicated.append(
+            {
+                "manifest_id": report.get("manifest_id"),
+                "tracing_id": report.get("tracing_id"),
+                "schema_name": report.get("schema_name"),
+                "provider_type": report.get("provider_type"),
+                "provider_uuid": report.get("provider_uuid"),
+                "start": start,
+                "end": end,
+            }
+        )
 
     LOG.info(
         log_json(
@@ -143,10 +152,20 @@ def trigger_ocp_on_cloud_summary(
             )
         )
         return
-    updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
     ocp_on_cloud_infra_map = None
     try:
+        updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
         ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                msg="possible source/provider delete during processing - halting OCP on cloud processing",
+                context=context,
+            ),
+            exc_info=ex,
+        )
+        return
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
     if not ocp_on_cloud_infra_map:
@@ -216,9 +235,115 @@ def delayed_summarize_current_month(schema_name: str, provider_uuids: list, prov
             provider_uuid=provider_uuid,
             queue_name=queue,
         )
-        if schema_name == settings.QE_SCHEMA:
-            # bypass the wait for QE
+        if is_celery_task_delay_disabled(schema_name):
             id.delete()
+
+
+def delayed_apply_tag_mappings(schema_name: str, provider_uuids: list):
+    """Delay applying tag mappings for the current month without a full re-summary."""
+    queue = get_customer_queue(schema_name, SummaryQueue)
+    start_date = str(to_date(DateHelper().this_month_start))
+    end_date = str(to_date(DateHelper().today))
+
+    for provider_uuid in provider_uuids:
+        row = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=APPLY_TAG_MAPPINGS_TASK,
+            task_args=[schema_name],
+            task_kwargs={
+                "provider_uuid": str(provider_uuid),
+                "start_date": start_date,
+                "end_date": end_date,
+            },
+            provider_uuid=provider_uuid,
+            queue_name=queue,
+        )
+        if is_celery_task_delay_disabled(schema_name):
+            row.delete()
+
+
+def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_date, queue_name, tracing_id=None):
+    """Delay cost-model cost updates, coalescing per provider and billing month.
+
+    Cross-month ranges are split into one DelayedCeleryTasks row per calendar
+    month. Further edits for the same provider/month reset the timeout and keep
+    the widest date range (min start, max end) under ``select_for_update`` in
+    ``DelayedCeleryTasks.create_or_reset_timeout``.
+
+    Dates are stored as named ``task_kwargs`` (``start_date`` / ``end_date``) so
+    coalesce does not depend on positional ``task_args`` indexes.
+    ``task_args`` remains ``[schema_name, provider_uuid]`` for ``send_task``.
+    """
+    start = to_date(start_date)
+    end = to_date(end_date)
+
+    months = DateHelper().list_month_tuples(start, end)
+    if not months:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                msg="Skipping delayed update_cost_model_costs; invalid or empty date range",
+                context={
+                    "schema": schema_name,
+                    "provider_uuid": str(provider_uuid),
+                    "start_date": str(start),
+                    "end_date": str(end),
+                },
+            )
+        )
+        return
+
+    for month_start, month_end in months:
+        billing_month = month_start.replace(day=1)
+        task_kwargs = {
+            "start_date": str(month_start),
+            "end_date": str(month_end),
+            "queue_name": queue_name,
+        }
+        if tracing_id is not None:
+            task_kwargs["tracing_id"] = str(tracing_id)
+
+        row = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=UPDATE_COST_MODEL_COSTS_TASK,
+            task_args=[schema_name, str(provider_uuid)],
+            task_kwargs=task_kwargs,
+            provider_uuid=provider_uuid,
+            queue_name=queue_name,
+            billing_month=billing_month,
+            merge_date_range=True,
+        )
+        if is_celery_task_delay_disabled(schema_name):
+            row.delete()
+
+
+def defer_busy_cost_model_update(schema_name, provider_uuid, start_date, end_date, queue_name, tracing_id=None):
+    """Hand a cost model update whose provider-month lock is busy to the delayed tasks.
+
+    Uses the same rows as ``delayed_update_cost_model_costs`` (one per provider and
+    billing month, date range widened to cover both), so any number of runs waiting
+    for one provider month become a single run. The deadline never moves later
+    (``keep_earlier_deadline``), so a stream of triggers cannot postpone that run.
+    The row is always stored, also when task delays are disabled: firing it at once
+    would only meet the same busy lock again.
+    """
+    for month_start, month_end in DateHelper().list_month_tuples(to_date(start_date), to_date(end_date)):
+        task_kwargs = {
+            "start_date": str(month_start),
+            "end_date": str(month_end),
+            "queue_name": queue_name,
+        }
+        if tracing_id is not None:
+            task_kwargs["tracing_id"] = str(tracing_id)
+        DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=UPDATE_COST_MODEL_COSTS_TASK,
+            task_args=[schema_name, str(provider_uuid)],
+            task_kwargs=task_kwargs,
+            provider_uuid=provider_uuid,
+            queue_name=queue_name,
+            timeout_seconds=COST_MODEL_BUSY_DEFER_SECONDS,
+            billing_month=month_start.replace(day=1),
+            merge_date_range=True,
+            keep_earlier_deadline=True,
+        )
 
 
 def record_all_manifest_files(manifest_id, report_files, tracing_id):
@@ -266,7 +391,16 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
     return already_processed
 
 
-@celery_app.task(name="masu.processor.tasks.get_report_files", queue=DownloadQueue.DEFAULT, bind=True)  # noqa: C901
+@celery_app.task(
+    name="masu.processor.tasks.get_report_files",
+    queue=DownloadQueue.DEFAULT,
+    bind=True,
+    autoretry_for=(TrinoQueryNotFoundError,),
+    max_retries=settings.MAX_UPDATE_RETRIES,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+)  # noqa: C901
 def get_report_files(  # noqa: C901
     self,
     customer_name,
@@ -345,7 +479,6 @@ def get_report_files(  # noqa: C901
 
         if report_dict:
             context["file"] = report_dict["file"]
-            context["invoice_month"] = report_dict.get("invoice_month")
             LOG.info(log_json(tracing_id, msg="reports to be processed", context=context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
@@ -360,7 +493,6 @@ def get_report_files(  # noqa: C901
             "tracing_id": tracing_id,
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
-            "invoice_month": report_dict.get("invoice_month"),
             "metadata_start_date": report_dict.get("metadata_start_date"),
             "metadata_end_date": report_dict.get("metadata_end_date"),
         }
@@ -378,6 +510,18 @@ def get_report_files(  # noqa: C901
             )
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
+            # Check if it's a Trino 404 error that can be retried
+            if "404" in str(processing_error) and "Query not found" in str(processing_error):
+                LOG.warning(
+                    log_json(
+                        tracing_id,
+                        msg=f"Trino 404 error - retrying (attempt {self.request.retries + 1}/"
+                        f"{settings.MAX_UPDATE_RETRIES})",
+                        context=context,
+                    )
+                )
+                raise TrinoQueryNotFoundError(str(processing_error)) from processing_error
+
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
             ReportManifestDBAccessor().update_manifest_state(
@@ -492,7 +636,6 @@ def summarize_reports(  # noqa: C901
             months = get_months_in_date_range(
                 start=report.get("start"),
                 end=report.get("end"),
-                invoice_month=report.get("invoice_month"),
                 report=True,
             )
             for month in months:
@@ -507,8 +650,111 @@ def summarize_reports(  # noqa: C901
                     queue_name=queue_name,
                     tracing_id=tracing_id,
                     manifest_list=manifest_list,
-                    invoice_month=month[2],
                 ).apply_async(queue=queue_name or fallback_queue)
+
+
+def _bump_mapping_apply_freshness(schema, provider):
+    """Stamp sources whose summarized data changed and drop cached cost/tag reports.
+
+    Mapping-only apply skips ReportSummaryUpdater, which is what normally
+    invalidates view cache. Linked cloud/OCP sources are stamped too because
+    include_linked_ocp_on_cloud remaps their project tables.
+    Do not touch ocp_on_cloud_updated_datetime; that marks matching, not a remap.
+    """
+    providers = [provider]
+    if provider.type == Provider.PROVIDER_OCP:
+        if provider.infrastructure:
+            if infra := Provider.objects.filter(uuid=provider.infrastructure.infrastructure_provider_id).first():
+                providers.append(infra)
+    else:
+        providers.extend(Provider.objects.filter(infrastructure__infrastructure_provider_id=provider.uuid))
+
+    for stamped in providers:
+        stamped.set_data_updated_timestamp()
+
+    source_types = {p.type for p in providers}
+    for source_type in source_types:
+        invalidate_view_cache_for_tenant_and_source_type(schema, source_type)
+    invalidate_cache_for_tenant_and_cache_key(schema, TAG_MAPPING_PREFIX)
+
+
+def _queue_cost_model_refresh_after_mapping(schema, provider, start_date, end_date, tracing_id=None):
+    """Recalculate OCP cost-model costs after daily-summary labels are remapped.
+
+    Tag-based rates match pod_labels/volume_labels. Cloud mapping does not remap
+    those OCP rows, so only an OCP source queues this follow-up.
+    """
+    if provider.type != Provider.PROVIDER_OCP:
+        return
+    cost_model_queue = get_customer_queue(schema, CostModelQueue)
+    update_cost_model_costs.s(
+        schema,
+        str(provider.uuid),
+        start_date=str(start_date),
+        end_date=str(end_date),
+        tracing_id=tracing_id,
+    ).apply_async(queue=cost_model_queue)
+
+
+@celery_app.task(name=APPLY_TAG_MAPPINGS_TASK, queue=SummaryQueue.DEFAULT)
+def apply_tag_mappings(
+    schema,
+    provider_uuid,
+    start_date,
+    end_date=None,
+    tracing_id=None,
+    queue_name=None,
+    synchronous=False,
+):
+    """Apply tag mappings to already-summarized rows for one provider and month."""
+    start_date = to_date(start_date)
+    end_date = to_date(end_date) if end_date is not None else to_date(DateHelper().today)
+    context = {
+        "schema": schema,
+        "provider_uuid": provider_uuid,
+        "start_date": start_date,
+        "end_date": end_date,
+    }
+    if is_summary_processing_disabled(schema) or is_source_disabled(provider_uuid):
+        LOG.info(log_json(tracing_id, msg="skipping tag mapping apply; processing disabled", context=context))
+        return
+
+    task_name = APPLY_TAG_MAPPINGS_TASK
+    cache_args = [schema, str(provider_uuid), str(start_date)]
+    fallback_queue = get_customer_queue(schema, SummaryQueue)
+    if not synchronous:
+        worker_cache = WorkerCache()
+        timeout = settings.WORKER_CACHE_TIMEOUT
+        if fallback_queue != SummaryQueue.DEFAULT:
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            LOG.info(log_json(tracing_id, msg=f"Task {task_name} already running for {cache_args}. Requeuing."))
+            apply_tag_mappings.s(
+                schema,
+                provider_uuid,
+                start_date=str(start_date),
+                end_date=str(end_date),
+                tracing_id=tracing_id,
+                queue_name=queue_name,
+                synchronous=synchronous,
+            ).apply_async(queue=queue_name or fallback_queue)
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
+
+    try:
+        provider = Provider.objects.select_related("infrastructure").filter(uuid=provider_uuid).first()
+        if not provider:
+            LOG.warning(log_json(tracing_id, msg="provider not found; skipping tag mapping apply", context=context))
+            return
+        LOG.info(log_json(tracing_id, msg="applying tag mappings", context=context))
+        from masu.processor.tag_mapping import apply_tag_mappings as apply_tag_mappings_for_provider
+
+        apply_tag_mappings_for_provider(schema, provider, start_date, end_date, include_linked_ocp_on_cloud=True)
+        _bump_mapping_apply_freshness(schema, provider)
+        _queue_cost_model_refresh_after_mapping(schema, provider, start_date, end_date, tracing_id=tracing_id)
+    finally:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
 
 
 @celery_app.task(name=UPDATE_SUMMARY_TABLES_TASK, queue=SummaryQueue.DEFAULT)  # noqa: C901
@@ -695,7 +941,24 @@ def delete_openshift_on_cloud_data(
     tracing_id=None,
 ):
     """Clear existing data from tables for date range."""
-    updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
+    context = {
+        "schema": schema_name,
+        "provider_uuid": infrastructure_provider_uuid,
+        "table_name": table_name,
+        "operation": operation,
+    }
+    try:
+        updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                msg="possible source/provider delete during processing - halting OCP on cloud delete processing",
+                context=context,
+            ),
+            exc_info=ex,
+        )
+        return
 
     if operation == TRUNCATE_TABLE:
         updater._ocp_cloud_updater.truncate_summary_table_data(table_name)
@@ -734,13 +997,13 @@ def update_openshift_on_cloud(  # noqa: C901
     }
     LOG.info(log_json(tracing_id, msg="update openshift on cloud processing started", context=context))
     ocp_manifest_id = get_latest_openshift_on_cloud_manifest(start_date, openshift_provider_uuid)
-    task_name = "masu.processor.tasks.update_openshift_on_cloud"
+    task_name = UPDATE_OPENSHIFT_ON_CLOUD_TASK
     if is_ocp_on_cloud_summary_disabled(schema_name):
         msg = f"OCP on Cloud summary disabled for {schema_name}."
         LOG.info(msg)
         return
     if isinstance(start_date, str):
-        cache_arg_date = start_date[:-3]  # Strip days from string
+        cache_arg_date = start_date[:-3]
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
     cache_args = [schema_name, infrastructure_provider_uuid, openshift_provider_uuid, cache_arg_date]
@@ -772,6 +1035,10 @@ def update_openshift_on_cloud(  # noqa: C901
             ).apply_async(queue=queue_name or fallback_queue)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
+
+    delete_cached_ocp_on_cloud_matched_tags(
+        schema_name, str(openshift_provider_uuid), str(infrastructure_provider_uuid), cache_arg_date
+    )
 
     # Set OpenShift summary started time
     set_summary_timestamp(ManifestState.START, ocp_manifest_id)
@@ -896,13 +1163,34 @@ def update_cost_model_costs(  # noqa: C901
         None
 
     """
+    if is_cost_model_processing_disabled(schema_name):
+        LOG.info(
+            log_json(
+                tracing_id,
+                msg="skipping cost model update - processing disabled",
+                context={
+                    "schema": schema_name,
+                    "provider_uuid": provider_uuid,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                },
+            )
+        )
+        return
     task_name = "masu.processor.tasks.update_cost_model_costs"
+    # Include start_date/end_date so non-overlapping ranges (e.g. different months) for the
+    # same provider can run concurrently instead of queueing behind each other. The deadlock
+    # this key was previously narrowed to work around is fixed at the SQL layer instead (see
+    # insert_usage_rates_to_usage.sql's DELETE scope); retry-on-deadlock in
+    # _execute_raw_sql_query covers the residual risk from genuinely overlapping ranges.
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         fallback_queue = get_customer_queue(schema_name, CostModelQueue)
         rate_limited = False
+        if fallback_queue != CostModelQueue.DEFAULT:
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
@@ -933,11 +1221,34 @@ def update_cost_model_costs(  # noqa: C901
     }
     LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
 
+    single_flight = not synchronous and is_cost_model_single_flight_enabled(schema_name)
     try:
-        if updater := CostModelCostUpdater(schema_name, provider_uuid, tracing_id):
-            updater.update_cost_model_costs(start_date, end_date)
-        if provider := Provider.objects.filter(uuid=provider_uuid).first():
-            provider.set_data_updated_timestamp()
+        if single_flight:
+            # Same defaults as CostModelCostUpdater.update_cost_model_costs.
+            dh = DateHelper()
+            run_start = to_date(start_date) if start_date else dh.this_month_start.date()
+            run_end = to_date(end_date) if end_date else dh.today.date()
+            run_lock = provider_month_locks(provider_uuid, billing_months(run_start, run_end))
+        else:
+            run_lock = nullcontext(True)
+        with run_lock as acquired:
+            if acquired:
+                if updater := CostModelCostUpdater(schema_name, provider_uuid, tracing_id):
+                    updater.update_cost_model_costs(start_date, end_date)
+                if provider := Provider.objects.filter(uuid=provider_uuid).first():
+                    provider.set_data_updated_timestamp()
+            else:
+                LOG.info(
+                    log_json(tracing_id, msg="cost model update busy for provider month, deferring", context=context)
+                )
+                defer_busy_cost_model_update(
+                    schema_name,
+                    provider_uuid,
+                    run_start,
+                    run_end,
+                    queue_name or get_customer_queue(schema_name, CostModelQueue),
+                    tracing_id=tracing_id,
+                )
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -1121,7 +1432,7 @@ def remove_stale_tenants():
 @celery_app.task(name="masu.processor.tasks.validate_daily_data", queue=PriorityQueue.DEFAULT)
 def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type=None, context=None):
     # collect and validate cost metrics between postgres and trino tables.
-    if is_validation_enabled(schema):
+    if is_validation_enabled(schema) and not settings.ONPREM:
         data_validator = DataValidator(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type, context)
         data_validator.check_data_integrity()
     else:

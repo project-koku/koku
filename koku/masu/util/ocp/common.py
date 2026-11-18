@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime
 from datetime import UTC
 from decimal import Decimal
@@ -14,15 +15,18 @@ from math import ceil
 from pathlib import Path
 from typing import Annotated
 from typing import Any
+from typing import Literal
 from typing import Self
 
 import pandas as pd
+from botocore.exceptions import ClientError
+from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
-from packaging.version import Version
 from pydantic import AfterValidator
 from pydantic import BaseModel
 from pydantic import BeforeValidator
 from pydantic import ConfigDict
+from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 from pydantic import UUID4
@@ -33,8 +37,44 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper as dh
+from masu.util.aws.common import _get_s3_objects
+from masu.util.aws.common import safe_str_int_conversion
+from masu.util.common import trino_table_exists
+from masu.util.ocp.operator_versions import OPERATOR_VERSIONS
 
 LOG = logging.getLogger(__name__)
+
+MANIFEST_JSON = "manifest.json"
+_UNSAFE_PATH_COMPONENT_RE = re.compile(r"[/\\]|\.\.")
+
+
+def validate_safe_path_component(value: str, field_name: str = "path") -> str:
+    """Reject null bytes, path separators, and parent-directory references in a single path component."""
+    if not value or value in (".", ".."):
+        raise ValueError(f"Invalid {field_name}: must be a non-empty safe path component")
+    if "\x00" in value:
+        raise ValueError(f"Invalid {field_name}: null bytes are not allowed")
+    if _UNSAFE_PATH_COMPONENT_RE.search(value) or os.path.basename(value) != value:
+        raise ValueError(f"Invalid {field_name}: path separators are not allowed")
+    return value
+
+
+def resolve_path_within_base(base_dir: os.PathLike | str, *relative_parts: str) -> Path:
+    """Resolve a path and ensure it remains within the given base directory."""
+    base = Path(base_dir).resolve()
+    path = base.joinpath(*relative_parts).resolve()
+    try:
+        path.relative_to(base)
+    except ValueError as err:
+        raise ValueError(f"Path {path} escapes base directory {base}") from err
+    return path
+
+
+def get_manifest_member_name(member_names: list[str]) -> str:
+    """Return the manifest.json member name from an archive member list."""
+    if MANIFEST_JSON in member_names:
+        return MANIFEST_JSON
+    raise ValueError("No manifest found in payload")
 
 
 class OCPReportTypes(Enum):
@@ -46,58 +86,8 @@ class OCPReportTypes(Enum):
     NODE_LABELS = 3
     NAMESPACE_LABELS = 4
     VM_USAGE = 5
+    GPU_USAGE = 6
 
-
-OPERATOR_VERSIONS = {
-    "e53f9db7c6e7f995b6aa6100a580dae74162ac3c": "costmanagement-metrics-operator:4.0.0",
-    "8e957a5b174639642809df0317b39593532d6fb7": "costmanagement-metrics-operator:3.3.2",
-    "6b4d72a4a629527c1de086b416faf6d226fe587a": "costmanagement-metrics-operator:3.3.1",
-    "8c10aa090b2be3d2aea7553ce2cb62e78844ce6f": "costmanagement-metrics-operator:3.3.0",
-    "212f944b3b1d7cfbf6e48a63c4ed74bfe942bbe1": "costmanagement-metrics-operator:3.2.1",
-    "9d463e92ba69d82513d8ec53edc5242658623840": "costmanagement-metrics-operator:3.2.0",
-    "e3ab976307639acff6cc86e25f90f242c45d7210": "costmanagement-metrics-operator:3.1.0",
-    "b5a2c05255069215eb564dcc5c4ec6ca4b33325d": "costmanagement-metrics-operator:3.0.1",
-    "47ddcdbbdf3e445536ea3fa8346df0dac3adc3ed": "costmanagement-metrics-operator:3.0.0",
-    "5806b175a7b31e6ee112c798fa4222cc652b40a6": "costmanagement-metrics-operator:2.0.0",
-    "e3450f6e3422b6c39c582028ec4ce19b8d09d57d": "costmanagement-metrics-operator:1.2.0",
-    "61099eb07331b140cf66104bc1056c3f3211c94e": "costmanagement-metrics-operator:1.1.9",
-    "6d38c76be52e5981eaf19377a559dc681f1be405": "costmanagement-metrics-operator:1.1.8",
-    "0159d5e55ce6a5a18f989e6f04146f47983ebdf3": "costmanagement-metrics-operator:1.1.7",
-    "2a702a3aac89f724a08b08650b77a0bd33f5b5e5": "costmanagement-metrics-operator:1.1.6",
-    "f8d1f7c5d8685f758ecc36a14aca3b6b86614613": "costmanagement-metrics-operator:1.1.5",
-    "77ec351f8d332796dc522e5623f1200c2fab4042": "costmanagement-metrics-operator:1.1.4",
-    "084bca2e1c48caab18c237453c17ceef61747fe2": "costmanagement-metrics-operator:1.1.3",
-    "6f10d07e3af3ea4f073d4ffda9019d8855f52e7f": "costmanagement-metrics-operator:1.1.0",
-    "fd764dcd7e9b993025f3e05f7cd674bb32fad3be": "costmanagement-metrics-operator:1.0.0",
-    "0dbe2ce263a19e05935023c46d20692213fdef90": "koku-metrics-operator:v4.0.0",
-    "1dd2f05c51daa7487ea53b1f3f4894316b1759e1": "koku-metrics-operator:v3.3.2",
-    "b0731873d0c54aa1d016b8b3463b29c23c9e852c": "koku-metrics-operator:v3.3.1",
-    "1650a9fa9f353efee534dde6030ece40e6a9a1ee": "koku-metrics-operator:v3.3.0",
-    "631434d278be57cfedaa5ad0000cb3a3dfb69a76": "koku-metrics-operator:v3.2.1",
-    "06f3ed1c48b889f64ecec09e55f0bd7c2f09fe54": "koku-metrics-operator:v3.2.0",
-    "b3525a536a402d5bed9b5bbd739fb6a89c8e92e0": "koku-metrics-operator:v3.1.0",
-    "8737fb075bdbd63c02e82e6f89056380e9c1e6b6": "koku-metrics-operator:v3.0.1",
-    "3a6df53f18e574286a1666e1d26586dc729f0568": "koku-metrics-operator:v3.0.0",
-    "26502d500672019af5c11319b558dec873409e38": "koku-metrics-operator:v2.0.0",
-    "2acd43ccec2d6fe6ec292aece951b3cf0b869071": "koku-metrics-operator:v1.2.0",
-    "ebe8dab6aebfeacf9a3428d66cc8be7da682c2ad": "koku-metrics-operator:v1.1.9",
-    "ccc78b4fd4b63a6cb1516574d5e38a9b1078ea16": "koku-metrics-operator:v1.1.8",
-    "2003f0ea23efc49b7ba1337a16b1c90c6899824b": "koku-metrics-operator:v1.1.7",
-    "45cc7a72ced124a267acf0976d90504f134e1076": "koku-metrics-operator:v1.1.6",
-    "2c52da1481d0c90099e130f6989416cdd3cd7b5a": "koku-metrics-operator:v1.1.5",
-    "12b9463a9501f8e9acecbfa4f7e7ae7509d559fa": "koku-metrics-operator:v1.1.4",
-    "3430d17b8ad52ee912fc816da6ed31378fd28367": "koku-metrics-operator:v1.1.3",
-    "02f315aa5a7f0bf5adecd3668b0a769799b54be8": "koku-metrics-operator:v1.1.2",
-    "7c413e966e2ec0a709f5a25cbf5a487c646306d1": "koku-metrics-operator:v1.1.1",
-    "f73a992e7b2fc19028b31c7fb87963ae19bba251": "koku-metrics-operator:v0.9.8",
-    "d37e6d6fd90d65b0d6794347f5fe00a472ce9d33": "koku-metrics-operator:v0.9.7",
-    "1019682a6aa1eeb7533724b07d98cfb54dbe0e94": "koku-metrics-operator:v0.9.6",
-    "513e7dffddb6ecc090b9e8f20a2fba2fe8ec6053": "koku-metrics-operator:v0.9.5",
-    "eaef8ea323b3531fa9513970078a55758afea665": "koku-metrics-operator:v0.9.4",
-    "4f1cc5580da20a11e6dfba50d04d8ae50f2e5fa5": "koku-metrics-operator:v0.9.2",
-    "0419bb957f5cdfade31e26c0f03b755528ec0d7f": "koku-metrics-operator:v0.9.1",
-    "bfdc1e54e104c2a6c8bf830ab135cf56a97f41d2": "koku-metrics-operator:v0.9.0",
-}
 
 STORAGE_COLUMNS = {
     "report_period_start",
@@ -286,6 +276,63 @@ VM_AGG = {
     "vm_disk_allocated_size_byte_seconds": ["sum"],
 }
 
+GPU_USAGE_COLUMNS = {
+    "report_period_start",
+    "report_period_end",
+    "interval_start",
+    "interval_end",
+    "node",
+    "namespace",
+    "pod",
+    "gpu_uuid",
+    "gpu_model_name",
+    "gpu_vendor_name",
+    "gpu_memory_capacity_mib",
+    "gpu_pod_uptime",
+}
+
+# MIG (Multi-Instance GPU) columns - optional, may not be present in older operator versions
+# Note: mig_slice_count, mig_memory_capacity_mib, and parent_gpu_max_slices are derived
+# in post-processor from mig_profile and gpu_model_name, not from the operator
+GPU_USAGE_NEWV_COLUMNS_AND_TYPES = {
+    "mig_instance_id": pd.StringDtype(storage="pyarrow"),
+    "mig_profile": pd.StringDtype(storage="pyarrow"),
+    "mig_strategy": pd.StringDtype(storage="pyarrow"),  # "single" or "mixed" or Null
+    # These are derived in post-processor, not from operator:
+    "mig_slice_count": pd.Int64Dtype(),
+    "mig_memory_capacity_mib": pd.Int64Dtype(),
+    "gpu_max_slices": pd.Int64Dtype(),
+}
+
+GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid", "mig_instance_id"]
+
+GPU_AGG = {
+    "report_period_start": ["max"],
+    "report_period_end": ["max"],
+    "gpu_model_name": ["max"],
+    "gpu_vendor_name": ["max"],
+    "gpu_memory_capacity_mib": ["max"],
+    "gpu_pod_uptime": ["sum"],
+    # MIG aggregations (mig_instance_id is in GROUP_BY, so not included here)
+    "mig_profile": ["max"],
+    "mig_slice_count": ["max"],
+    "gpu_max_slices": ["max"],
+    "mig_memory_capacity_mib": ["max"],
+    "mig_strategy": ["max"],
+}
+
+# MIG (Multi-Instance GPU) configuration
+# Max slices by GPU model - used to determine parent gpu max slices
+GPU_MAX_SLICES_BY_MODEL = {
+    "A30": 4,
+    "A100": 7,
+    "H100": 7,
+    "H200": 7,
+    "B200": 7,
+    "RTX PRO 6000": 4,
+    "RTX PRO 5000": 2,
+}
+
 # new_required_columns are columns that appear in new operator reports.
 # today, we cannot guarantee that all reports received will contain all
 # of these new columns, so this field is used to add the necessary columns
@@ -329,7 +376,34 @@ OCP_REPORT_TYPES = {
         "agg": VM_AGG,
         "new_required_columns": {},
     },
+    "gpu_usage": {
+        "columns": GPU_USAGE_COLUMNS,
+        "enum": OCPReportTypes.GPU_USAGE,
+        "group_by": GPU_GROUP_BY,
+        "agg": GPU_AGG,
+        "new_required_columns": GPU_USAGE_NEWV_COLUMNS_AND_TYPES,
+    },
 }
+
+# 1,000,000,000,000,000,000 is a reasonable value that should remove most anomalies from bad data
+THRESHOLD_MAP = {
+    1e18: [
+        "pod_usage_cpu_core_seconds",
+        "pod_request_cpu_core_seconds",
+        "pod_limit_cpu_core_seconds",
+        "node_capacity_cpu_core_seconds",
+        "pod_usage_memory_byte_seconds",
+        "pod_request_memory_byte_seconds",
+        "pod_limit_memory_byte_seconds",
+        "node_capacity_memory_byte_seconds",
+        "node_capacity_memory_bytes",
+        "persistentvolumeclaim_capacity_bytes",
+        "persistentvolumeclaim_capacity_byte_seconds",
+        "volume_request_storage_byte_seconds",
+        "persistentvolumeclaim_usage_byte_seconds",
+    ],
+}
+THRESHOLDS = {col: thresh for thresh, cols in THRESHOLD_MAP.items() for col in cols}
 
 
 ForceAwareDatetime = Annotated[
@@ -362,6 +436,16 @@ class Manifest(BaseModel):
     def get_operator_version(cls, value: str, info: ValidationInfo) -> str:
         v = info.data["version"]
         return OPERATOR_VERSIONS.get(v, v)
+
+    @field_validator("cluster_id", mode="after")
+    @classmethod
+    def validate_cluster_id_path(cls, value: str) -> str:
+        return validate_safe_path_component(value, "cluster_id")
+
+    @field_validator("files", "resource_optimization_files", mode="after")
+    @classmethod
+    def validate_manifest_file_names(cls, value: list[str]) -> list[str]:
+        return [validate_safe_path_component(file_name, "file name") for file_name in value]
 
     @model_validator(mode="after")
     def validate_start_and_end(self) -> Self:
@@ -522,15 +606,22 @@ def get_cluster_alias_from_cluster_id(cluster_id):
     return cluster_alias
 
 
-def get_source_and_provider_from_cluster_id(cluster_id):
-    """Return the provider given the cluster ID."""
-    source = None
+def get_source_and_provider_from_cluster_id(cluster_id, org_id, skip_org_id_filter=False):
+    """Return the provider given the cluster ID.
+
+    Args:
+        cluster_id: OCP cluster identifier.
+        org_id: Organization ID used to scope the lookup and prevent cross-org data leakage.
+        skip_org_id_filter: When True, the org_id filter is omitted. Should only be set by
+            callers that have verified the cross-org lookup Unleash flag is enabled for the
+            target schema.
+    """
     credentials = {"cluster_id": cluster_id}
-    if (
-        source := Sources.objects.select_related("provider")
-        .filter(provider__authentication__credentials=credentials)
-        .first()
-    ):
+    qs = Sources.objects.select_related("provider").filter(provider__authentication__credentials=credentials)
+    if not skip_org_id_filter:
+        qs = qs.filter(org_id=org_id)
+    source = qs.first()
+    if source:
         context = {"provider_uuid": source.koku_uuid, "cluster_id": cluster_id}
         LOG.info(log_json("", msg="found provider for cluster-id", context=context))
     return source
@@ -571,12 +662,266 @@ def get_amortized_monthly_cost_model_rate(monthly_rate, start_date):
     return Decimal(monthly_rate) / days_in_month
 
 
-def get_latest_operator_version():
-    """Get s the latest operator version we have released based on OPERATOR_VERSIONS dict"""
-    latest_version_num = None
-    for version in OPERATOR_VERSIONS.values():
-        version_num = version.split(":")[-1]
-        version_num = version_num.lstrip("v")
-        if latest_version_num is None or Version(version_num) > Version(latest_version_num):
-            latest_version_num = version_num
-    return latest_version_num
+class DistributionConfig(BaseModel):
+    """Configuration for cost distribution SQL execution.
+
+    Consolidates all metadata needed to execute a distribution:
+    - SQL file path
+    - Whether to distribute by default (without cost model)
+    - Cost model rate type for deletion
+    - Query engine type (PostgreSQL vs Trino)
+    - Optional required table for Trino queries
+    """
+
+    sql_file: str = Field(..., description="SQL file name (without path)")
+    cost_model_rate_type: str = Field(..., description="Rate type identifier for cost model")
+    distribute_by_default: bool = Field(
+        default=False, description="Whether to distribute when no cost model is present"
+    )
+    requires_full_month: bool = Field(
+        default=False, description="Requires a full month of data before distribution can happen."
+    )
+    query_type: Literal["postgresql", "trino"] = Field(
+        default="postgresql", description="Query engine to use for execution"
+    )
+    required_table: str | None = Field(
+        default=None,
+        description="Optional Trino table name that must exist before running query. Only valid for Trino queries.",
+    )
+
+    class Config:
+        frozen = True  # Immutable
+
+    @field_validator("sql_file")
+    @classmethod
+    def validate_sql_file(cls, v: str) -> str:
+        """Ensure SQL file has .sql extension."""
+        if not v.endswith(".sql"):
+            raise ValueError(f"SQL file must end with .sql, got: {v}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_required_table(self) -> "DistributionConfig":
+        """Ensure required_table is only specified for Trino queries."""
+        if self.required_table is not None and self.query_type != "trino":
+            raise ValueError(
+                f"required_table can only be specified for Trino queries. "
+                f"Got query_type='{self.query_type}' with required_table='{self.required_table}'"
+            )
+        return self
+
+    @property
+    def is_trino(self) -> bool:
+        """Check if this is a Trino query."""
+        return self.query_type == "trino"
+
+    @property
+    def is_postgresql(self) -> bool:
+        """Check if this is a PostgreSQL query."""
+        return self.query_type == "postgresql"
+
+    @property
+    def has_table_requirement(self) -> bool:
+        """Check if this distribution requires a specific table to exist."""
+        return self.required_table is not None
+
+    def get_full_path(self) -> str:
+        """Get full path to SQL file relative to masu.database."""
+        if self.is_trino:
+            from django.conf import settings
+
+            # For Trino queries, use self_hosted_sql in ONPREM mode, otherwise trino_sql
+            sql_folder = "self_hosted_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
+            base_path = f"{sql_folder}/openshift/cost_model/distribute_cost/"
+        else:
+            # For PostgreSQL queries, always use sql/
+            base_path = "sql/openshift/cost_model/distribute_cost/"
+        return f"{base_path}{self.sql_file}"
+
+    def table_exists(self, schema: str) -> bool:
+        """Check if the required table exists in the given schema.
+
+        Args:
+            schema: The schema name to check for table existence
+
+        Returns:
+            True if no required_table is specified or if the table exists.
+            False if required_table is specified but doesn't exist.
+        """
+        if not self.has_table_requirement:
+            return True
+        return trino_table_exists(schema, self.required_table)
+
+
+def select_manifests_to_delete(
+    manifest_groups: dict[str, list[dict]],
+    current_manifest_id: str,
+    current_reportnumhours: int,
+) -> list[str]:
+    """Determine which OCP parquet files to delete when multiple manifests overlap on the same day.
+
+    When concurrent payloads write parquet files for the same (source, date, report_type),
+    this function decides which manifest's files are superseded. The rules are deterministic
+    so that any worker evaluating the same S3 state will reach the same conclusion:
+
+      1. The manifest with more reportnumhours is retained (more complete hourly coverage).
+      2. If hours are equal, the higher manifestid string is retained as a stable tiebreaker.
+      3. The calling manifest's files are never treated as competitors — only as the
+         current worker's contribution to be retained or superseded.
+
+    Args:
+        manifest_groups: S3 objects grouped by manifestid. Each value is a list of
+            dicts with "key" (S3 key) and "reportnumhours" (str or None).
+        current_manifest_id: The manifest ID of the calling worker.
+        current_reportnumhours: The hour count for the calling worker's payload.
+
+    Returns:
+        S3 keys of the superseded files to delete. Empty list if no duplicates exist.
+    """
+    if len(manifest_groups) <= 1 or current_manifest_id not in manifest_groups:
+        return []
+
+    # Two-pass approach: first check if we lose to any manifest,
+    # then collect superseded keys only if we're the winner.
+    for other_manifest_id, objects in manifest_groups.items():
+        if other_manifest_id == current_manifest_id:
+            continue
+        other_hours = safe_str_int_conversion(objects[0]["reportnumhours"])
+        if other_hours is None:
+            continue
+        other_id_int = safe_str_int_conversion(other_manifest_id)
+        current_id_int = safe_str_int_conversion(current_manifest_id)
+        is_other_id_greater = (
+            other_id_int > current_id_int
+            if other_id_int is not None and current_id_int is not None
+            else other_manifest_id > current_manifest_id
+        )
+        if other_hours > current_reportnumhours or (other_hours == current_reportnumhours and is_other_id_greater):
+            our_objects = manifest_groups.get(current_manifest_id, [])
+            our_keys = [obj["key"] for obj in our_objects]
+            LOG.info(
+                log_json(
+                    msg="OCP parquet dedup: current manifest superseded",
+                    current_manifest_id=current_manifest_id,
+                    current_hours=current_reportnumhours,
+                    winner_manifest_id=other_manifest_id,
+                    winner_hours=other_hours,
+                    files_to_delete=len(our_keys),
+                )
+            )
+            return our_keys
+
+    # We are the winner — collect all superseded manifests' files
+    keys_to_delete = []
+    superseded = {}
+    for other_manifest_id, objects in manifest_groups.items():
+        if other_manifest_id == current_manifest_id:
+            continue
+        other_hours = safe_str_int_conversion(objects[0]["reportnumhours"])
+        if other_hours is None:
+            continue
+        other_keys = [obj["key"] for obj in objects]
+        superseded[other_manifest_id] = {"hours": other_hours, "files": len(other_keys)}
+        keys_to_delete.extend(other_keys)
+
+    LOG.info(
+        log_json(
+            msg="OCP parquet dedup post-write winner selection complete",
+            current_manifest_id=current_manifest_id,
+            superseded_manifests=superseded,
+            current_hours=current_reportnumhours,
+            files_to_delete=len(keys_to_delete),
+        )
+    )
+
+    return keys_to_delete
+
+
+def _collect_s3_objects_for_day(
+    s3_paths: list[str],
+    reportdatestart: str,
+    request_id: str,
+    context: dict,
+) -> dict[str, list[dict]] | None:
+    """Scan S3 paths and group objects by manifestid for a specific day.
+
+    Returns a dict of {manifestid: [{key, reportnumhours}]} or None on S3 error.
+    """
+    manifest_groups: dict[str, list[dict]] = {}
+    for s3_path in s3_paths:
+        if not s3_path:
+            continue
+        try:
+            for obj_summary in _get_s3_objects(s3_path):
+                if reportdatestart not in obj_summary.key:
+                    continue
+                existing_object = obj_summary.Object()
+                obj_date = existing_object.metadata.get("reportdatestart")
+                if obj_date != reportdatestart:
+                    continue
+                manifest_id = existing_object.metadata.get("manifestid")
+                if not manifest_id:
+                    continue
+                manifest_groups.setdefault(manifest_id, []).append(
+                    {
+                        "key": existing_object.key,
+                        "reportnumhours": existing_object.metadata.get("reportnumhours"),
+                    }
+                )
+        except (EndpointConnectionError, ClientError) as err:
+            LOG.warning(
+                log_json(
+                    request_id, msg="post-write dedup: unable to list s3 objects", context=context, s3_path=s3_path
+                ),
+                exc_info=err,
+            )
+            return None
+    return manifest_groups
+
+
+def deduplicate_s3_objects_by_metadata(
+    request_id: str,
+    s3_paths: list[str],
+    current_manifest_id: str,
+    current_reportnumhours: str,
+    reportdatestart: str,
+    context: dict | None = None,
+) -> list[str]:
+    """Post-write dedup: identify duplicate OCP parquet files for a single day.
+
+    Scans S3 paths for objects whose reportdatestart metadata matches the given
+    date, groups them by manifestid, then delegates to select_manifests_to_delete
+    for deterministic winner selection.
+
+    Returns a list of S3 keys that should be deleted (the superseded files).
+    """
+    if context is None:
+        context = {}
+
+    int_current_hours = safe_str_int_conversion(current_reportnumhours)
+    if int_current_hours is None:
+        return []
+
+    manifest_groups = _collect_s3_objects_for_day(s3_paths, reportdatestart, request_id, context)
+    if manifest_groups is None:
+        return []
+
+    keys_to_delete = select_manifests_to_delete(manifest_groups, current_manifest_id, int_current_hours)
+
+    collected_objects = sum(len(objs) for objs in manifest_groups.values())
+    LOG.info(
+        log_json(
+            request_id,
+            msg="OCP parquet dedup post-write day-level S3 scan complete",
+            context=context,
+            s3_paths=s3_paths,
+            reportdatestart=reportdatestart,
+            current_manifest_id=current_manifest_id,
+            current_hours=int_current_hours,
+            manifest_ids=list(manifest_groups.keys()),
+            objects_found=collected_objects,
+            keys_to_delete=len(keys_to_delete),
+        )
+    )
+
+    return keys_to_delete

@@ -1,0 +1,8 @@
+---
+description: "Test patterns for Koku using MasuTestCase, model_bakery, and subTest"
+globs:
+  - "**/test_*.py"
+alwaysApply: false
+---
+
+@docs/agent/testing.md

@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-listener
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{LISTENER_REPLICAS}}
     webServices:
       public:
@@ -9,6 +12,9 @@
       private:
         enabled: false
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash
@@ -17,6 +23,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_LISTENER}
         - name: SCHEMA_SUFFIX
@@ -25,8 +33,24 @@
           value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+          value: ${KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+          value: ${OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+          value: ${OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -35,6 +59,14 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -109,33 +141,24 @@
           cpu: ${CPU_REQUEST_LISTENER}
           memory: ${MEMORY_REQUEST_LISTENER}
       volumeMounts:
-      - name: aws-credentials
-        mountPath: /etc/aws
-        readOnly: true
-      - name: koku-listener-data
-        mountPath: /var/tmp/masu/
-      - name: gcp-credentials
-        mountPath: /etc/gcp
-        readOnly: true
-      - name: tmp-data
-        mountPath: ${TMP_DIR}
+        - name: koku-listener-data
+          mountPath: /var/tmp/masu/
+        - name: gcp-credentials
+          mountPath: /etc/gcp
+          readOnly: true
+        - name: tmp-data
+          mountPath: ${TMP_DIR}
       volumes:
-      - name: tmp-data
-        emptyDir: {}
-      - name: koku-listener-data
-        emptyDir: {}
-      - name: aws-credentials
-        secret:
-          items:
-          - key: aws-credentials
-            path: aws-credentials
-          secretName: koku-aws
-      - name: gcp-credentials
-        secret:
-          secretName: koku-gcp
-          items:
-            - key: gcp-credentials
-              path: gcp-credentials.json
+        - name: tmp-data
+          emptyDir: {}
+        - name: koku-listener-data
+          emptyDir: {}
+        - name: gcp-credentials
+          secret:
+            secretName: koku-gcp
+            items:
+              - key: gcp-credentials
+                path: gcp-credentials.json
 
 - op: add
   path: /parameters/-
@@ -143,7 +166,7 @@
     displayName: Minimum replicas
     name: LISTENER_REPLICAS
     required: true
-    value: '2'
+    value: "2"
 - op: add
   path: /parameters/-
   value:

@@ -19,6 +19,7 @@ from api.settings.tags.serializers import SettingsTagIDSerializer
 from api.settings.tags.serializers import SettingsTagSerializer
 from api.settings.utils import NonValidatedMultipleChoiceFilter
 from api.settings.utils import SettingsFilter
+from koku.cache import invalidate_ocp_on_cloud_matched_tags
 from masu.config import Config
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -83,6 +84,7 @@ class SettingsTagUpdateView(APIView):
 
         objects.update(enabled=self.enabled)
         EnabledTagKeys.objects.bulk_update(objects, ["enabled"])
+        invalidate_ocp_on_cloud_matched_tags(request.user.customer.schema_name)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

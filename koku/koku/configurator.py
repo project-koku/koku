@@ -6,13 +6,26 @@
 Handler module for gathering configuration data.
 """
 import pathlib
+from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from .env import ENVIRONMENT
+
+
+@dataclass
+class KafkaSASLConfig:
+    """SASL authentication config matching the Clowder broker SASL interface."""
+
+    securityProtocol: str
+    saslMechanism: str
+    username: str
+    password: str
 
 
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
     from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, KafkaServers, DependencyEndpoints
+    from app_common_python import get_v2_dependency_endpoint
 
 
 class Configurator:
@@ -173,9 +186,26 @@ class Configurator:
         """Obtain endpoint port."""
         pass
 
+    @staticmethod
+    def get_endpoint_url(app, name, default):
+        """Obtain endpoint URL (scheme://host:port)."""
+        return default
+
 
 class EnvConfigurator(Configurator):
     """Returns information based on the environment data"""
+
+    @staticmethod
+    def get_endpoint_url(app, name, default):
+        """Obtain endpoint URL (scheme://host:port) from environment."""
+        parsed = urlsplit(default)
+        protocol = ENVIRONMENT.get_value(
+            "_".join((app, name, "PROTOCOL")).replace("-", "_").upper(),
+            default=parsed.scheme or "http",
+        )
+        host = EnvConfigurator.get_endpoint_host(app, name, default=parsed.hostname or "localhost")
+        port = EnvConfigurator.get_endpoint_port(app, name, default=parsed.port)
+        return f"{protocol}://{host}:{port}"
 
     @staticmethod
     def get_feature_flag_host():
@@ -217,18 +247,26 @@ class EnvConfigurator(Configurator):
 
     @staticmethod
     def get_kafka_sasl():
-        """Obtain kafka sasl"""
-        return {}
+        """Obtain kafka sasl from environment variables."""
+        if EnvConfigurator.get_kafka_authtype() == "sasl":
+            return KafkaSASLConfig(
+                securityProtocol=ENVIRONMENT.get_value("KAFKA_SECURITY_PROTOCOL", default="SASL_SSL"),
+                saslMechanism=ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default=None),
+                username=ENVIRONMENT.get_value("KAFKA_SASL_USERNAME", default=""),
+                password=ENVIRONMENT.get_value("KAFKA_SASL_PASSWORD", default=""),
+            )
+        return None
 
     @staticmethod
     def get_kafka_cacert():
-        """Obtain kafka CA Certificate"""
-        return None
+        """Obtain kafka CA Certificate from environment variable."""
+        return ENVIRONMENT.get_value("KAFKA_SSL_CA_LOCATION", default=None)
 
     @staticmethod
     def get_kafka_authtype():
-        """Obtain kafka Authentication Type"""
-        return None
+        """Obtain kafka Authentication Type from environment variable."""
+        mechanism = ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default=None)
+        return "sasl" if mechanism else None
 
     @staticmethod
     def get_cloudwatch_access_id():
@@ -458,7 +496,7 @@ class ClowderConfigurator(Configurator):
     def get_object_store_tls():
         """Obtain object store secret key."""
         value = LoadedConfig.objectStore.tls
-        if type(value) == bool:
+        if isinstance(value, bool):
             return value
         if value and value.lower() in ["true", "false"]:
             return value.lower() == "true"
@@ -602,6 +640,31 @@ class ClowderConfigurator(Configurator):
         # if the endpoint is not defined by clowder, fall back to env variable
         svc = "_".join((app, name, "PORT")).replace("-", "_").upper()
         return ENVIRONMENT.get_value(svc, default=default)
+
+    @staticmethod
+    def get_endpoint_url(app, name, default):
+        """Obtain endpoint URL (scheme://host:port).
+
+        Tries Clowder V2 dependency endpoint first, falls back to V1,
+        then to environment variable or default.
+        """
+        # V2: use the full URI from the V2 dependency endpoint
+        v2 = get_v2_dependency_endpoint(app, name)
+        if v2 and v2.uri:
+            return v2.uri
+
+        # V1: build from host/port in DependencyEndpoints
+        v1_endpoint = DependencyEndpoints.get(app, {}).get(name)
+        if v1_endpoint:
+            return f"http://{v1_endpoint.hostname}:{v1_endpoint.port}"
+
+        # Fallback to explicit URL environment variable
+        svc = "_".join((app, name, "URL")).replace("-", "_").upper()
+        configured_url = ENVIRONMENT.get_value(svc, default="")
+        if configured_url:
+            return configured_url
+        # Fallback to component variables (PROTOCOL/HOST/PORT)
+        return EnvConfigurator.get_endpoint_url(app, name, default)
 
 
 class ConfigFactory:

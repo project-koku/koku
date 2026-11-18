@@ -29,7 +29,21 @@ ifneq ($(DOCKER_COMPOSE_CHECK), 0)
 	DOCKER_COMPOSE_BIN = $(DOCKER)-compose
 endif
 
-DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN)
+# Conditionally include debug compose file for single-worker debugging
+# When scale=1: includes docker-compose.debug.yml (adds debug port 5678)
+# When scale>1: excludes debug file (prevents port conflicts for multi-worker)
+ifeq ($(scale),1)
+	COMPOSE_FILES = -f docker-compose.yml -f docker-compose.debug.yml
+else
+	COMPOSE_FILES = -f docker-compose.yml
+endif
+
+DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) $(COMPOSE_FILES)
+# Kafka, Zookeeper, and init-kafka use onprem and/or payload_landing compose profiles.
+KAFKA_COMPOSE = $(DOCKER_COMPOSE) --profile onprem
+PAYLOAD_LANDING_COMPOSE = $(DOCKER_COMPOSE) --profile payload_landing
+# down must list profiles or compose leaves profile-gated containers (and the network) running.
+DOCKER_COMPOSE_DOWN = $(DOCKER_COMPOSE) --profile onprem --profile payload_landing
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -67,8 +81,9 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
 	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
-	@echo "  delete-trino-data                     Delete old trino data from the Minio koku-bucket bucket."
+	@echo "  delete-trino-data                     Delete old trino data from the local S4 koku-bucket."
 	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
+	@echo "  delete-valkey-cache                   Flushes cache keys inside of the valkey container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
 	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
@@ -94,7 +109,7 @@ help:
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
-	@echo "  make-migrations                       make migrations for the database"
+	@echo "  make-migrations [name=<name>]         make migrations for the database (optional custom name)"
 	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
 	@echo "  delete-db                             delete local directory $(TOPDIR)/dev/containers/postgresql/data"
@@ -126,7 +141,17 @@ help:
 	@echo "                                         user:     admin"
 	@echo "                                         password: admin12"
 	@echo "  docker-up-min                        run database, koku/masu servers and worker"
-	@echo "  docker-down                          shut down all containers"
+	@echo "  docker-up-kafka                      start Kafka, Zookeeper, and init topics"
+	@echo "  docker-up-payload-landing            SaaS min stack + Kafka + beat + listener (ocp via koku-worker)"
+	@echo "  docker-up-payload-landing-no-build   same as docker-up-payload-landing without image rebuild"
+	@echo "  payload-landing-status               Kafka lag, listener logs, S4 staging, PG rows"
+	@echo "  publish-hccm-upload                  publish test message to platform.upload.announce"
+	@echo "      request_id=<id>                   @param - Required. Unique upload request id"
+	@echo "      url=<payload_url>                 @param - (optional) tarball URL for listener download"
+	@echo "  kafka-create-upload-topic            create platform.upload.announce (HCCM listener) if missing"
+	@echo "  docker-up-onprem                     run on-prem stack (core + kafka, no Trino/S3)"
+	@echo "  docker-up-onprem-no-build            run on-prem stack without building"
+	@echo "  docker-down                          shut down all containers (incl. onprem/payload_landing profiles)"
 	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
 	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
 	@echo "  docker-up-min-with-subs             run database, koku/masu servers, worker and subs worker"
@@ -173,10 +198,13 @@ delete-trino:
 	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/trino/logs/*
 
 delete-trino-data:
-	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/minio/koku-bucket/*
+	$(DOCKER) volume rm -f koku-s4-data 2>/dev/null || true
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
+
+delete-valkey-cache:
+	$(DOCKER) exec -it koku_valkey valkey-cli flushall
 
 create-test-customer: run-migrations docker-up-koku
 	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
@@ -213,7 +241,7 @@ collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics $(if $(name),--name $(name),)
 
 delete-db:
 	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/postgresql/data/
@@ -262,24 +290,22 @@ superuser:
 clowdapp: kustomize
 	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml
 
+LOCAL_KUSTOMIZE = $(TESTINGDIR)/kustomize
+KUSTOMIZE = $(or $(wildcard $(LOCAL_KUSTOMIZE)),$(shell which kustomize 2>/dev/null))
+.PHONY: kustomize
 kustomize:
-ifeq (, $(shell which kustomize))
-	@{ \
-	set -e ;\
-	curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash;\
-	mv kustomize $(TESTINGDIR);\
-	}
-KUSTOMIZE=$(TESTINGDIR)/kustomize
-else
-KUSTOMIZE=$(shell which kustomize)
+ifeq ($(KUSTOMIZE),)
+	@echo "Installing kustomize to $(LOCAL_KUSTOMIZE)..."
+	@curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+	@mv kustomize $(LOCAL_KUSTOMIZE)
+KUSTOMIZE = $(LOCAL_KUSTOMIZE)
 endif
-
 ###############################
 ### Docker compose Commands ###
 ###############################
 
 docker-down:
-	$(DOCKER_COMPOSE) down -v --remove-orphans
+	$(DOCKER_COMPOSE_DOWN) down -v --remove-orphans
 	$(PREFIX) $(MAKE) delete-testing
 	$(PREFIX) $(MAKE) delete-trino-data
 
@@ -337,17 +363,18 @@ docker-build:
 	$(DOCKER_COMPOSE) build --build-arg TARGETARCH=$(shell uname -m | sed s/x86_64/amd64/) koku-base
 
 
-docker-up: docker-build
+docker-up: docker-build trino-stack-up
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
-docker-up-no-build: docker-up-db
+docker-up-no-build: docker-up-db trino-stack-up
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
-docker-up-min-no-build: docker-host-dir-setup docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
+docker-up-min-no-build: docker-host-dir-setup docker-up-db trino-stack-up
+	$(DOCKER_COMPOSE) up -d koku-server masu-server
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
 
 # basic dev environment targets
 docker-up-min-with-subs: docker-up-min
@@ -358,15 +385,74 @@ docker-up-min-no-build-with-subs: docker-up-min-no-build
 
 # basic dev environment targets with koku-listener for local Sources Kafka testing
 docker-up-min-with-listener: docker-up-min
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+	$(DOCKER_COMPOSE) up -d koku-listener
 
 docker-up-min-no-build-with-listener: docker-up-min-no-build
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+	$(DOCKER_COMPOSE) up -d koku-listener
 
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
 	$(DOCKER_COMPOSE) up -d unleash
 	$(PYTHON) dev/scripts/setup_unleash.py
+
+.PHONY: trino-stack-up
+trino-stack-up:
+	$(DOCKER_COMPOSE) up -d s4 s4-path-proxy
+	$(DOCKER_COMPOSE) up -d --wait --no-deps s4 s4-path-proxy
+	$(DOCKER_COMPOSE) run --rm --no-deps create-s3-buckets
+	$(DOCKER_COMPOSE) up -d hive-metastore trino
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+
+docker-up-kafka:
+	$(KAFKA_COMPOSE) up -d kafka-zookeeper kafka
+	@echo "Waiting for Kafka to be ready..."
+	@sleep 5
+	$(KAFKA_COMPOSE) up -d init-kafka
+	@echo "Kafka is ready."
+
+.PHONY: docker-up-payload-landing-kafka
+docker-up-payload-landing-kafka:
+	$(PAYLOAD_LANDING_COMPOSE) up -d kafka-zookeeper kafka
+	@echo "Waiting for Kafka to be ready..."
+	@sleep 5
+	$(PAYLOAD_LANDING_COMPOSE) up -d init-kafka
+	@echo "Kafka is ready."
+
+docker-up-payload-landing: docker-build docker-up-payload-landing-no-build
+
+docker-up-payload-landing-no-build: docker-up-min-no-build docker-up-payload-landing-kafka
+	$(DOCKER_COMPOSE) up -d koku-beat koku-listener
+	@echo "Payload landing stack ready (SaaS + Kafka + beat + listener; staging tasks on koku-worker ocp queue)."
+
+.PHONY: payload-landing-status publish-hccm-upload
+payload-landing-status:
+	$(SCRIPTDIR)/payload_landing/payload_landing_status.sh
+
+publish-hccm-upload:
+ifndef request_id
+	$(error param request_id is not set)
+endif
+	@{ \
+		[ -n "$(url)" ] && export PAYLOAD_URL="$(url)"; \
+		[ -n "$(account)" ] && export ACCOUNT="$(account)"; \
+		[ -n "$(org_id)" ] && export ORG_ID="$(org_id)"; \
+		$(SCRIPTDIR)/payload_landing/publish_hccm_upload.sh "$(request_id)"; \
+	}
+
+.PHONY: kafka-create-upload-topic
+kafka-create-upload-topic:
+	$(KAFKA_COMPOSE) exec kafka kafka-topics --bootstrap-server kafka:29092 \
+		--create --if-not-exists --topic platform.upload.announce \
+		--replication-factor 1 --partitions 1
+
+# On-prem development environment (core + kafka, no Trino/S3)
+docker-up-onprem: docker-build docker-up-onprem-no-build
+
+docker-up-onprem-no-build: docker-host-dir-setup docker-up-db docker-up-kafka
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker koku-beat koku-listener sources-client
+	@echo "Stopping SaaS-only services..."
+	-$(DOCKER_COMPOSE) stop trino hive-metastore s4 s4-path-proxy subs-worker create-s3-buckets 2>/dev/null || true
+	@echo "On-prem environment ready (core + kafka, no Trino/S3)"
 
 docker-up-db-monitor:
 	$(DOCKER_COMPOSE) up --build -d grafana
@@ -391,32 +477,30 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-CONTAINER_DIRS = $(TOPDIR)/dev/containers/postgresql/data $(TOPDIR)/dev/containers/minio $(TOPDIR)/dev/containers/trino/{data,logs}
+CONTAINER_DIRS = $(TOPDIR)/dev/containers/postgresql/data $(TOPDIR)/dev/containers/trino/{data,logs}
 docker-host-dir-setup:
 	@mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
-	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS)
-	@chmod 0755 $(CONTAINER_DIRS)
+	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS) 2>/dev/null || true
+	@chmod 0755 $(CONTAINER_DIRS) 2>/dev/null || true
 
 docker-trino-setup: delete-trino docker-host-dir-setup
 
-docker-trino-up: docker-trino-setup
-	$(DOCKER_COMPOSE) up --build -d trino hive-metastore
+docker-trino-up: docker-trino-setup trino-stack-up
 
-docker-trino-up-no-build: docker-trino-setup
-	$(DOCKER_COMPOSE) up -d trino hive-metastore
+docker-trino-up-no-build: docker-trino-setup trino-stack-up
 
 docker-trino-ps:
 	$(DOCKER_COMPOSE) ps trino hive-metastore
 
 docker-trino-down:
-	$(DOCKER_COMPOSE) down -v --remove-orphans
+	$(DOCKER_COMPOSE_DOWN) down -v --remove-orphans
 	$(MAKE) delete-trino
 
 docker-trino-down-all: docker-trino-down docker-down
 
-docker-up-min-trino: docker-up-min docker-trino-up
+docker-up-min-trino: docker-up-min
 
-docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up-no-build
+docker-up-min-trino-no-build: docker-up-min-no-build
 
 
 ### Source targets ###

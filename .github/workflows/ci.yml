@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   sanity:
@@ -19,135 +18,23 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: '3.11'
+          python-version-file: 'Pipfile'
 
       - name: Run pre-commit checks
         uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-        env:
-          SETUPTOOLS_USE_DISTUTILS: stdlib
 
       - name: Check clowdapp manifest
         run: bash .github/scripts/check_clowdapp.sh
-
-  smokes-labeler:
-    name: Smoke Test Label
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
-        with:
-          egress-policy: audit
-
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-
-      - name: get Docker image files
-        id: docker-files
-        run: .github/scripts/files_require_smokes.sh >> docker-files.txt
-
-      - name: add other required files
-        id: add-files
-        run: |
-          echo .dockerignore >> docker-files.txt;
-          echo Dockerfile >> docker-files.txt;
-          echo pr_check.sh >> docker-files.txt;
-          echo deploy/clowdapp.yaml >> docker-files.txt;
-          echo Jenkinsfile >> docker-files.txt;
-          echo ci/functions.sh >> docker-files.txt;
-
-      - name: Show Dockerfiles
-        run: cat docker-files.txt
-
-      - name: Get changed files
-        id: changed-files
-        uses: step-security/changed-files@95b56dadb92a30ca9036f16423fd3c088a71ee94 # v46.0.5
-        with:
-          files_from_source_file: docker-files.txt
-
-      - name: Set whether to run tests
-        id: check-files
-        run: |
-          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
-            echo "RUN_TESTS=true" >> $GITHUB_ENV
-          fi
-
-      - name: Set smokes-required label
-        if: env.RUN_TESTS == 'true'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        continue-on-error: true
-        with:
-          script: |
-            github.rest.issues.addLabels({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: [ 'smokes-required' ]
-            })
-
-            const response = await github.rest.issues.listLabelsOnIssue({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              })
-
-            const labels = response.data.map(({name}) => name)
-
-            if (labels.includes('ok-to-skip-smokes')) {
-              github.rest.issues.removeLabel({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                name: 'ok-to-skip-smokes'
-              })
-            }
-
-      - name: Set ok-to-skip-smokes label
-        if: env.RUN_TESTS != 'true'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        continue-on-error: true
-        with:
-          script: |
-            github.rest.issues.addLabels({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: [ 'ok-to-skip-smokes' ]
-            })
-
-            const response = await github.rest.issues.listLabelsOnIssue({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              })
-
-            const labels = response.data.map(({name}) => name)
-
-            if (labels.includes('smokes-required')) {
-              github.rest.issues.removeLabel({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                name: 'smokes-required'
-              })
-            }
 
   changed-files:
     name: Detect changed files
@@ -157,18 +44,18 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Get changed files
         id: changed-files
-        uses: step-security/changed-files@95b56dadb92a30ca9036f16423fd3c088a71ee94 # v46.0.5
+        uses: step-security/changed-files@2e07db73e5ccdb319b9a6c7766bd46d39d304bad # v47.0.5
         with:
           files: |
             db_functions/**
@@ -193,7 +80,7 @@ jobs:
           done
 
   units:
-    name: Units - ${{ matrix.python-version }}
+    name: Units - ${{ matrix.python-version }} (${{ matrix.shard }})
     needs: changed-files
     runs-on: ubuntu-latest
     strategy:
@@ -201,19 +88,22 @@ jobs:
       max-parallel: 4
       matrix:
         python-version:
-          - '3.11'
+          - "3.12"
+        shard:
+          - main
+          - onprem-sources
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
       - name: Checkout
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -227,32 +117,38 @@ jobs:
 
       - name: Set up Python ${{ matrix.python-version }}
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        id: setup-python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install pipenv
         if: needs.changed-files.outputs.run_tests == 'true'
-        run: sudo python3 -m pip install pipenv
+        # Use the setup-python interpreter: under sudo, python3 is the runner's system Python,
+        # whose Debian-managed packages pip cannot upgrade (e.g. packaging for virtualenv).
+        run: python -m pip install pipenv
 
       - name: Cache dependencies
         if: needs.changed-files.outputs.run_tests == 'true'
         id: cache-dependencies
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/pipenv
             ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-env-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
+          # The cached virtualenv links to the exact interpreter it was built with; keying on the
+          # full version (e.g. 3.12.10) avoids restoring it on a runner with another patch release.
+          key: ${{ runner.os }}-env-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
 
       - name: Install dependencies
         if: needs.changed-files.outputs.run_tests == 'true' && steps.cache-dependencies.outputs.cache-hit != 'true'
         run: |
-          pipenv install --dev --deploy --python ${{ matrix.python-version }}
+          pipenv sync --dev --python ${{ matrix.python-version }}
 
       - name: Check migrations
         if: |
-          needs.changed-files.outputs.run_tests == 'true'
+          matrix.shard == 'main'
+          && needs.changed-files.outputs.run_tests == 'true'
           && !(contains(github.event.pull_request.labels.*.name, 'skip-migration-check'))
         run: bash .github/scripts/check_migrations.sh
         env:
@@ -266,9 +162,12 @@ jobs:
           PROMETHEUS_MULTIPROC_DIR: /tmp
 
       - name: Run unit tests
-        if: needs.changed-files.outputs.run_tests == 'true'
+        if: matrix.shard == 'main' && needs.changed-files.outputs.run_tests == 'true'
         id: unit_tests_run
-        run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
+        run: |
+          pipenv run coverage run --parallel-mode --concurrency=multiprocessing \
+            ./koku/manage.py test --noinput --verbosity 2 --parallel auto ./koku/
+          pipenv run coverage combine
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
@@ -278,41 +177,84 @@ jobs:
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           HIVE_DATABASE_PASSWORD: hivedbpw
-          ACCOUNT_ENHANCED_METRICS: True
           PROMETHEUS_MULTIPROC_DIR: /tmp
           TRINO_DATE_STEP: 31
           MIDDLEWARE_TIME_TO_LIVE: 0
           ENHANCED_ORG_ADMIN: True
 
+      - name: Run ONPREM sources tests
+        if: matrix.shard == 'onprem-sources' && needs.changed-files.outputs.run_tests == 'true'
+        id: onprem_tests_run
+        run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 sources.test
+        env:
+          DATABASE_SERVICE_NAME: POSTGRES_SQL
+          DATABASE_ENGINE: postgresql
+          DATABASE_NAME: postgres
+          DATABASE_USER: postgres
+          DATABASE_PASSWORD: postgres
+          POSTGRES_SQL_SERVICE_HOST: localhost
+          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
+          PROMETHEUS_MULTIPROC_DIR: /tmp
+          MIDDLEWARE_TIME_TO_LIVE: 0
+          ENHANCED_ORG_ADMIN: True
+          ONPREM: True
+
       - name: Show test status
         if: needs.changed-files.outputs.run_tests == 'true'
         id: show_test_status
-        run: echo "Unit tests and migration check were '${{ steps.unit_tests_run.outcome }}'"
+        run: |
+          if [ "${{ matrix.shard }}" = "main" ]; then
+            echo "Main unit tests were '${{ steps.unit_tests_run.outcome }}'"
+          else
+            echo "ONPREM sources tests were '${{ steps.onprem_tests_run.outcome }}'"
+          fi
 
       - name: Convert coverage report to XML
-        if: steps.unit_tests_run.outcome == 'success'
+        if: |
+          needs.changed-files.outputs.run_tests == 'true'
+          && (
+            (matrix.shard == 'main' && steps.unit_tests_run.outcome == 'success')
+            || (matrix.shard == 'onprem-sources' && steps.onprem_tests_run.outcome == 'success')
+          )
         run: pipenv run coverage xml
 
       - name: Upload test coverage file
-        if: steps.unit_tests_run.outcome == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: |
+          needs.changed-files.outputs.run_tests == 'true'
+          && (
+            (matrix.shard == 'main' && steps.unit_tests_run.outcome == 'success')
+            || (matrix.shard == 'onprem-sources' && steps.onprem_tests_run.outcome == 'success')
+          )
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: coverage
+          name: coverage-${{ matrix.shard }}
           path: coverage.xml
           overwrite: true
 
+  units-gate:
+    name: Units - 3.12
+    needs: [changed-files, units]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify unit test shards
+        run: |
+          if [ "${{ needs.changed-files.outputs.run_tests }}" = "true" ] && [ "${{ needs.units.result }}" != "success" ]; then
+            echo "One or more unit test shards failed"
+            exit 1
+          fi
+
   coverage:
     name: Coverage
-    needs: [ changed-files,units ]
+    needs: [changed-files, units]
     runs-on: ubuntu-latest
     permissions:
       contents: write
       statuses: write
 
     steps:
-
       - name: Harden Runner
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -320,25 +262,26 @@ jobs:
         # this checkout is required for the coverage report. If we don't do this, then
         # the uploaded report is invalid and codecov doesn't know how to process it.
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Download coverage result from units
+      - name: Download coverage results from units
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: coverage
+          pattern: coverage-*
+          path: coverage-reports
 
       - name: Upload coverage to Codecov
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          files: ./coverage.xml
+          files: coverage-reports/coverage-main/coverage.xml,coverage-reports/coverage-onprem-sources/coverage.xml
           flags: unittests
-          name: Python-${{ matrix.python-version}}
+          name: Python-3.12
           fail_ci_if_error: true
           plugins: noop
 

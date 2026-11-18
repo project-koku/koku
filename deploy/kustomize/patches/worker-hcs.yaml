@@ -25,14 +25,28 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_HCS}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -47,6 +61,14 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: ENABLE_HCS_DEBUG
           value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -81,6 +103,8 @@
           value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -152,9 +176,6 @@
           cpu: ${CPU_REQUEST_WORKER_HCS}
           memory: ${MEMORY_REQUEST_WORKER_HCS}
       volumeMounts:
-      - name: aws-credentials
-        mountPath: /etc/aws
-        readOnly: true
       - mountPath: /var/tmp/masu/
         name: koku-worker-data
       - name: gcp-credentials
@@ -167,12 +188,6 @@
         emptyDir: {}
       - name: koku-worker-data
         emptyDir: {}
-      - name: aws-credentials
-        secret:
-          items:
-          - key: aws-credentials
-            path: aws-credentials
-          secretName: koku-aws
       - name: gcp-credentials
         secret:
           secretName: koku-gcp

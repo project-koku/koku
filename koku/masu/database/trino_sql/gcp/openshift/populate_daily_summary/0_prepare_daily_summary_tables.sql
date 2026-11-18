@@ -142,3 +142,17 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcos
     day varchar
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'ocp_source', 'year', 'month', 'day'])
 ;
+
+{% if unattributed_storage %}
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp
+(
+    resource_global_name varchar,
+    resource_name varchar,
+    capacity integer,
+    source varchar,
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'ocp_source', 'year', 'month'])
+{% endif %}
+;

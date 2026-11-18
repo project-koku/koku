@@ -24,6 +24,7 @@ from api.report.gcp.openshift.serializers import OCPGCPExcludeSerializer
 from api.report.gcp.openshift.view import OCPGCPCostView
 from api.report.gcp.openshift.view import OCPGCPInstanceTypeView
 from api.report.gcp.openshift.view import OCPGCPStorageView
+from api.report.test.util.common import collapse_cost_ties
 from api.report.test.util.constants import GCP_SERVICE_ALIASES
 from api.tags.gcp.openshift.queries import OCPGCPTagQueryHandler
 from api.tags.gcp.openshift.view import OCPGCPTagView
@@ -818,11 +819,13 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 .order_by("-cost")
             )
         correctlst = [service.get("service_alias") for service in expected]
+        costs = {service.get("service_alias"): service.get("cost") for service in expected}
         tested = False
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+                self.assertFalse(set(lst) - set(costs), f"service values missing from {yesterday}")
+                self.assertEqual(collapse_cost_ties(correctlst, costs), collapse_cost_ties(lst, costs))
                 tested = True
         self.assertTrue(tested)
 

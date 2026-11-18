@@ -151,3 +151,13 @@ dev/containers/unleash/cache/
 # performance profiling
 /koku.iml
 /view.prof
+
+# Cursor
+.cursor/*
+!.cursor/rules/
+!.cursor/commands/
+!.cursor/skills/
+# Claude Code — share commands/rules, keep everything else local
+.claude/*
+!.claude/commands/
+!.claude/rules/

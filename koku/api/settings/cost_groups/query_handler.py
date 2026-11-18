@@ -197,7 +197,9 @@ class CostGroupsQueryHandler:
             .annotate(
                 group=Case(*self.build_when_conditions(cost_group_projects, "group")),
                 default=Case(*self.build_when_conditions(cost_group_projects, "default")),
-                clusters=ArrayAgg(Coalesce(F("cluster__cluster_alias"), F("cluster__cluster_id")), distinct=True),
+                clusters=ArrayAgg(
+                    Coalesce(F("cluster__cluster_alias"), F("cluster__cluster_id")), distinct=True, default=Value([])
+                ),
             )
             .values("project", "group", "clusters", "default")
             .distinct()

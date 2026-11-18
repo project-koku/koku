@@ -43,19 +43,30 @@ WITH cte_usage_date_partitions as (
     select
         year,
         month
-    from gcp_line_items_daily
+    from hive.{{schema | sqlsafe}}.gcp_line_items_daily
     where usage_start_time >= {{start_date}}
     AND usage_start_time <= {{end_date}}
     AND source = {{cloud_provider_uuid}}
+    AND (
+        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}})) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}}) + INTERVAL '1' MONTH) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}}) + INTERVAL '1' MONTH) AS VARCHAR), 2, '0'))
+    )
     group by year, month
 ),
 cte_gcp_resource_names AS (
-    SELECT DISTINCT resource_name
+    SELECT resource_name,
+        resource_global_name
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
     JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.month
     WHERE source = {{cloud_provider_uuid}}
         AND usage_start_time >= {{start_date}}
         AND usage_start_time < date_add('day', 1, {{end_date}})
+    GROUP BY resource_name, resource_global_name
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
@@ -90,6 +101,7 @@ cte_matchable_resource_names AS (
         ON (
             (volumes.persistentvolume != '' AND strpos(resource_names.resource_name, volumes.persistentvolume) != 0)
             OR (volumes.csi_volume_handle != '' AND strpos(resource_names.resource_name, volumes.csi_volume_handle) != 0)
+            OR (volumes.csi_volume_handle != '' AND strpos(resource_names.resource_global_name, volumes.csi_volume_handle) != 0)
         )
 ),
 cte_agg_tags AS (
@@ -156,7 +168,9 @@ SELECT gcp.row_uuid,
     array_join(filter(tag_matches.matched_tags, x -> STRPOS(labels, x ) != 0), ',') as matched_tag,
     gcp.source as source,
     {{ocp_provider_uuid}} as ocp_source,
-    gcp.year,
+    -- GCP has crossover data and some current year data can land in the previous year partition
+    -- The year partition needs to match usage_start_year for correct ocp/gcp correlation
+    CAST(FORMAT_DATETIME(usage_start_time, 'YYYY') AS VARCHAR(4)) AS year,
     -- GCP has crossover data and some current month data can land in the previous month partition
     -- The month partition needs to match usage_start_month for correct ocp/gcp correlation
     CAST(FORMAT_DATETIME(usage_start_time, 'MM') AS VARCHAR(2)) AS month,

@@ -4,10 +4,8 @@
 #
 """Azure Service helpers."""
 import logging
-import typing as t
 from tempfile import NamedTemporaryFile
 
-from azure.common import AzureException
 from azure.core.exceptions import AzureError
 from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
@@ -58,14 +56,14 @@ class AzureService:
         if not self._factory.subscription_id:
             raise AzureServiceError("Azure Service missing subscription id.")
 
-        self._cloud_storage_account = self._factory.cloud_storage_account(resource_group_name, storage_account_name)
+        self._blob_service_client = self._factory.blob_service_client(resource_group_name, storage_account_name)
 
         if not self._factory.credentials:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
     def _get_latest_blob(
-        self, report_path: str, blobs: list[BlobProperties], extension: t.Optional[str] = None
-    ) -> t.Optional[BlobProperties]:
+        self, report_path: str, blobs: list[BlobProperties], extension: str | None = None
+    ) -> BlobProperties | None:
         latest_blob = None
         for blob in blobs:
             if extension and not blob.name.endswith(extension):
@@ -79,7 +77,7 @@ class AzureService:
         self,
         report_path: str,
         container_name: str,
-        extension: t.Optional[str] = None,
+        extension: str | None = None,
     ) -> BlobProperties:
         """Get the latest file with the specified extension from given storage account container."""
 
@@ -90,9 +88,9 @@ class AzureService:
             raise AzureCostReportNotFound(message)
 
         try:
-            container_client = self._cloud_storage_account.get_container_client(container_name)
+            container_client = self._blob_service_client.get_container_client(container_name)
             blobs = list(container_client.list_blobs(name_starts_with=report_path))
-        except (ClientAuthenticationError, ServiceRequestError, AzureException) as error:
+        except (ClientAuthenticationError, ServiceRequestError) as error:
             raise AzureServiceError("Failed to download file. Error: ", str(error))
         except ResourceNotFoundError as Error:
             message = f"Specified container {container_name} does not exist for report path {report_path}."
@@ -125,12 +123,11 @@ class AzureService:
 
     def _list_blobs(self, starts_with: str, container_name: str) -> list[BlobProperties]:
         try:
-            container_client = self._cloud_storage_account.get_container_client(container_name)
+            container_client = self._blob_service_client.get_container_client(container_name)
             blob_names = list(container_client.list_blobs(name_starts_with=starts_with))
         except (
             ClientAuthenticationError,
             ServiceRequestError,
-            AzureException,
             ResourceNotFoundError,
         ) as ex:
             raise AzureServiceError(f"Unable to list blobs. Error: {ex}")
@@ -202,13 +199,12 @@ class AzureService:
             file_path = temp_file.name
 
         try:
-            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
+            blob_client = self._blob_service_client.get_blob_client(container_name, key)
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
         except (
             ClientAuthenticationError,
             ServiceRequestError,
-            AzureException,
             OSError,
             AzureError,
         ) as error:
@@ -234,7 +230,7 @@ class AzureService:
                     "directory": report.delivery_info.destination.root_folder_path,
                 }
                 export_reports.append(report_def)
-            except (ClientAuthenticationError, ServiceRequestError, AzureException) as exc:
+            except (ClientAuthenticationError, ServiceRequestError) as exc:
                 raise AzureCostReportNotFound(exc)
 
             return export_reports
@@ -255,7 +251,7 @@ class AzureService:
                         "directory": report.delivery_info.destination.root_folder_path,
                     }
                     export_reports.append(report_def)
-        except (ClientAuthenticationError, ServiceRequestError, AzureException) as exc:
+        except (ClientAuthenticationError, ServiceRequestError) as exc:
             raise AzureCostReportNotFound(exc)
 
         return export_reports

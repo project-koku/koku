@@ -66,14 +66,14 @@ class OCPReportViewTest(IamTestCase):
             + cls.provider_map.cost_model_cost
         )
         cls.cost_term_by_project = (
-            cls.provider_map.cloud_infrastructure_cost_by_project
-            + cls.provider_map.markup_cost_by_project
+            cls.provider_map.cloud_infrastructure_cost
+            + cls.provider_map.markup_cost
             + cls.provider_map.cost_model_cost
         )
 
         cls.distributed_cost_term_by_project = (
-            cls.provider_map.cloud_infrastructure_cost_by_project
-            + cls.provider_map.markup_cost_by_project
+            cls.provider_map.cloud_infrastructure_cost
+            + cls.provider_map.markup_cost
             + cls.provider_map.cost_model_cost
             + cls.provider_map.distributed_platform_cost
             + cls.provider_map.distributed_unattributed_network_cost
@@ -473,6 +473,7 @@ class OCPReportViewTest(IamTestCase):
             )
             num_nodes = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                .exclude(data_source="GPU")
                 .aggregate(Count("node", distinct=True))
                 .get("node__count")
             )
@@ -732,8 +733,8 @@ class OCPReportViewTest(IamTestCase):
         last_month_end = self.dh.this_month_end - date_delta
 
         self.cost_term = (
-            self.provider_map.cloud_infrastructure_cost_by_project
-            + self.provider_map.markup_cost_by_project
+            self.provider_map.cloud_infrastructure_cost
+            + self.provider_map.markup_cost
             + self.provider_map.cost_model_cost
             + self.provider_map.distributed_platform_cost
             + self.provider_map.distributed_worker_cost
@@ -936,7 +937,9 @@ class OCPReportViewTest(IamTestCase):
                 .annotate(project_count=Count("namespace"))
                 .all()
             )
-            project_of_interest = projects[0].get("namespace")
+            # The project filter is a substring match. Pick the longest fixture
+            # name so it cannot also match a different project such as koku-prod.
+            project_of_interest = max((project["namespace"] for project in projects if project["namespace"]), key=len)
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1913,3 +1916,42 @@ class OCPReportViewTest(IamTestCase):
                 url = url + "?" + urlencode(param, quote_via=quote_plus)
                 response = APIClient().get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_costs_endpoint_includes_gpu_costs_in_total(self):
+        """Test that GPU costs are included in costs endpoint total calculation."""
+        test_project = "gpu-cost-test-project"
+        gpu_cost = Decimal("100.00")
+        cpu_cost = Decimal("50.00")
+        memory_cost = Decimal("25.00")
+        expected_total = gpu_cost + cpu_cost + memory_cost
+
+        # Create data with multiple cost components including GPU
+        with tenant_context(self.tenant):
+            self.baker.make(
+                "OCPUsageLineItemDailySummary",
+                usage_start=self.dh.this_month_start.date(),
+                namespace=test_project,
+                cost_model_gpu_cost=gpu_cost,
+                cost_model_cpu_cost=cpu_cost,
+                cost_model_memory_cost=memory_cost,
+                raw_currency="USD",
+            )
+
+        # Query costs endpoint
+        url = reverse("reports-openshift-costs")
+        params = {
+            "filter[project]": test_project,
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-1",
+            "filter[resolution]": "monthly",
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = APIClient().get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify the total includes all cost components (CPU + Memory + GPU)
+        total_cost = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
+        self.assertIsNotNone(total_cost)
+        self.assertAlmostEqual(Decimal(str(total_cost)), expected_total, places=2)

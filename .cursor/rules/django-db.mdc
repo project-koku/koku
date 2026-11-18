@@ -1,0 +1,10 @@
+---
+description: "Django ORM, accessors, and DB performance patterns"
+globs:
+  - "**/models.py"
+  - "**/*_db_accessor.py"
+  - "**/database/**/*.py"
+alwaysApply: false
+---
+
+@docs/agent/django-db.md

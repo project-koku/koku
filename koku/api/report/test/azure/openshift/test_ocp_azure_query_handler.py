@@ -25,6 +25,7 @@ from api.report.azure.openshift.serializers import OCPAzureExcludeSerializer
 from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
+from api.report.test.util.common import collapse_cost_ties
 from api.report.test.util.constants import AZURE_SERVICE_NAMES
 from api.tags.azure.openshift.queries import OCPAzureTagQueryHandler
 from api.tags.azure.openshift.view import OCPAzureTagView
@@ -245,6 +246,25 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
                 self.assertIsInstance(month_item.get("values"), list)
+
+    def test_execute_query_limit_orderby_subscription_name(self):
+        """OCP on Azure: limit + order_by subscription_name must return subscription_name on values."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=5&order_by[subscription_name]=asc&group_by[subscription_guid]=*"  # noqa: E501
+        path = reverse("reports-openshift-azure-costs")
+        query_params = self.mocked_query_params(url, OCPAzureCostView, path)
+        handler = OCPAzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
+        for data_item in data:
+            self.assertEqual(data_item.get("date"), cmonth_str)
+            month_data = data_item.get("subscription_guids")
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get("subscription_guid"), str)
+                self.assertIsInstance(month_item.get("values"), list)
+                self.assertIsInstance(month_item.get("values")[0].get("subscription_name"), str)
 
     def test_execute_query_curr_month_by_subscription_guid_w_order(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
@@ -1402,11 +1422,13 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 .order_by("-cost")
             )
         correctlst = [service.get("service_name") for service in expected]
+        costs = {service.get("service_name"): service.get("cost") for service in expected}
         tested = False
         for element in data:
             lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+                self.assertFalse(set(lst) - set(costs), f"service_name values missing from {yesterday}")
+                self.assertEqual(collapse_cost_ties(correctlst, costs), collapse_cost_ties(lst, costs))
                 tested = True
         self.assertTrue(tested)
 

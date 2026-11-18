@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
+        "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).\n\nOn-prem (ONPREM=true): allow-listed Masu admin paths require `Authorization: Bearer <MASU_ADMIN_TOKEN>` (shared secret from the Operator). Requests without a valid token return 401. `/status/` remains open for health checks. Support/runbook details for obtaining the token and calling via `oc port-forward` may live with COST-7844.\n\nThis document is shared by SaaS and on-prem deployments, and OpenAPI cannot express environment-conditional security. The on-prem Bearer requirement is therefore documented here and on the 401 responses instead of being declared as an operation-level security scheme; in SaaS these operations are reached without a token and rely on network isolation.",
         "version": "1.0.0",
         "title": "Cost Management Admin",
         "license": {
@@ -63,6 +63,10 @@
             "description": "Returns a list of running celery task ids."
         },
         {
+            "name": "Celery Queue Tasks",
+            "description": "Lists queued Celery tasks or removes one queued task by ID."
+        },
+        {
             "name": "Celery Queue Lengths",
             "description": "Returns a list of celery queues with their lengths."
         },
@@ -85,6 +89,10 @@
         {
             "name": "Manifests",
             "description": "An endpoint to review the status of manifest and reportstatus entries."
+        },
+        {
+            "name": "Feature Flags",
+            "description": "Evaluate Unleash feature flags for a tenant schema."
         }
     ],
     "paths": {
@@ -507,6 +515,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -785,7 +796,7 @@
         "/update_cost_model_costs/": {
             "get": {
                 "operationId": "update_cost_model_costs_list",
-                "description": "Update report summary tables in the database.",
+                "description": "Update report summary tables in the database. When delayed=true, cost-model updates are coalesced via DelayedCeleryTasks and the response returns a tracing_id instead of Celery task IDs.",
                 "parameters": [
                     {
                         "name": "provider_uuid",
@@ -806,6 +817,17 @@
                         "schema": {
                             "type": "string",
                             "example": "acct12345"
+                        }
+                    },
+                    {
+                        "name": "delayed",
+                        "in": "query",
+                        "description": "When true, debounce via DelayedCeleryTasks (delayed_update_cost_model_costs) instead of enqueueing Celery tasks immediately. Response returns a tracing_id.",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false,
+                            "example": true
                         }
                     }
                 ],
@@ -956,10 +978,135 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
                     "Running Celery Tasks"
+                ]
+            }
+        },
+        "/celery_queue_tasks/": {
+            "get": {
+                "summary": "Returns queued celery tasks.",
+                "operationId": "celeryQueueTasks",
+                "description": "Returns queued tasks, optionally filtered by queue and task name.",
+                "parameters": [
+                    {
+                        "name": "queue",
+                        "in": "query",
+                        "required": false,
+                        "description": "A Celery queue to inspect.",
+                        "schema": {
+                            "type": "string",
+                            "example": "summary"
+                        }
+                    },
+                    {
+                        "name": "task",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter queued messages by Celery task name.",
+                        "schema": {
+                            "type": "string",
+                            "example": "masu.processor.tasks.update_summary_tables"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Queued tasks grouped by queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/celeryQueueTasks"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/celeryQueueTaskError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
+                    }
+                },
+                "tags": [
+                    "Celery Queue Tasks"
+                ]
+            },
+            "delete": {
+                "summary": "Removes one queued celery task by ID.",
+                "operationId": "deleteCeleryQueueTask",
+                "description": "Removes at most one exact serialized message from the selected queue. Active tasks are not affected.",
+                "parameters": [
+                    {
+                        "name": "queue",
+                        "in": "query",
+                        "required": true,
+                        "description": "The Celery queue containing the task.",
+                        "schema": {
+                            "type": "string",
+                            "example": "summary"
+                        }
+                    },
+                    {
+                        "name": "task_id",
+                        "in": "query",
+                        "required": true,
+                        "description": "The exact Celery task ID in the queued message headers.",
+                        "schema": {
+                            "type": "string",
+                            "example": "a8d39868-dbd3-47ac-9220-82370e35b59c"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One matching queued task was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/deleteCeleryQueueTaskResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing parameters or invalid queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/celeryQueueTaskError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No matching queued task was found, or a worker consumed it before removal.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/celeryQueueTaskError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
+                    }
+                },
+                "tags": [
+                    "Celery Queue Tasks"
                 ]
             }
         },
@@ -978,6 +1125,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1028,6 +1178,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1047,6 +1200,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1101,6 +1257,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1181,6 +1340,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1235,6 +1397,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1289,6 +1454,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1308,6 +1476,9 @@
                         "content": {
                             "text/html": {}
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1352,6 +1523,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Masu admin Bearer token (on-prem)."
                     }
                 },
                 "tags": [
@@ -1726,6 +1900,15 @@
                                 "cluster"
                             ]
                         }
+                    },
+                    {
+                        "name": "query_id",
+                        "in": "query",
+                        "description": "Optional Trino query id to filter results when api_service is query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -2024,6 +2207,60 @@
                     "Invalidate Cache"
                 ]
             }
+        },
+        "/feature-flags/": {
+            "get": {
+                "summary": "Evaluate Unleash feature flags for a tenant schema",
+                "operationId": "getSchemaFeatureFlags",
+                "description": "Return whether selected schema-scoped Unleash flags are enabled for an existing tenant schema. When flags is omitted, a curated ops default list is evaluated. An explicit empty flags value is rejected.",
+                "parameters": [
+                    {
+                        "name": "schema",
+                        "in": "query",
+                        "description": "Tenant schema name (for example acct12345 or org12345).",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "acct12345"
+                        }
+                    },
+                    {
+                        "name": "flags",
+                        "in": "query",
+                        "description": "Optional comma-separated Unleash flag names. Omit to use the curated default list. Empty or whitespace-only values return 400.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "cost-management.backend.penalty-customer,cost-management.backend.ocp_tag_mapping_statement_timeout"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Schema and enabled/disabled state for each evaluated flag.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SchemaFeatureFlagsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing/unknown schema, or empty flags selection.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SchemaFeatureFlagsErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Feature Flags"
+                ]
+            }
         }
     },
     "components": {
@@ -2189,7 +2426,17 @@
                         "type": "string"
                     },
                     "trino_response": {
-                        "type": "object"
+                        "oneOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            }
+                        ]
                     }
                 }
             },
@@ -2349,6 +2596,65 @@
                         "example": [
                             "a8d39868-dbd3-47ac-9220-82370e35b59c"
                         ]
+                    }
+                }
+            },
+            "celeryQueueTasks": {
+                "type": "object",
+                "properties": {
+                    "queued_tasks": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/queuedCeleryTask"
+                            }
+                        }
+                    }
+                }
+            },
+            "queuedCeleryTask": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "args": {
+                        "type": "string"
+                    },
+                    "kwargs": {
+                        "type": "string"
+                    }
+                }
+            },
+            "deleteCeleryQueueTaskResponse": {
+                "type": "object",
+                "required": [
+                    "queue",
+                    "task_id",
+                    "removed"
+                ],
+                "properties": {
+                    "queue": {
+                        "type": "string"
+                    },
+                    "task_id": {
+                        "type": "string"
+                    },
+                    "removed": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                }
+            },
+            "celeryQueueTaskError": {
+                "type": "object",
+                "properties": {
+                    "Error": {
+                        "type": "string"
                     }
                 }
             },
@@ -2760,8 +3066,19 @@
                 "type": "object",
                 "properties": {
                     "Update Cost Model Cost Task ID": {
+                        "type": "array",
+                        "description": "Returned for the immediate (default) path. One Celery task ID entry per month.",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "Update Cost Model Cost Tracing ID": {
                         "type": "string",
                         "format": "uuid",
+                        "description": "Returned when delayed=true. Shared tracing_id stored on DelayedCeleryTasks rows.",
                         "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
                     }
                 }
@@ -3197,6 +3514,49 @@
                     "url": {
                         "type": "string",
                         "description": "The URL to further information about the error."
+                    }
+                }
+            },
+            "SchemaFeatureFlagsResponse": {
+                "type": "object",
+                "required": [
+                    "schema",
+                    "flags"
+                ],
+                "properties": {
+                    "schema": {
+                        "type": "string",
+                        "example": "acct12345"
+                    },
+                    "flags": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "boolean"
+                        },
+                        "example": {
+                            "cost-management.backend.penalty-customer": true,
+                            "cost-management.backend.ocp_tag_mapping_statement_timeout": false
+                        }
+                    }
+                }
+            },
+            "SchemaFeatureFlagsErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "detail": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string",
+                                    "example": "400"
+                                }
+                            }
+                        }
                     }
                 }
             }

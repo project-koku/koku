@@ -1,6 +1,8 @@
+import unittest
 import uuid
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
 from jinjasql import JinjaSql
 from trino.dbapi import Connection
@@ -15,6 +17,7 @@ from koku.trino_database import TrinoStatementExecError
 
 
 class TestTrinoDatabaseUtils(IamTestCase):
+    @unittest.skipIf(getattr(settings, "ONPREM", False), "Trino-specific test, skipped for ONPREM")
     def test_connect(self):
         """
         Test connection to trino returns trino.dbapi.Connection instance
@@ -105,6 +108,7 @@ select a from b;
         res = executescript(conn, sqlscript)
         self.assertEqual(res, [["eek"], ["eek"]])
 
+    @unittest.skipIf(getattr(settings, "ONPREM", False), "Trino-specific test, skipped for ONPREM")
     def test_executescript_trino_error(self):
         """
         Test that executescirpt will raise a TrinoStatementExecError
@@ -149,6 +153,7 @@ select a from b;
             conn = FakerFakeTrinoConn()
             executescript(conn, sqlscript)
 
+    @unittest.skipIf(getattr(settings, "ONPREM", False), "Trino-specific test, skipped for ONPREM")
     def test_retry_logic_on_no_such_key_error(self):
         class FakeTrinoQueryError(Exception):
             def __init__(self, error):
@@ -204,6 +209,7 @@ select a from b;
         self.assertEqual(conn.cur.execute_calls, 1)
 
 
+@unittest.skipIf(getattr(settings, "ONPREM", False), "Trino-specific test class, skipped for ONPREM")
 class TestTrinoStatementExecError(TestCase):
     def test_trino_statement_exec_error(self):
         """Test TestTrinoStatementExecError behavior"""

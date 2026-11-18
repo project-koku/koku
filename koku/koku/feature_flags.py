@@ -6,8 +6,6 @@
 import logging
 
 from django.conf import settings
-from UnleashClient import UnleashClient
-from UnleashClient.periodic_tasks import aggregate_and_send_metrics
 
 from .env import ENVIRONMENT
 
@@ -28,40 +26,74 @@ def fallback_development_true(feature_name: str, context: dict) -> bool:
     return context.get("environment", "").lower() == "development"
 
 
-class KokuUnleashClient(UnleashClient):
-    """Koku Unleash Client."""
+class MockUnleashClient:
+    """Mock Unleash Client for ONPREM mode."""
+
+    ONPREM_FLAG_DEFAULTS = {
+        "cost-management.backend.aws_empty_split_finalization": True,
+        "cost-management.backend.ocp_gpu_cost_model": True,
+        "cost-management.backend.disable-ingress-rate-limit": True,
+        "cost-management.backend.override_customer_group_by_limit": False,
+        "cost-management.backend.constant-currency": False,
+        # No Hive rolling-deploy race on-prem; keep partition writes aligned with SaaS.
+        "cost-management.backend.ocp_hive_zero_pad_partitions": True,
+    }
+
+    def __init__(self, app_name, environment, instance_id, **kwargs):
+        """Initialize mock client with static context."""
+        LOG.info("Using MockUnleashClient - Unleash is disabled")
+        self.unleash_instance_id = instance_id
+        self.unleash_static_context = {"appName": app_name, "environment": environment}
+
+    def initialize_client(self):
+        """No-op initialization."""
+        pass
+
+    def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None, **kwargs):
+        """Return fallback value for feature flags."""
+        # ONPREM IQE test setting for constant-currency feature flag
+        # Set to True to enable constant-currency in ONPREM IQE test runs
+        # Set to False to disable (current setting)
+        if settings.IQE_TEST_RUN and feature_name == "cost-management.backend.constant-currency":
+            return True
+
+        if feature_name in self.ONPREM_FLAG_DEFAULTS:
+            return self.ONPREM_FLAG_DEFAULTS[feature_name]
+
+        merged_context = self.unleash_static_context.copy()
+        merged_context.update(context or {})
+
+        if fallback_function:
+            return fallback_function(feature_name, merged_context)
+        return False
 
     def destroy(self):
-        """Override destroy so that cache is not deleted."""
-        self.fl_job.remove()
-        if self.metric_job:
-            self.metric_job.remove()
-
-            # Flush metrics before shutting down.
-            aggregate_and_send_metrics(
-                url=self.unleash_url,
-                app_name=self.unleash_app_name,
-                connection_id=self.connection_id,
-                instance_id=self.unleash_instance_id,
-                headers=self.metrics_headers,
-                custom_options=self.unleash_custom_options,
-                request_timeout=self.unleash_request_timeout,
-                engine=self.engine,
-            )
-
-        self.unleash_scheduler.shutdown()
+        """No-op destroy."""
+        pass
 
 
-headers = {}
-if settings.UNLEASH_TOKEN:
-    headers["Authorization"] = settings.UNLEASH_TOKEN
+# Create the appropriate client based on settings
+if settings.ONPREM:
+    LOG.info("Unleash is disabled via ONPREM setting")
+    UNLEASH_CLIENT = MockUnleashClient(
+        app_name="Cost Management",
+        environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
+        instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python"),
+    )
+else:
+    LOG.info("Unleash is enabled - connecting to Unleash server")
+    from UnleashClient import UnleashClient
 
-UNLEASH_CLIENT = KokuUnleashClient(
-    url=settings.UNLEASH_URL,
-    app_name="Cost Management",
-    environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
-    instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python"),
-    custom_headers=headers,
-    cache_directory=settings.UNLEASH_CACHE_DIR,
-    verbose_log_level=log_level,
-)
+    headers = {}
+    if settings.UNLEASH_TOKEN:
+        headers["Authorization"] = settings.UNLEASH_TOKEN
+
+    UNLEASH_CLIENT = UnleashClient(
+        url=settings.UNLEASH_URL,
+        app_name="Cost Management",
+        environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
+        instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python"),
+        custom_headers=headers,
+        cache_directory=settings.UNLEASH_CACHE_DIR,
+        verbose_log_level=log_level,
+    )

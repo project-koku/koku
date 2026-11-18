@@ -41,12 +41,16 @@ class AccessMapping:
     ocp: tuple[str, str, str] = ("openshift.cluster", "openshift.node", "openshift.project")
     cost_model: tuple[str] = ("cost_model",)
     settings: tuple[str] = ("settings",)
+    # On-prem only: gates the Settings > Integrations tab. Populated from the
+    # "sources" RBAC application (e.g. the "Sources administrator" role); empty
+    # on SaaS where RESOURCE_TYPES has no `sources` entry.
+    sources: tuple[str] = ("sources",)
     any: tuple[str, ...] = None
 
     def __post_init__(self):
         result = []
         for field in dataclasses.fields(self):
-            if field.name in ["any", "cost_model", "settings"]:
+            if field.name in ["any", "cost_model", "settings", "sources"]:
                 continue
 
             result.extend(getattr(self, field.name))

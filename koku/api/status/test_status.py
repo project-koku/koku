@@ -17,8 +17,6 @@ from rest_framework import status
 
 from api.iam.models import Tenant
 from api.status.models import Status
-from api.status.serializers import ConfigSerializer
-from api.status.serializers import StatusSerializer
 
 
 class StatusModelTest(TestCase):
@@ -103,8 +101,4 @@ class StatusViewTest(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        for field in StatusSerializer._declared_fields:
-            self.assertTrue(field in json_result, f"Field {field} not in json_result")
-        for field in ConfigSerializer._declared_fields:
-            self.assertTrue(field in json_result["config"], f"""Field {field} not in json_result["config"]""")
-        # self.assertEqual(json_result['api_version'], 1)
+        self.assertEqual(json_result, {"status": "OK"})

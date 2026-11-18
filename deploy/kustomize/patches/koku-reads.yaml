@@ -1,7 +1,10 @@
-- op: replace  # only koku is replace, all other services are appended to this one
+- op: replace # only koku is replace, all other services are appended to this one
   path: /objects/0/spec/deployments/0
   value:
     name: api-reads
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{KOKU_READS_REPLICAS}}
     webServices:
       public:
@@ -9,10 +12,15 @@
       private:
         enabled: false
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_KOKU_READS}
         - name: SCHEMA_SUFFIX
@@ -25,8 +33,18 @@
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -41,6 +59,14 @@
           value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -86,8 +112,20 @@
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
+        - name: REQUEST_SOFT_TIMEOUT
+          value: ${REQUEST_SOFT_TIMEOUT}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: TIMEOUT
+          value: ${KOKU_READS_GUNICORN_TIMEOUT}
+        - name: DATABASE_STATEMENT_TIMEOUT_MS
+          value: ${KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${KOKU_READS_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
+        - name: OCP_REPORT_THROTTLE_RATE
+          value: ${OCP_REPORT_THROTTLE_RATE}
+        - name: OCP_REPORT_THROTTLE_TIGHT_RATE
+          value: ${OCP_REPORT_THROTTLE_TIGHT_RATE}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -136,47 +174,38 @@
           cpu: ${CPU_REQUEST_KOKU_READS}
           memory: ${MEMORY_REQUEST_KOKU_READS}
       volumeMounts:
-      - name: aws-credentials
-        mountPath: /etc/aws
-        readOnly: true
-      - name: gcp-credentials
-        mountPath: /etc/gcp
-        readOnly: true
-      - name: tmp-data
-        mountPath: ${TMP_DIR}
-      - mountPath: /etc/db/readreplica
-        name: koku-read-only-db
-        readOnly: true
+        - name: gcp-credentials
+          mountPath: /etc/gcp
+          readOnly: true
+        - name: tmp-data
+          mountPath: ${TMP_DIR}
+        - mountPath: /etc/db/readreplica
+          name: koku-read-only-db
+          readOnly: true
       volumes:
-      - name: tmp-data
-        emptyDir: {}
-      - name: aws-credentials
-        secret:
-          items:
-          - key: aws-credentials
-            path: aws-credentials
-          secretName: koku-aws
-      - name: gcp-credentials
-        secret:
-          secretName: koku-gcp
-          items:
-            - key: gcp-credentials
-              path: gcp-credentials.json
-      - name: koku-read-only-db
-        secret:
-          items:
-          - key: db.host
-            path: db_host
-          - key: db.name
-            path: db_name
-          - key: db.password
-            path: db_password
-          - key: db.port
-            path: db_port
-          - key: db.user
-            path: db_user
-          secretName: ${KOKU_READ_ONLY_DB}
-          optional: true
+        - name: tmp-data
+          emptyDir: {}
+        - name: gcp-credentials
+          secret:
+            secretName: koku-gcp
+            items:
+              - key: gcp-credentials
+                path: gcp-credentials.json
+        - name: koku-read-only-db
+          secret:
+            items:
+              - key: db.host
+                path: db_host
+              - key: db.name
+                path: db_name
+              - key: db.password
+                path: db_password
+              - key: db.port
+                path: db_port
+              - key: db.user
+                path: db_user
+            secretName: ${KOKU_READ_ONLY_DB}
+            optional: true
 - op: add
   path: /parameters/-
   value:
@@ -189,7 +218,7 @@
     displayName: Minimum replicas
     name: KOKU_READS_REPLICAS
     required: true
-    value: '3'
+    value: "3"
 - op: add
   path: /parameters/-
   value:
@@ -231,7 +260,7 @@
     displayName: Determine whether the reads API uses the read replica
     name: USE_READREPLICA
     required: true
-    value: 'false'
+    value: "false"
 - op: add
   path: /parameters/-
   value:
@@ -239,3 +268,27 @@
     name: KOKU_READ_ONLY_DB
     required: true
     value: cost-db-ro
+- op: add
+  path: /parameters/-
+  value:
+    description: Seconds before Gunicorn kills a reads API worker stuck in a request (3scale gives up at ~30 s)
+    displayName: Reads API Gunicorn worker timeout
+    name: KOKU_READS_GUNICORN_TIMEOUT
+    required: true
+    value: "35"
+- op: add
+  path: /parameters/-
+  value:
+    description: PostgreSQL statement_timeout (ms) for reads API connections; 0 disables
+    displayName: Reads API statement timeout
+    name: KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS
+    required: true
+    value: "30000"
+- op: add
+  path: /parameters/-
+  value:
+    description: PostgreSQL client_connection_check_interval (ms) so queries of dropped reads API clients are cancelled; 0 disables
+    displayName: Reads API client connection check interval
+    name: KOKU_READS_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+    required: true
+    value: "5000"

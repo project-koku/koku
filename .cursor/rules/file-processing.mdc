@@ -1,0 +1,10 @@
+---
+description: "Report download/processing patterns for large CSV/Parquet files"
+globs:
+  - "**/masu/processor/**/*.py"
+  - "**/masu/external/**/*.py"
+  - "**/masu/util/**/*.py"
+alwaysApply: false
+---
+
+@docs/agent/file-processing.md

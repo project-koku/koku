@@ -45,7 +45,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
     @transaction.atomic
     def crawl_account_hierarchy(self):
         error_message = (
-            f"Unable to crawl AWS organizational structure with ARN {self.account} and "
+            f"Unable to crawl AWS organizational structure for "
             f"provider_uuid: {self.provider.uuid} and account_id: {self.account_id}"
         )
         try:

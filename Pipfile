@@ -4,18 +4,17 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-app-common-python = ">=0.2.3"
+app-common-python = ">=0.3.0"
 azure-identity = "*"
 azure-mgmt-costmanagement = ">=3.0.0"
 azure-mgmt-storage = ">=20.1.0"
 azure-storage-blob = ">=12.1"
-boto3 = "==1.35.99"
 beautifulsoup4 = ">=4.13.3"
 cachetools = ">=4.1.0"
 celery = ">=5.2.2"
 ciso8601 = ">=2.1"
 confluent-kafka = ">=2.1.0"
-Django = "~=4.2.0"
+Django = "~=5.2.0"
 django-cors-headers = ">=3.1"
 django-environ = ">=0.4"
 django-extensions = ">=2.2"
@@ -23,7 +22,7 @@ django-filter = ">=2.2"
 django-prometheus = ">=1.1"
 django-redis = ">=4.10"
 django-tenants = ">=3.4"
-djangorestframework = ">=3.14.0"
+djangorestframework = ">=3.18.2"  # floor: COST-8483/8484/8487 DRF CVEs (fixed in 3.18.2)
 djangorestframework-csv = ">=2.1"
 google-api-python-client = ">=1.12.4"
 google-auth = ">=1.22.1"
@@ -44,7 +43,7 @@ statsmodels = ">=0.12"
 trino = "*"
 whitenoise = ">=5.0"
 pydantic = ">=2"
-sqlparse = "*"
+sqlparse = ">=0.6.1"  # floor: CVE-2026-112307 (fixed in 0.6.1)
 packaging = "*"
 psycopg2-binary = "*"
 watchtower = "*"
@@ -52,6 +51,13 @@ unleashclient = "*"
 kombu = "*"
 pandas = "<3.0"
 scipy = ">=1.16"
+boto3 = "*"
+sqlalchemy = ">=2.0.0"
+platformdirs = ">=4.3.6"  # floor set to satisfy tox's transitive dep (via fcache/unleashclient)
+pyjwt = ">=2.14.0"  # floor: reject public JWK containers as HMAC secrets (fixed in 2.14.0)
+certifi = ">=2026.10.19"  # floor: COST-8553 distrust eMudhra (prefer >=2026.10.19; 2026.10.18 too aggressive)
+pyasn1 = ">=0.6.5"  # floor: COST-8534/8536/8537/8543 (fixed in 0.6.5)
+babel = "*"
 
 [dev-packages]
 argh = ">=0.26.2"
@@ -72,10 +78,10 @@ requests-mock = ">=1.7"
 responses = ">=0.10"
 snakeviz = "*"
 tblib = ">=1.6"
-tox = "==4.26.0"  # requires a higher cachetools version than google-auth at the moment
+tox = ">=4.26.0"
 watchdog = ">=2.1.1"
 polyfactory = "*"
 koku-nise = "*"
 
 [requires]
-python_version = "3.11"
+python_version = "3.12"

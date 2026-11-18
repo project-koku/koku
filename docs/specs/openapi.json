@@ -35,6 +35,10 @@
             "description": "Operations about cost model interactions"
         },
         {
+            "name": "Price Lists",
+            "description": "Operations about price list interactions"
+        },
+        {
             "name": "Cost Type",
             "description": "Operations about cost types"
         },
@@ -53,6 +57,10 @@
         {
             "name": "Status",
             "description": "Operations about status"
+        },
+        {
+            "name": "Celery Queue Tasks",
+            "description": "Lists queued Celery tasks or removes one queued task by ID."
         },
         {
             "name": "Optimizations",
@@ -84,6 +92,121 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/celery_queue_tasks/": {
+            "get": {
+                "tags": [
+                    "Celery Queue Tasks"
+                ],
+                "summary": "List queued Celery tasks",
+                "operationId": "celeryQueueTasks",
+                "parameters": [
+                    {
+                        "name": "queue",
+                        "in": "query",
+                        "required": false,
+                        "description": "A Celery queue to inspect.",
+                        "schema": {
+                            "type": "string",
+                            "example": "summary"
+                        }
+                    },
+                    {
+                        "name": "task",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter queued messages by Celery task name.",
+                        "schema": {
+                            "type": "string",
+                            "example": "masu.processor.tasks.update_summary_tables"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Queued tasks grouped by queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CeleryQueueTasksResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CeleryQueueTaskError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Celery Queue Tasks"
+                ],
+                "summary": "Remove one queued Celery task by ID",
+                "operationId": "deleteCeleryQueueTask",
+                "description": "Removes at most one exact serialized message from the selected queue. Active tasks are not affected.",
+                "parameters": [
+                    {
+                        "name": "queue",
+                        "in": "query",
+                        "required": true,
+                        "description": "The Celery queue containing the task.",
+                        "schema": {
+                            "type": "string",
+                            "example": "summary"
+                        }
+                    },
+                    {
+                        "name": "task_id",
+                        "in": "query",
+                        "required": true,
+                        "description": "The exact Celery task ID in the queued message headers.",
+                        "schema": {
+                            "type": "string",
+                            "example": "a8d39868-dbd3-47ac-9220-82370e35b59c"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One matching queued task was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeleteCeleryQueueTaskResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing parameters or invalid queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CeleryQueueTaskError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No matching queued task was found, or a worker consumed it before removal.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CeleryQueueTaskError"
                                 }
                             }
                         }
@@ -180,10 +303,11 @@
                         "name": "name",
                         "required": false,
                         "in": "query",
-                        "description": "Filter response on cost model name.",
+                        "description": "Filter response on cost model name using case-insensitive substring matching. Accepts comma-separated values as an AND filter (e.g. 'gpu,demo' returns only models whose name contains both 'gpu' AND 'demo').",
                         "schema": {
                             "type": "string"
-                        }
+                        },
+                        "example": "OpenShift"
                     },
                     {
                         "name": "currency",
@@ -491,6 +615,723 @@
                         "basic_auth": []
                     }
                 ]
+            }
+        },
+        "/price-lists/": {
+            "get": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "List the price lists",
+                "operationId": "listPriceLists",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[name]",
+                        "description": "Case-insensitive substring match on the price list name. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "default"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[uuid]",
+                        "description": "Exact price list UUID.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[enabled]",
+                        "description": "true shows only active price lists, false only disabled ones.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[currency]",
+                        "description": "Case-insensitive exact match on the currency code.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "USD"
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[cost_model]",
+                        "description": "Price lists assigned to these cost model UUIDs. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[name]",
+                        "description": "Order by name. Default ordering is name ascending.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[effective_start_date]",
+                        "description": "Order by effective start date.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[updated_timestamp]",
+                        "description": "Order by last update time.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of price list objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Create a new price list.",
+                "operationId": "createPriceList",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PriceList"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "An object describing the created price list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/": {
+            "get": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Get a Price List.",
+                "operationId": "getPriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to retrieve.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A Price List object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Update a Price List.",
+                "description": "Full replacement update. PATCH is not supported \u2014 send all fields in the body. The version field auto-increments when rates, effective dates, or currency change. A disabled price list may only have name, description, and enabled updated.",
+                "operationId": "updatePriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to update.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PriceList"
+                            }
+                        }
+                    },
+                    "description": "Updated Price List payload",
+                    "required": true
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated Price List object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Delete a Price List.",
+                "description": "Deletes a price list. Cannot be deleted if it is currently assigned to one or more cost models \u2014 remove the assignment first.",
+                "operationId": "deletePriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to delete.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Price List deleted"
+                    },
+                    "400": {
+                        "description": "Bad Request \u2014 price list is assigned to one or more cost models.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/affected-cost-models/": {
+            "get": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "List cost models that use this price list.",
+                "description": "Returns the cost models currently assigned to this price list along with their priority order (1 = highest). Returns an empty array if the price list is not assigned to any cost model.",
+                "operationId": "getPriceListAffectedCostModels",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A list of cost models assigned to this price list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PriceListAffectedCostModel"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/rates/": {
+            "get": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "List the rates of a Price List.",
+                "description": "Filterable, paginated rates of a price list, with metric display labels. Read-only. Rates are identified by custom_name; no rate identifier is returned.",
+                "operationId": "getPriceListRates",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[name]",
+                        "description": "Case-insensitive substring match on the rate's custom_name. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "cpu"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[metric_type]",
+                        "description": "Case-insensitive exact match on the metric type. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "cpu",
+                            "memory"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[measurement]",
+                        "description": "Case-insensitive substring match on the measurement label, e.g. Usage or Request. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "usage"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[cost_type]",
+                        "description": "Case-insensitive exact match on the cost type. Accepts comma-separated values or repeated parameters (OR).",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "Infrastructure"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[name]",
+                        "description": "Order by custom_name. Default ordering is custom_name ascending.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[metric_type]",
+                        "description": "Order by metric type.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[measurement]",
+                        "description": "Order by metric name.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[cost_type]",
+                        "description": "Order by cost type.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of the price list's rates",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListRatePagination"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: unsupported parameter or invalid value.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/duplicate/": {
+            "post": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Duplicate a Price List.",
+                "description": "Creates a copy named \"Copy of <name>\" with the same rates, currency and effective dates, version 1, enabled, and not assigned to any cost model. No request body.",
+                "operationId": "duplicatePriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to duplicate.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "The new Price List",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: the price list cannot be duplicated, or price list writes are temporarily disabled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/forecasts/aws/costs/": {
@@ -2005,6 +2846,78 @@
                 ]
             }
         },
+        "/reports/openshift/gpu/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain OpenShift GPU usage information",
+                "operationId": "getOpenShiftGpuReports",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftGpu"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftGpu"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
         "/reports/openshift/resources/virtual-machines/": {
             "get": {
                 "tags": [
@@ -3063,9 +3976,8 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "integer",
-                            "format": "int64",
-                            "example": 1
+                            "type": "string",
+                            "example": "1"
                         }
                     },
                     {
@@ -3785,6 +4697,76 @@
                 }
             }
         },
+        "/resource-types/openshift-gpu-models/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Openshift GPU Models For RBAC",
+                "operationId": "listResourcesOpenShiftGpuModels",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-gpu-vendors/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Openshift GPU Vendors For RBAC",
+                "operationId": "listResourcesOpenShiftGpuVendors",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/cost-models/": {
             "get": {
                 "tags": [
@@ -4047,9 +5029,8 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "integer",
-                            "format": "int64",
-                            "example": 1
+                            "type": "string",
+                            "example": "1"
                         }
                     }
                 ],
@@ -4109,9 +5090,8 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "integer",
-                            "format": "int64",
-                            "example": 1
+                            "type": "string",
+                            "example": "1"
                         }
                     }
                 ],
@@ -5528,6 +6508,229 @@
                 ]
             }
         },
+        "/settings/currency/": {
+            "get": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "List current tender ISO 4217 currencies with tenant enablement status (JSON), or export static exchange rates (CSV)",
+                "operationId": "getSettingsCurrency",
+                "description": "Returns current (active) ISO 4217 tender currencies with enablement flags for the tenant. Already-enabled inactive or withdrawn codes are still included so they remain visible and disableable. Omits non-tender codes (e.g. XXX) and withdrawn currencies that are not enabled. With Accept: text/csv, returns a flat unpaginated CSV of static exchange rates instead of the nested currency catalog.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[enabled]",
+                        "description": "Filter by tenant enablement status. JSON: true/1 returns enabled currencies only; false/0 returns disabled current-tender currencies only; omit returns current tender currencies (plus any already-enabled inactive codes) sorted by code. CSV: true/1 keeps static rates whose base currency is enabled; false/0 keeps rates whose base is disabled; omit returns all matching rates.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false",
+                                "1",
+                                "0"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[currency]",
+                        "description": "Case-insensitive substring match. Accepts comma-separated values or repeated parameters (OR). JSON: matches the currency catalog code (base only). CSV: matches a static rate if the term appears in base_currency or target_currency (e.g. EUR includes USD\u2192EUR rows). Non-matching values return an empty list.",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "USD",
+                            "EUR"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[code]",
+                        "description": "Sort currencies by ISO 4217 code. Defaults to asc when omitted.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "asc"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of currency settings objects (JSON), or an unpaginated flat CSV of static exchange rates when Accept is text/csv",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CurrencySettingsPagination"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string",
+                                    "description": "CSV of static exchange rates (not the ISO currency catalog). Columns in order: base_currency, target_currency, exchange_rate, start_date, end_date, uuid, name. Pagination is ignored. filter[currency] matches base or target; filter[enabled] filters by whether the rate base currency is enabled. Empty exports still include the header row."
+                                },
+                                "example": "base_currency,target_currency,exchange_rate,start_date,end_date,uuid,name\nUSD,EUR,0.87,2026-04-01,2026-06-30,a1b2c3d4-e5f6-7890-abcd-ef1234567890,USD-EUR\n"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/currency/enabled/{code}/": {
+            "post": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Enable a currency for the tenant",
+                "operationId": "postSettingsCurrencyEnabled",
+                "description": "Enable a current tender ISO 4217 currency. When CURRENCY_URL is not configured, enablement requires static exchange rate coverage from the currency to the system default and account display currency across the retained reporting window through the next month.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "code",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "ISO 4217 currency code to enable"
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Currency enabled (or already enabled)"
+                    },
+                    "400": {
+                        "description": "Invalid code, or static exchange rates required before enable when dynamic market rates are unavailable",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "example": {
+                                    "errors": [
+                                        {
+                                            "detail": "Cannot enable EUR without static exchange rates from EUR to USD across the retained reporting window through the next month. Create static rates via /settings/currency/static-rates/ then retry.",
+                                            "source": "currency",
+                                            "status": 400
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Disable a currency for the tenant",
+                "operationId": "deleteSettingsCurrencyEnabled",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "code",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Currency disabled"
+                    },
+                    "400": {
+                        "description": "Cannot disable (in use or last enabled currency)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
         "/settings/cost-groups/": {
             "get": {
                 "tags": [
@@ -6732,6 +7935,137 @@
                     }
                 ]
             },
+            "PriceList": {
+                "required": [
+                    "name",
+                    "effective_start_date",
+                    "effective_end_date"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "description": "Display name for the price list.",
+                        "example": "Production OCP Rates"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description."
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "ISO 4217 currency code. Defaults to the account currency if omitted.",
+                        "example": "USD"
+                    },
+                    "effective_start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start of the validity period (inclusive).",
+                        "example": "2026-01-01"
+                    },
+                    "effective_end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End of the validity period (inclusive). Must be on or after effective_start_date.",
+                        "example": "2026-12-31"
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Controls whether this price list can be attached to cost models. Disabled price lists still participate in cost calculation if already assigned."
+                    },
+                    "rates": {
+                        "type": "array",
+                        "description": "List of OCP metric rates. Each entry uses either tiered_rates or tag_rates (mutually exclusive per entry).",
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "$ref": "#/components/schemas/TieredRate"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/TagRate"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "PriceListOut": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PriceList"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "format": "uuid",
+                                "readOnly": true
+                            },
+                            "version": {
+                                "type": "integer",
+                                "readOnly": true,
+                                "description": "Auto-incremented when rates, effective dates, or currency change."
+                            },
+                            "created_timestamp": {
+                                "type": "string",
+                                "format": "date-time",
+                                "readOnly": true
+                            },
+                            "updated_timestamp": {
+                                "type": "string",
+                                "format": "date-time",
+                                "readOnly": true
+                            }
+                        }
+                    }
+                ]
+            },
+            "PriceListPagination": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "PriceListAffectedCostModel": {
+                "type": "object",
+                "required": [
+                    "uuid",
+                    "name",
+                    "priority"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "UUID of the cost model."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the cost model."
+                    },
+                    "priority": {
+                        "type": "integer",
+                        "description": "Priority of this price list within the cost model (1 = highest priority)."
+                    }
+                }
+            },
             "CostTypePagination": {
                 "allOf": [
                     {
@@ -6786,6 +8120,83 @@
                                 "type": "array",
                                 "items": {
                                     "$ref": "#/components/schemas/Currencies"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "CurrencySettingsItem": {
+                "required": [
+                    "code",
+                    "symbol",
+                    "name",
+                    "description",
+                    "enabled",
+                    "has_dynamic_rate",
+                    "active_rate_type",
+                    "is_disableable",
+                    "static_rates"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "example": "USD"
+                    },
+                    "symbol": {
+                        "type": "string",
+                        "example": "$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "US Dollar"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "USD ($) - US Dollar"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "has_dynamic_rate": {
+                        "type": "boolean"
+                    },
+                    "active_rate_type": {
+                        "type": "string",
+                        "enum": [
+                            "static",
+                            "dynamic",
+                            "none"
+                        ],
+                        "description": "Rate in force for the current UTC month. static: a static rate window overlaps this month (wins over dynamic). dynamic: enabled, no current-month static, and a dynamic rate exists. none: disabled, or enabled with no current-month static and no dynamic. UI: if enabled is false show Not enabled; otherwise Static / Dynamic / None."
+                    },
+                    "is_disableable": {
+                        "type": "boolean",
+                        "description": "Whether the enable/disable toggle is available for this currency. Always true when the currency is disabled (so it can be re-enabled). When enabled, false if it is the sole enabled currency, or is referenced by a cost model, price list, cloud provider billing data, or the system/account default."
+                    },
+                    "static_rates": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StaticExchangeRateOut"
+                        }
+                    }
+                }
+            },
+            "CurrencySettingsPagination": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/CurrencySettingsItem"
                                 }
                             }
                         }
@@ -7445,12 +8856,22 @@
                 ],
                 "properties": {
                     "id": {
-                        "type": "integer",
-                        "example": "Platform source identifier"
+                        "type": "string",
+                        "example": "1"
                     },
                     "source_type": {
                         "type": "string",
                         "example": "AWS"
+                    },
+                    "source_type_id": {
+                        "type": "string",
+                        "description": "CMMO-compatible source type identifier",
+                        "example": "1"
+                    },
+                    "source_ref": {
+                        "type": "string",
+                        "description": "Source reference (e.g., cluster ID for OCP sources)",
+                        "example": "my-ocp-cluster"
                     }
                 }
             },
@@ -7496,9 +8917,8 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer",
-                                "format": "int64",
-                                "example": 1
+                                "type": "string",
+                                "example": "1"
                             },
                             "uuid": {
                                 "type": "string",
@@ -7589,6 +9009,13 @@
                                 "example": {
                                     "crawl_heirarchy": "False"
                                 }
+                            },
+                            "created_timestamp": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true,
+                                "description": "Timestamp of when the provider was created.",
+                                "example": "2026-01-15 12:30:00"
                             }
                         }
                     }
@@ -7736,11 +9163,11 @@
                     "metric"
                 ],
                 "properties": {
-                    "uuid": {
+                    "custom_name": {
                         "type": "string",
-                        "format": "uuid",
-                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4",
-                        "readOnly": true
+                        "maxLength": 50,
+                        "description": "Name of the rate, unique within its price list; identifies the rate in the API. Generated from the metric, cost type and tag key when not provided. Renaming a rate replaces it.",
+                        "example": "cpu_core_usage_per_hour-Infrastructure"
                     },
                     "metric": {
                         "type": "object",
@@ -7797,11 +9224,11 @@
                     "metric"
                 ],
                 "properties": {
-                    "uuid": {
+                    "custom_name": {
                         "type": "string",
-                        "format": "uuid",
-                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4",
-                        "readOnly": true
+                        "maxLength": 50,
+                        "description": "Name of the rate, unique within its price list; identifies the rate in the API. Generated from the metric, cost type and tag key when not provided. Renaming a rate replaces it.",
+                        "example": "cpu_core_usage_per_hour-Infrastructure"
                     },
                     "metric": {
                         "type": "object",
@@ -11026,6 +12453,90 @@
                     }
                 ]
             },
+            "ReportOpenShiftGpu": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Report"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "example": [
+                                        {
+                                            "date": "2024-01",
+                                            "values": [
+                                                {
+                                                    "date": "2024-01",
+                                                    "cluster": "my-ocp-cluster",
+                                                    "vendor": "nvidia.com/gpu",
+                                                    "model": "Tesla-T4",
+                                                    "memory": {
+                                                        "value": 15360.0,
+                                                        "units": "MiB"
+                                                    },
+                                                    "gpu_count": {
+                                                        "value": 4,
+                                                        "units": "GPUs"
+                                                    },
+                                                    "infrastructure": {
+                                                        "raw": {
+                                                            "value": 500.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 500.0,
+                                                            "units": "USD"
+                                                        }
+                                                    },
+                                                    "supplementary": {
+                                                        "raw": {
+                                                            "value": 100.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 100.0,
+                                                            "units": "USD"
+                                                        }
+                                                    },
+                                                    "cost": {
+                                                        "raw": {
+                                                            "value": 600.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 600.0,
+                                                            "units": "USD"
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             "ReportOpenShiftVirtualMachine": {
                 "allOf": [
                     {
@@ -11284,65 +12795,139 @@
                     }
                 ]
             },
-            "Status": {
+            "StaticExchangeRateOut": {
                 "required": [
-                    "api_version"
+                    "uuid",
+                    "name",
+                    "base_currency",
+                    "target_currency",
+                    "exchange_rate",
+                    "start_date",
+                    "end_date",
+                    "status",
+                    "created_timestamp",
+                    "updated_timestamp"
                 ],
                 "properties": {
-                    "api_version": {
-                        "type": "integer",
-                        "format": "int64",
-                        "example": 1
-                    },
-                    "commit": {
+                    "uuid": {
                         "type": "string",
-                        "example": "178d2ea"
+                        "format": "uuid"
                     },
-                    "server_address": {
+                    "name": {
                         "type": "string",
-                        "example": "127.0.0.1:8000"
+                        "example": "USD-EUR"
                     },
-                    "rbac_cache_ttl": {
-                        "type": "integer",
-                        "example": "30"
-                    },
-                    "platform_info": {
-                        "type": "object",
-                        "example": {
-                            "system": "Darwin",
-                            "node": "node-1.example.com",
-                            "release": "17.5.0",
-                            "version": "Darwin Kernel Version 17.5.0",
-                            "machine": "x86_64",
-                            "processor": "i386"
-                        }
-                    },
-                    "python_version": {
+                    "base_currency": {
                         "type": "string",
-                        "example": "3.6.1"
+                        "description": "ISO 4217 code for the source currency in the directional pair.",
+                        "example": "USD"
                     },
-                    "modules": {
-                        "type": "object",
-                        "example": {
-                            "coverage": "4.5.1",
-                            "coverage.version": "4.5.1",
-                            "coverage.xmlreport": "4.5.1",
-                            "cryptography": "2.0.3",
-                            "ctypes": "1.1.0",
-                            "ctypes.macholib": "1.0",
-                            "decimal": "1.70",
-                            "django": "1.11.5",
-                            "django.utils.six": "1.10.0",
-                            "django_filters": "1.0.4",
-                            "http.server": "0.6"
-                        }
+                    "target_currency": {
+                        "type": "string",
+                        "description": "ISO 4217 code for the destination currency. Use this as the display units for exchange_rate (e.g. format 0.87 as \"0.87 EUR\").",
+                        "example": "EUR"
                     },
-                    "config": {
+                    "exchange_rate": {
+                        "type": "number",
+                        "description": "Directional multiplier: units of target_currency per 1 unit of base_currency. Example: base=AED, target=EUR, exchange_rate=0.92 means 1 AED = 0.92 EUR. Conversion is amount_in_base \u00d7 exchange_rate \u2192 amount_in_target. There is no separate exchange_rate_units field; format using target_currency.",
+                        "example": 0.87
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-01"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-06-30"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "expired",
+                            "upcoming"
+                        ],
+                        "description": "Lifecycle of this static rate vs the current UTC month (UI labels). expired: end_date is before the current month. active: the validity window includes the current UTC month. upcoming: start_date is in a future month. Past-month rates remain editable/deletable when the caller has cost-model write access. Mutate buttons should use user-access (cost-model write), not per-rate flags."
+                    },
+                    "created_timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "Status": {
+                "required": [
+                    "status"
+                ],
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "example": "OK"
+                    }
+                }
+            },
+            "CeleryQueueTasksResponse": {
+                "type": "object",
+                "properties": {
+                    "queued_tasks": {
                         "type": "object",
-                        "example": {
-                            "debug": true,
-                            "account_access_type": "db"
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/QueuedCeleryTask"
+                            }
                         }
+                    }
+                }
+            },
+            "QueuedCeleryTask": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "args": {
+                        "type": "string"
+                    },
+                    "kwargs": {
+                        "type": "string"
+                    }
+                }
+            },
+            "DeleteCeleryQueueTaskResponse": {
+                "type": "object",
+                "required": [
+                    "queue",
+                    "task_id",
+                    "removed"
+                ],
+                "properties": {
+                    "queue": {
+                        "type": "string"
+                    },
+                    "task_id": {
+                        "type": "string"
+                    },
+                    "removed": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                }
+            },
+            "CeleryQueueTaskError": {
+                "type": "object",
+                "properties": {
+                    "Error": {
+                        "type": "string"
                     }
                 }
             },
@@ -11429,6 +13014,166 @@
                         "type": "string"
                     }
                 }
+            },
+            "PriceListRateOut": {
+                "type": "object",
+                "description": "A rate of a price list, enriched with metric display labels. Carries tiered_rates or tag_rates.",
+                "properties": {
+                    "custom_name": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "description": "Name of the rate, unique within its price list; identifies the rate in the API. Generated from the metric, cost type and tag key when not provided. Renaming a rate replaces it.",
+                        "example": "cpu_core_usage_per_hour-Infrastructure"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Compute usage rate"
+                    },
+                    "metric": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "example": "cpu_core_usage_per_hour"
+                            },
+                            "label_metric": {
+                                "type": "string",
+                                "example": "CPU"
+                            },
+                            "label_measurement": {
+                                "type": "string",
+                                "example": "Usage"
+                            },
+                            "label_measurement_unit": {
+                                "type": "string",
+                                "example": "core-hours"
+                            }
+                        }
+                    },
+                    "metric_type": {
+                        "type": "string",
+                        "description": "Metric category, for example cpu, memory, storage, node, cluster, pvc, project, vm or gpu.",
+                        "example": "cpu"
+                    },
+                    "cost_type": {
+                        "type": "string",
+                        "enum": [
+                            "Infrastructure",
+                            "Supplementary"
+                        ]
+                    },
+                    "default_rate": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "First tier's value as a decimal string, or null for tag rates without a default.",
+                        "example": "0.220000000000000"
+                    },
+                    "tiered_rates": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "value": {
+                                    "type": "number"
+                                },
+                                "usage": {
+                                    "type": "object"
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "enum": [
+                                        "USD"
+                                    ]
+                                }
+                            }
+                        },
+                        "example": [
+                            {
+                                "value": 0.22,
+                                "unit": "USD",
+                                "usage": {
+                                    "usage_start": 0,
+                                    "usage_end": 10
+                                }
+                            }
+                        ]
+                    },
+                    "tag_rates": {
+                        "required": [
+                            "tag_key"
+                        ],
+                        "properties": {
+                            "tag_key": {
+                                "type": "string",
+                                "enum": [
+                                    "key_one"
+                                ]
+                            },
+                            "tag_values": {
+                                "type": "array",
+                                "items": {
+                                    "properties": {
+                                        "tag_value": {
+                                            "type": "string"
+                                        },
+                                        "usage": {
+                                            "type": "object"
+                                        },
+                                        "unit": {
+                                            "type": "string",
+                                            "enum": [
+                                                "USD"
+                                            ]
+                                        },
+                                        "value": {
+                                            "type": "number"
+                                        },
+                                        "description": {
+                                            "type": "string"
+                                        },
+                                        "default": {
+                                            "type": "boolean"
+                                        }
+                                    }
+                                },
+                                "example": [
+                                    {
+                                        "tag_value": "dev",
+                                        "unit": "USD",
+                                        "usage": {
+                                            "unit": "USD",
+                                            "usage_start": 0,
+                                            "usage_end": 10
+                                        },
+                                        "value": 0.2,
+                                        "description": "Developers",
+                                        "default": true
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            "PriceListRatePagination": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/PriceListRateOut"
+                                }
+                            }
+                        }
+                    }
+                ]
             }
         }
     }

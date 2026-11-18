@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
+import datetime
+import json
 import logging
 import os
 import pkgutil
@@ -13,6 +15,7 @@ from django.conf import settings
 from django.db import connection
 from django.db import OperationalError
 from django.db import transaction
+from django.db.utils import ProgrammingError as DjangoProgrammingError
 from jinjasql import JinjaSql
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
@@ -22,16 +25,29 @@ from api.common import log_json
 from api.utils import DateHelper
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
+from koku.cache import get_cached_ocp_on_cloud_matched_tags
 from koku.cache import get_value_from_cache
+from koku.cache import set_cached_ocp_on_cloud_matched_tags
 from koku.cache import set_value_in_cache
+from koku.database_exc import ExtendedDeadlockDetected
 from koku.database_exc import get_extended_exception_by_type
+from koku.reportdb_accessor import get_report_db_accessor
 from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import is_ocp_on_cloud_month_wide_matched_tags_enabled
+from masu.processor import is_tag_processing_disabled
+from masu.processor import OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
+from masu.processor.parquet.summary_sql_metadata import trino_safe_array_literal
+from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
+
+MATCHED_TAGS_TRINO_TASK = "masu.database.ocp_on_cloud_matched_tags_trino"
+MATCHED_TAGS_LOCK_POLL_SECONDS = 5
 
 
 class ReportDBAccessorException(Exception):
@@ -51,7 +67,8 @@ class ReportDBAccessorBase:
 
         self.date_helper = DateHelper()
         self.prepare_query = JinjaSql(param_style="pyformat").prepare_query
-        self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
+        param_style = get_report_db_accessor().get_bind_param_style()
+        self.trino_prepare_query = JinjaSql(param_style=param_style).prepare_query
 
     def __enter__(self):
         """Enter context manager."""
@@ -64,6 +81,43 @@ class ReportDBAccessorBase:
         connection = transaction.get_connection()
         connection.set_schema_to_public()
 
+    def _analyze_tag_mapping_partition(self, partition_name, label="OCP"):
+        """Refresh an existing monthly leaf with bounded maintenance timeouts."""
+        qualified_name = f"{connection.ops.quote_name(self.schema)}.{connection.ops.quote_name(partition_name)}"
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("SELECT current_setting('lock_timeout'), current_setting('statement_timeout')")
+            previous_lock_timeout, previous_statement_timeout = cursor.fetchone()
+            cursor.execute("SET LOCAL lock_timeout = '5s'")
+            cursor.execute("SET LOCAL statement_timeout = '60s'")
+            cursor.execute("SELECT to_regclass(%s)", [qualified_name])
+            partition_exists = cursor.fetchone()[0] is not None
+            if not partition_exists:
+                LOG.info(
+                    log_json(
+                        msg=f"{label} tag-mapping partition absent; skipping ANALYZE",
+                        schema=self.schema,
+                        partition=partition_name,
+                    )
+                )
+            else:
+                started = time.monotonic()
+                cursor.execute(f"ANALYZE {qualified_name}")
+            # A released savepoint does not undo SET LOCAL in an enclosing transaction.
+            cursor.execute(
+                "SELECT set_config('lock_timeout', %s, true), set_config('statement_timeout', %s, true)",
+                [previous_lock_timeout, previous_statement_timeout],
+            )
+            if not partition_exists:
+                return
+        LOG.info(
+            log_json(
+                msg=f"{label} tag-mapping pre-ANALYZE complete",
+                schema=self.schema,
+                partition=partition_name,
+                elapsed_seconds=time.monotonic() - started,
+            )
+        )
+
     @property
     def line_item_daily_summary_table(self):
         """Require this property in subclases."""
@@ -73,7 +127,130 @@ class ReportDBAccessorBase:
     def extract_context_from_sql_params(sql_params: dict):
         return extract_context_from_sql_params(sql_params)
 
-    def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
+    @staticmethod
+    def _as_date(value):
+        """Return a date from a date or datetime."""
+        if isinstance(value, datetime.datetime):
+            return value.date()
+        return value
+
+    @staticmethod
+    def _matched_tags_to_strings(matched_tags):
+        """Serialize matched tag dicts the way OCP-on-cloud SQL expects."""
+        if not matched_tags:
+            return []
+        return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
+
+    def _trino_matched_tag_strings(self, cloud_provider_uuid, ocp_provider_uuid, start_date, end_date, ctx):
+        """Return Trino matched tags, using the month-wide cached path when the flag is on."""
+        if is_tag_processing_disabled(self.schema):
+            LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
+            return []
+        if is_ocp_on_cloud_month_wide_matched_tags_enabled(self.schema):
+            return self._month_wide_trino_matched_tag_strings(cloud_provider_uuid, ocp_provider_uuid, start_date, ctx)
+        LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
+        matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
+            cloud_provider_uuid,
+            [ocp_provider_uuid],
+            start_date,
+            end_date,
+            invoice_month_date=start_date,
+        )
+        return self._matched_tags_to_strings(matched_tags)
+
+    def _month_wide_trino_matched_tag_strings(self, cloud_provider_uuid, ocp_provider_uuid, start_date, ctx):
+        """Return month-wide Trino matched tags, cached and single-flighted per cluster/cloud/month."""
+        month_start = self._as_date(self.date_helper.month_start(start_date))
+        month_end = self._as_date(self.date_helper.month_end(start_date))
+        month_key = month_start.strftime("%Y-%m")
+        ocp_uuid = str(ocp_provider_uuid)
+        cloud_uuid = str(cloud_provider_uuid)
+        cache_args = [self.schema, ocp_uuid, cloud_uuid, month_key]
+        trino_ctx = {**ctx, "month_start": month_start, "month_end": month_end, "cloud_provider_uuid": cloud_uuid}
+
+        cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key)
+        if cached is not None:
+            LOG.info(log_json(msg="using cached matched tags", context=trino_ctx))
+            return cached
+
+        worker_cache = WorkerCache()
+        timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        acquired = False
+        try:
+            if worker_cache.single_task_is_running(MATCHED_TAGS_TRINO_TASK, cache_args):
+                LOG.info(log_json(msg="waiting for in-flight matched tags Trino query", context=trino_ctx))
+                cached = self._wait_for_cached_matched_tags(ocp_uuid, cloud_uuid, month_key, cache_args)
+                if cached is not None:
+                    return cached
+            acquired = worker_cache.try_lock_single_task(MATCHED_TAGS_TRINO_TASK, cache_args, timeout=timeout)
+            if not acquired:
+                LOG.info(log_json(msg="waiting for in-flight matched tags Trino query", context=trino_ctx))
+                cached = self._wait_for_cached_matched_tags(ocp_uuid, cloud_uuid, month_key, cache_args)
+                if cached is not None:
+                    return cached
+                acquired = worker_cache.try_lock_single_task(MATCHED_TAGS_TRINO_TASK, cache_args, timeout=timeout)
+                if not acquired:
+                    cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key)
+                    return cached or []
+            cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key)
+            if cached is not None:
+                LOG.info(log_json(msg="using cached matched tags", context=trino_ctx))
+                return cached
+            LOG.info(log_json(msg="getting matching tags from Trino", context=trino_ctx))
+            matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
+                cloud_provider_uuid,
+                [ocp_provider_uuid],
+                month_start,
+                month_end,
+                invoice_month_date=month_start,
+            )
+            tag_strings = self._matched_tags_to_strings(matched_tags)
+            set_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key, tag_strings)
+            return tag_strings
+        finally:
+            if acquired:
+                worker_cache.release_single_task(MATCHED_TAGS_TRINO_TASK, cache_args)
+
+    def _wait_for_cached_matched_tags(self, ocp_uuid, cloud_uuid, month_key, cache_args):
+        """Poll Valkey until the in-flight Trino worker publishes matched tags."""
+        deadline = time.monotonic() + settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        worker_cache = WorkerCache()
+        while time.monotonic() < deadline:
+            cached = get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key)
+            if cached is not None:
+                LOG.info(
+                    log_json(
+                        msg="using cached matched tags after wait",
+                        context={
+                            "schema": self.schema,
+                            "ocp_provider_uuid": ocp_uuid,
+                            "cloud_provider_uuid": cloud_uuid,
+                            "month": month_key,
+                        },
+                    )
+                )
+                return cached
+            if not worker_cache.single_task_is_running(MATCHED_TAGS_TRINO_TASK, cache_args):
+                break
+            time.sleep(MATCHED_TAGS_LOCK_POLL_SECONDS)
+        return get_cached_ocp_on_cloud_matched_tags(self.schema, ocp_uuid, cloud_uuid, month_key)
+
+    @property
+    def trino_sql_folder_name(self):
+        # Replace this with get_sql_folder_name() when onpremise support is added
+        return "trino_sql"
+
+    def get_sql_folder_name(self):
+        """Return the SQL folder name based on ONPREM setting.
+
+        Returns:
+            str: 'self_hosted_sql' if ONPREM is True, otherwise 'trino_sql'
+        """
+        return "self_hosted_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
+
+    def _prepare_and_execute_raw_sql_query(
+        self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE", redact_query_on_error=False
+    ):
         """Prepare the sql params and run via a cursor."""
         if tmp_sql_params is None:
             tmp_sql_params = {}
@@ -85,10 +262,32 @@ class ReportDBAccessorBase:
             )
         )
         sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
-        return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
+        if redact_query_on_error:
+            return self._execute_raw_sql_query(
+                table, sql, sql_params=sql_params, operation=operation, redact_query_on_error=True
+            )
+        return self._execute_raw_sql_query(table, sql, sql_params=sql_params, operation=operation)
 
-    def _execute_raw_sql_query(self, table, sql, bind_params=None, operation="UPDATE"):
-        """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY."""
+    @retry(
+        retries=settings.DB_DEADLOCK_RETRIES,
+        retry_on=(ExtendedDeadlockDetected,),
+        max_wait=4,
+        log_message="Deadlock detected, retrying statement",
+    )
+    def _execute_raw_sql_query(self, table, sql, sql_params=None, operation="UPDATE", redact_query_on_error=False):
+        """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY.
+
+        Postgres deadlocks are expected under concurrent writers (e.g. two providers under
+        the same tenant schema both updating `rates_to_usage`). The deadlock detector always
+        rolls one transaction back cleanly, so retrying the statement here is safe -- each call
+        runs as its own autocommitted unit of work (this method does not span a transaction.atomic()
+        block), and is the standard, Postgres-recommended way to handle a deadlock.
+
+        `sql_params` is named to match the `@retry` decorator's `extract_context_from_sql_params`
+        lookup (it inspects a `sql_params` kwarg to build log context) -- it was previously named
+        `bind_params`, which silently defeated that lookup and left deadlock-retry log lines with
+        no schema/date-range/provider context at all (raised in PR #6162 review).
+        """
         LOG.info(log_json(msg=f"triggering {operation}", table=table))
         row_count = None
         result = None
@@ -96,14 +295,27 @@ class ReportDBAccessorBase:
             cursor.db.set_schema(self.schema)
             t1 = time.time()
             try:
-                cursor.execute(sql, params=bind_params)
+                cursor.execute(sql, params=sql_params)
                 row_count = cursor.rowcount
                 if operation == "VALIDATION_QUERY":
                     result = cursor.fetchall()
 
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
-                LOG.warning(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
+                if redact_query_on_error:
+                    LOG.warning(
+                        log_json(
+                            os.getpid(),
+                            msg="PostgreSQL statement failed",
+                            context={
+                                "exception_type": db_exc.db_exception_type.__name__,
+                                "pgcode": db_exc.pgcode,
+                                "db_backend_pid": db_exc.db_backend_pid,
+                            },
+                        )
+                    )
+                else:
+                    LOG.warning(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
                 raise db_exc from exc
 
         running_time = time.time() - t1
@@ -120,7 +332,7 @@ class ReportDBAccessorBase:
         return results
 
     @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
-    def _execute_trino_raw_sql_query_with_description(
+    def _execute_trino_raw_sql_query_with_description(  # noqa: C901
         self,
         sql,
         *,
@@ -147,7 +359,14 @@ class ReportDBAccessorBase:
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
-            results = trino_cur.fetchall()
+            try:
+                results = trino_cur.fetchall()
+            except DjangoProgrammingError as e:
+                # PostgreSQL raises "no results to fetch" for CREATE/DROP without RETURNING
+                if "no results to fetch" in str(e):
+                    results = []
+                else:
+                    raise
             description = trino_cur.description
         except TrinoQueryError as ex:
             if "NoSuchKey" in str(ex):
@@ -241,7 +460,7 @@ class ReportDBAccessorBase:
         cache_key = build_trino_table_exists_key(self.schema, table_name)
         if result := get_value_from_cache(cache_key):
             return result
-        table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
+        table_check_sql = get_report_db_accessor().get_table_check_sql(table_name, self.schema)
         exists = bool(self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -251,7 +470,7 @@ class ReportDBAccessorBase:
         cache_key = build_trino_schema_exists_key(self.schema)
         if result := get_value_from_cache(cache_key):
             return result
-        check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
+        check_sql = get_report_db_accessor().get_schema_check_sql(self.schema)
         exists = bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -271,12 +490,14 @@ class ReportDBAccessorBase:
             )
             for i in range(retries):
                 try:
-                    sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
-                    WHERE {source_column} = '{source}'
-                    AND year = '{year}'
-                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                    """
+                    sql = get_report_db_accessor().get_delete_by_month_sql(
+                        schema_name=self.schema,
+                        table_name=table,
+                        source_column=source_column,
+                        source=source,
+                        year=year,
+                        month=month,
+                    )
                     self._execute_trino_raw_sql_query(
                         sql,
                         log_ref=f"delete_hive_partition_by_month for {year}-{month}",
@@ -287,18 +508,39 @@ class ReportDBAccessorBase:
                         continue
                     else:
                         raise err
+                except OperationalError as err:
+                    if i < (retries - 1):
+                        continue
+                    else:
+                        raise err
 
     def find_openshift_keys_expected_values(self, sql_metadata: SummarySqlMetadata) -> Any:
         """
         We need to find the expected values for the openshift specific keys.
         Keys: openshift-project, openshift-node, openshift-cluster
         Ex: ("openshift-project": "project_a")
+
+        When OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG is ON, read distinct node/namespace
+        from the day-partitioned OCP summary table. When OFF, keep the legacy full-month
+        scan of raw pod-usage parquet.
         """
-        matched_tag_params = sql_metadata.build_params(
-            ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs", "ocp_provider_uuid"]
+        use_summary = is_feature_flag_enabled_by_schema(
+            self.schema, OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG, dev_fallback=True
         )
-        matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/ocp_special_matched_tags.sql")
+        param_keys = ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs", "ocp_provider_uuid"]
+        if use_summary:
+            param_keys.append("days")
+        matched_tag_params = sql_metadata.build_params(param_keys)
+        # OCP-on-cloud special-tag lookup is Trino-only (no self_hosted_sql counterpart).
+        sql_filename = "ocp_special_matched_tags.sql" if use_summary else "ocp_special_matched_tags_pod_usage.sql"
+        matched_tags_sql = pkgutil.get_data("masu.database", f"{self.trino_sql_folder_name}/openshift/{sql_filename}")
         matched_tags_sql = matched_tags_sql.decode("utf-8")
-        LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
+        LOG.info(
+            log_json(
+                msg="Finding expected values for openshift special tags",
+                use_summary_lookup=use_summary,
+                **matched_tag_params,
+            )
+        )
         matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)
-        return matched_tags_result[0][0]
+        return trino_safe_array_literal(matched_tags_result[0][0] or [])

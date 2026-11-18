@@ -1,0 +1,8 @@
+---
+description: "Provider map patterns for API query handlers and aggregations"
+globs:
+  - "**/provider_map.py"
+alwaysApply: false
+---
+
+@docs/agent/provider-maps.md

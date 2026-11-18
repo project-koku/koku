@@ -1,0 +1,32 @@
+# S4 path proxy — long Hive warehouse keys to short on-disk segments.
+#
+# When adding or renaming Trino Hive MANAGED tables (see migrate_trino_tables.py
+# MANAGED_TABLES and docs/devtools.md "Trino Migrations"), add an entry under
+# `tables` with the next unused numeric id.
+#
+# Schema paths: first path segments under the bucket after `data/<schema>.db/`.
+# Tables: the segment immediately following the schema path.
+
+schema_paths:
+  data/org1234567.db: "1"
+
+# Multi-tenant fallback when a schema is not listed in schema_paths.
+schema_path_pattern:
+  match: "^data/org(\\d+)\\.db$"
+  replace: "o\\1"
+
+# All Hive managed tables that produce long warehouse paths (OCP-cloud + OCP line item).
+# Source of truth: masu/management/commands/migrate_trino_tables.py MANAGED_TABLES
+tables:
+  managed_aws_openshift_daily_temp: "1"
+  managed_aws_openshift_disk_capacities_temp: "2"
+  managed_reporting_ocpawscostlineitem_project_daily_summary: "3"
+  managed_reporting_ocpawscostlineitem_project_daily_summary_temp: "4"
+  managed_azure_openshift_daily_temp: "5"
+  managed_azure_openshift_disk_capacities_temp: "6"
+  managed_reporting_ocpazurecostlineitem_project_daily_summary: "7"
+  managed_reporting_ocpazurecostlineitem_project_daily_summary_temp: "8"
+  managed_gcp_openshift_daily_temp: "9"
+  managed_reporting_ocpgcpcostlineitem_project_daily_summary: "10"
+  managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp: "11"
+  reporting_ocpusagelineitem_daily_summary: "12"

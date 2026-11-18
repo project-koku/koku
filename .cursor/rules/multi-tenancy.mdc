@@ -1,0 +1,6 @@
+---
+description: "Django multi-tenancy patterns with schema_context and tenant_context"
+alwaysApply: true
+---
+
+@docs/agent/multi-tenancy.md

@@ -3,13 +3,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
+import calendar
 import random
 from decimal import Decimal
 from itertools import combinations
 from itertools import product
+from unittest.mock import patch
 from uuid import uuid4
 
 import faker
+from dateutil.relativedelta import relativedelta
+from django.db.models import Q
+from django.test.utils import override_settings
 from django_tenants.utils import tenant_context
 from rest_framework import serializers
 
@@ -18,9 +23,15 @@ from api.metrics import constants as metric_constants
 from api.metrics.constants import DEFAULT_DISTRIBUTION_INFO
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
+from api.utils import DateHelper
 from api.utils import get_currency
+from api.utils import materialized_view_month_start
+from api.utils import to_date
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import StaticExchangeRate
+from cost_models.price_list_serializer import PriceListSerializer
 from cost_models.serializers import CostModelSerializer
 from cost_models.serializers import DistributionSerializer
 from cost_models.serializers import RateSerializer
@@ -388,13 +399,16 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_get_metric_display_data_openshift(self):
         """Test the display data helper function for OpenShift metrics."""
-        serializer = CostModelSerializer(data=None)
+        # Mock Unleash flag to include GPU metrics
+        with patch("api.metrics.constants.is_feature_flag_enabled_by_schema", return_value=True):
+            serializer = CostModelSerializer(data=None, context=self.request_context)
 
-        for metric_choice in metric_constants.METRIC_CHOICES:
-            response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice)
-            self.assertIsNotNone(response.get("label_measurement_unit"))
-            self.assertIsNotNone(response.get("label_measurement"))
-            self.assertIsNotNone(response.get("label_metric"))
+            for metric_choice in metric_constants.METRIC_CHOICES:
+                response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice)
+                self.assertIsNotNone(response, f"Metric {metric_choice} not found in metric_map")
+                self.assertIsNotNone(response.get("label_measurement_unit"))
+                self.assertIsNotNone(response.get("label_measurement"))
+                self.assertIsNotNone(response.get("label_metric"))
 
     def test_validate_rates_allows_duplicate_metric(self):
         """Check that duplicate rate types for a metric are rejected."""
@@ -412,6 +426,25 @@ class CostModelSerializerTest(IamTestCase):
                 if valid_rate.get("metric", {}).get("name") == expected_metric_name:
                     result_metric_count += 1
         self.assertEqual(expected_metric_count, result_metric_count)
+
+    def test_duplicate_custom_name_rejected(self):
+        """Test that two rates with the same explicit custom_name in one request are rejected."""
+        rate_a = {
+            "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+            "tiered_rates": [{"unit": "USD", "value": 0.10}],
+            "custom_name": "my-rate",
+        }
+        rate_b = {
+            "metric": {"name": metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR},
+            "tiered_rates": [{"unit": "USD", "value": 0.20}],
+            "custom_name": "my-rate",
+        }
+        self.ocp_data["rates"] = [rate_a, rate_b]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            with self.assertRaises(serializers.ValidationError) as ctx:
+                serializer.validate_rates(self.ocp_data["rates"])
+            self.assertIn("my-rate", str(ctx.exception))
 
     def test_rate_cost_type_valid(self):
         """Test that a valid cost type is accepted."""
@@ -672,14 +705,49 @@ class CostModelSerializerTest(IamTestCase):
         expected_sub_string = "Duplicate tag_value"
         self.assertIn(expected_sub_string, result_err_msg)
 
-    def test_validate_source_uuid_error(self):
-        """Test validate source uuid error."""
-        tag_value = {"tag_value": "key_one", "value": 0.2}
-        self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=[tag_value])
+    def test_validate_source_uuid_errors(self):
+        """Test validate source uuid error scenarios."""
+        test_matrix = [
+            {
+                "name": "non_existent_uuid",
+                "input": [uuid4()],
+                "expected_error": "Invalid request. Source UUID validation failed.",
+            },
+            {
+                "name": "mixed_valid_invalid_uuid",
+                "input": [self.provider.uuid, uuid4()],
+                "expected_error": "Invalid request. Source UUID validation failed.",
+            },
+            {
+                "name": "malformed_uuid_string",
+                "input": ["not-a-uuid"],
+                "expected_error": "Invalid request. Source UUID validation failed.",
+            },
+        ]
+
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
-            with self.assertRaises(serializers.ValidationError):
-                serializer.validate_source_uuids([uuid4()])
+            for case in test_matrix:
+                with self.subTest(case=case["name"]):
+                    with self.assertRaises(serializers.ValidationError) as cm:
+                        serializer.validate_source_uuids(case["input"])
+                    self.assertEqual(str(cm.exception.detail[0]), case["expected_error"])
+
+    def test_validate_source_uuid_error_no_customer(self):
+        """Test validate source uuid error when customer is missing."""
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.basic_model, context={})
+            with self.assertRaises(serializers.ValidationError) as cm:
+                serializer.validate_source_uuids([self.provider.uuid])
+            self.assertEqual(str(cm.exception.detail[0]), "Invalid request. Customer schema name could not be found.")
+
+    def test_validate_source_uuid_success(self):
+        """Test validate source uuid success."""
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
+            uuids = [self.provider.uuid]
+            result = serializer.validate_source_uuids(uuids)
+            self.assertEqual(result, uuids)
 
     def test_distribution_choices_added_successfully(self):
         """Test that source distribution is a valid choice and added successsfully."""
@@ -727,6 +795,7 @@ class CostModelSerializerTest(IamTestCase):
 
             self.assertEqual(instance.currency, get_currency(self.request_context["request"]))
 
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
     def test_cost_model_currency(self):
         """Test if currency is set in cost model."""
         self.ocp_data["currency"] = "AUD"
@@ -749,9 +818,10 @@ class CostModelSerializerTest(IamTestCase):
     def test_invalid_currency(self):
         """Test failure while handling invalid cost_type."""
         self.ocp_data["currency"] = "invalid"
-        serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_tiered_not_matching_currency(self):
         """Test if tiered rates do not match currency raises a validation error."""
@@ -848,6 +918,7 @@ class CostModelSerializerTest(IamTestCase):
             # Add in default options
             valid_distrib_obj[metric_constants.NETWORK_UNATTRIBUTED] = False
             valid_distrib_obj[metric_constants.STORAGE_UNATTRIBUTED] = False
+            valid_distrib_obj[metric_constants.GPU_UNALLOCATED] = False
             self.assertEqual(instance.distribution_info, valid_distrib_obj)
 
     def test_invalid_distribution_info_keys(self):
@@ -910,3 +981,85 @@ class CostModelSerializerTest(IamTestCase):
                     self.assertIsNotNone(instance)
                     expected_distrib_obj = {**DEFAULT_DISTRIBUTION_INFO, **test_case}
                     self.assertEqual(instance.distribution_info, expected_distrib_obj)
+
+
+def _month_end(d):
+    return d.replace(day=calendar.monthrange(d.year, d.month)[1])
+
+
+class CostModelOfflineDenominationValidationTest(IamTestCase):
+    """Block cost models when offline conversion coverage is missing."""
+
+    @override_settings(CURRENCY_URL="")
+    def test_validate_offline_denomination_blocked_without_static_rates(self):
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(Q(base_currency="NOK") | Q(target_currency="NOK")).delete()
+            with self.assertRaises(serializers.ValidationError) as ctx:
+                CostModelSerializer.validate_offline_denomination_currency("NOK")
+            self.assertIn("static exchange rates", str(ctx.exception))
+
+    @override_settings(CURRENCY_URL="")
+    def test_validate_offline_denomination_allowed_with_static_rate_coverage(self):
+        date_helper = DateHelper()
+        retention_start = to_date(materialized_view_month_start(schema_name=self.schema_name))
+        horizon_end = date_helper.this_month_start.date() + relativedelta(months=1)
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="NOK",
+                target_currency="USD",
+                exchange_rate=Decimal("0.10"),
+                start_date=retention_start,
+                end_date=_month_end(horizon_end),
+            )
+            CostModelSerializer.validate_offline_denomination_currency("NOK")
+
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
+    def test_validate_offline_denomination_skipped_when_dynamic_fx_available(self):
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(Q(base_currency="NOK") | Q(target_currency="NOK")).delete()
+            CostModelSerializer.validate_offline_denomination_currency("NOK")
+
+
+class PriceListOfflineDenominationValidationTest(IamTestCase):
+    """Block price lists when offline conversion coverage is missing."""
+
+    def _price_list_data(self, currency):
+        date_helper = DateHelper()
+        start = date_helper.this_month_start.date()
+        return {
+            "name": "Offline denomination price list",
+            "effective_start_date": start,
+            "effective_end_date": _month_end(start + relativedelta(months=1)),
+            "currency": currency,
+        }
+
+    @override_settings(CURRENCY_URL="")
+    def test_price_list_blocked_without_static_rates_when_no_currency_url(self):
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(Q(base_currency="NOK") | Q(target_currency="NOK")).delete()
+            with self.assertRaises(serializers.ValidationError) as ctx:
+                PriceListSerializer(context=self.request_context).validate(self._price_list_data("NOK"))
+            self.assertIn("static exchange rates", str(ctx.exception))
+
+    @override_settings(CURRENCY_URL="")
+    def test_price_list_allowed_with_static_rate_coverage(self):
+        date_helper = DateHelper()
+        retention_start = to_date(materialized_view_month_start(schema_name=self.schema_name))
+        horizon_end = date_helper.this_month_start.date() + relativedelta(months=1)
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="NOK",
+                target_currency="USD",
+                exchange_rate=Decimal("0.10"),
+                start_date=retention_start,
+                end_date=_month_end(horizon_end),
+            )
+            data = self._price_list_data("NOK")
+            self.assertEqual(PriceListSerializer(context=self.request_context).validate(data), data)
+
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
+    def test_price_list_skips_offline_gate_when_dynamic_fx_available(self):
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(Q(base_currency="NOK") | Q(target_currency="NOK")).delete()
+            data = self._price_list_data("NOK")
+            self.assertEqual(PriceListSerializer(context=self.request_context).validate(data), data)

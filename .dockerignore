@@ -11,8 +11,11 @@
 !scripts/
 
 # keep the test files out of the final image
-# WARNING - This will also remove any file that contains test in the name like latest.
-**/*test*
+**/test/
+**/test_*
+**/conftest.py
+**/*_test.py
+**/koku_test_runner.py
 **/__pycache__
 **/*.log
 

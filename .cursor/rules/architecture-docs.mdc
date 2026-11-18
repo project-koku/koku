@@ -1,0 +1,8 @@
+---
+description: "Architecture doc style — link to code, don't duplicate it"
+globs:
+  - "**/docs/architecture/**/*.md"
+alwaysApply: false
+---
+
+@docs/agent/architecture-docs.md

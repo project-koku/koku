@@ -10,6 +10,7 @@ import uuid
 
 from dateutil.parser import parse
 from django.db import connection
+from django.db import DatabaseError
 from django.db.models import F
 from django.db.models import Q
 from django_tenants.utils import schema_context
@@ -18,11 +19,15 @@ from api.common import log_json
 from api.provider.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_unattributed_storage_enabled_aws
-from masu.processor import is_tag_processing_disabled
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
+from masu.processor import OCP_TAG_MAPPING_PRE_ANALYZE_FLAG
+from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
@@ -85,7 +90,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/aws/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/aws/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "start_date": start_date,
@@ -111,7 +116,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.trino_sql_folder_name}/aws/reporting_awscostentrylineitem_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -134,7 +141,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["tags_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_awstags_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/reporting_awstags_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
@@ -142,15 +149,22 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_category_summary_table(self, bill_ids, start_date, end_date):
         """Populate the category key values table."""
         table_name = self._table_map["category_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/reporting_awscategory_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/reporting_awscategory_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
+    def populate_ocp_on_aws_category_summary_table(self, bill_ids, start_date, end_date):
+        """Populate the OCP on AWS category key values table."""
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/reporting_ocpawscategory_summary.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        self._prepare_and_execute_raw_sql_query("reporting_ocpawscategory_summary", sql, sql_params)
+
     def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/aws/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/aws/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
@@ -161,10 +175,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
+        days_tup = hive_partition_day_values(days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/{table_name}.sql")
+            sql = pkgutil.get_data(
+                "masu.database", f"{self.trino_sql_folder_name}/aws/openshift/ui_summary/{table_name}.sql"
+            )
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -194,13 +210,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                sql = f"""
-                    DELETE FROM hive.{self.schema}.{TRINO_OCP_AWS_DAILY_SUMMARY_TABLE}
-                        WHERE source = '{aws_source}'
-                        AND ocp_source = '{ocp_source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        AND day = '{day}'"""
+                sql = get_report_db_accessor().get_delete_by_day_ocp_on_cloud_sql(
+                    schema_name=self.schema,
+                    table_name=TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
+                    cloud_source=aws_source,
+                    ocp_source=ocp_source,
+                    year=year,
+                    month=month,
+                    day=day,
+                )
                 self._execute_trino_raw_sql_query(
                     sql,
                     context={"year": year, "month": month, "day": day, "table": TRINO_OCP_AWS_DAILY_SUMMARY_TABLE},
@@ -222,18 +240,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             enabled_tags = self.check_for_matching_enabled_keys()
             if EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).exists() and enabled_tags:
                 matched_tags = self.get_openshift_on_cloud_matched_tags(bill_id)
-        if not matched_tags and enabled_tags:
-            LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
-            if is_tag_processing_disabled(self.schema):
-                LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
-                return []
-            LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
-            matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
-                aws_provider_uuid, [ocp_provider_uuid], start_date, end_date, invoice_month=None
-            )
         if matched_tags:
-            return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-        return matched_tags
+            return self._matched_tags_to_strings(matched_tags)
+        if not enabled_tags:
+            return []
+        LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+        return self._trino_matched_tag_strings(aws_provider_uuid, ocp_provider_uuid, start_date, end_date, ctx)
 
     def populate_ocp_on_aws_cost_daily_summary_trino(
         self,
@@ -264,14 +276,14 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bill_id,
             report_period_id,
         )
-        managed_path = "trino_sql/aws/openshift/populate_daily_summary"
+        managed_path = f"{self.trino_sql_folder_name}/aws/openshift/populate_daily_summary"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
         LOG.info(log_json(msg="Preparing tables for OCP on AWS flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
         self.delete_ocp_on_aws_hive_partition_by_day(
-            sql_metadata.days_tup,
+            sql_metadata.days_delete_tup,
             sql_metadata.cloud_provider_uuid,
             sql_metadata.ocp_provider_uuid,
             sql_metadata.year,
@@ -290,7 +302,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{managed_path}/2_summarize_data_by_cluster.sql",
             {
                 **sql_metadata.build_cost_model_params(),
-                "unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema),
+                "zero_pad_hive_partitions": is_feature_flag_enabled_by_schema(
+                    self.schema, OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG, dev_fallback=True
+                ),
             },
         )
         LOG.info(log_json(msg="executing data transformations for ocp on aws daily summary", **daily_summary_params))
@@ -298,7 +312,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Insert into postgresql
         psql_insert, psql_params = sql_metadata.prepare_template(
             f"{managed_path}/3_reporting_ocpawscostlineitem_project_daily_summary_p.sql",
-            {"unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema)},
         )
         LOG.info(log_json(msg="running OCP on AWS SQL managed flow", **psql_params))
         self._execute_trino_multipart_sql_query(psql_insert, bind_params=psql_params)
@@ -307,7 +320,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
+        sql = pkgutil.get_data(
+            "masu.database", "sql/aws/openshift/reporting_ocpaws_ocp_infrastructure_back_populate.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -326,21 +341,42 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "report_period_id": report_period_id,
         }
-        # Tag Summary
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
+        # Map fact-table keys first so tags summary is built from parent keys.
+        with schema_context(self.schema):
+            has_mappings = TagMapping.objects.filter(
+                Q(child__provider_type=Provider.PROVIDER_AWS) | Q(child__provider_type=Provider.PROVIDER_OCP)
+            ).exists()
+        if has_mappings:
+            sql = pkgutil.get_data("masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_daily_summary.sql")
+            sql = sql.decode("utf-8")
+            sql_params["materialize_tag_mapping_candidates"] = is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            )
+            if bill_ids and is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_PRE_ANALYZE_FLAG, dev_fallback=True
+            ):
+                for month_start, _ in self.date_helper.list_month_tuples(start_date, end_date):
+                    partition_name = f"{OCPAWSCostLineItemProjectDailySummaryP._meta.db_table}_{month_start:%Y_%m}"
+                    try:
+                        self._analyze_tag_mapping_partition(partition_name, label="OCP-on-AWS")
+                    except DatabaseError as exc:
+                        LOG.warning(
+                            log_json(
+                                msg="OCP-on-AWS tag-mapping pre-ANALYZE failed",
+                                schema=self.schema,
+                                partition=partition_name,
+                                error_type=type(exc).__name__,
+                                pgcode=getattr(exc, "pgcode", None),
+                            )
+                        )
+            self._prepare_and_execute_raw_sql_query(
+                self._table_map["ocp_on_aws_project_daily_summary"], sql, sql_params
+            )
+        else:
+            LOG.debug("No tag mappings for AWS.")
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/reporting_ocpawstags_summary.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_tags_summary"], sql, sql_params)
-        # Tag Mapping
-        with schema_context(self.schema):
-            # Early return check to see if they have any tag mappings set.
-            if not TagMapping.objects.filter(
-                Q(child__provider_type=Provider.PROVIDER_AWS) | Q(child__provider_type=Provider.PROVIDER_OCP)
-            ).exists():
-                LOG.debug("No tag mappings for AWS.")
-                return
-        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_daily_summary.sql")
-        sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_project_daily_summary"], sql, sql_params)
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
@@ -415,7 +451,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_openshift_on_cloud_matched_tags(self, aws_bill_id):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/reporting_ocpaws_matched_tags.sql")
         sql = sql.decode("utf-8")
         sql_params = {"bill_id": aws_bill_id, "schema": self.schema}
         sql, bind_params = self.prepare_query(sql, sql_params)
@@ -430,7 +466,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, aws_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpaws_matched_tags.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.trino_sql_folder_name}/aws/openshift/reporting_ocpaws_matched_tags.sql"
+        )
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)
@@ -443,7 +481,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": tuple(str(day.day) for day in days),
+            "days": hive_partition_day_values(days),
         }
 
         results = self._execute_trino_raw_sql_query(
@@ -496,7 +534,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info(log_json(msg=msg, context=context))
 
-        sql = pkgutil.get_data("masu.database", f"trino_sql/{table_name}.sql")
+        sql = pkgutil.get_data("masu.database", f"{self.trino_sql_folder_name}/aws/{table_name}.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,

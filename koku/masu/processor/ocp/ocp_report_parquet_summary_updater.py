@@ -16,7 +16,10 @@ from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.processor.tag_mapping import apply_tag_mappings
+from masu.processor.tag_mapping import ROW_SCOPE_USAGE
 from masu.util.common import date_range_pair
+from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
@@ -68,11 +71,15 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
     def _check_parquet_date_range(self, start_date, end_date):
         """Make sure we don't summarize for a date range we don't have data for."""
-        start_datetime = datetime(start_date.year, start_date.month, start_date.day)
+        start_datetime = datetime(start_date.year, start_date.month, start_date.day, tzinfo=settings.UTC)
         with OCPReportDBAccessor(self._schema) as accessor:
             min_timestamp, __ = accessor.get_max_min_timestamp_from_parquet(self._provider.uuid, start_date, end_date)
-            if min_timestamp > start_datetime:
-                start_date = min_timestamp.date()
+            if min_timestamp:
+                # Normalize to timezone-aware for comparison (handles both Trino naive and PostgreSQL aware)
+                if min_timestamp.tzinfo is None:
+                    min_timestamp = min_timestamp.replace(tzinfo=settings.UTC)
+                if min_timestamp > start_datetime:
+                    start_date = min_timestamp.date()
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date, **kwargs):
@@ -130,21 +137,12 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_line_item_daily_summary_table_trino(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
                 )
-                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
-
-            # This will process POD and STORAGE together
-            LOG.info(
-                log_json(
-                    msg="updating OCP label summary tables",
-                    context=self._context,
-                    start_date=start_date,
-                    end_date=end_date,
-                    report_period_id=report_period_id,
+                accessor.populate_ui_summary_tables(
+                    SummaryRangeConfig(start_date=start, end_date=end), self._provider.uuid
                 )
-            )
-            accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
-            accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
-            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, [report_period_id])
+
+            # Usage rows only; cloud summary maps infrastructure_raw_cost rows.
+            apply_tag_mappings(self._schema, self._provider, start_date, end_date, row_scope=ROW_SCOPE_USAGE)
 
             LOG.info(
                 log_json(msg="updating OCP report periods", context=self._context, report_period_id=report_period_id)
@@ -168,6 +166,11 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         return start_date, end_date
 
     def check_cluster_infrastructure(self, start_date, end_date):
+        # On-prem supports OCP only. The cloud-provider infrastructure-map SQL
+        # exists only in the SaaS Trino tree, not in self_hosted_sql.
+        if settings.ONPREM:
+            return
+
         # Override start date so we map with a more complete dataset
         start_date = DateHelper().month_start(start_date)
         LOG.info(

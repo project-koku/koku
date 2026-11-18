@@ -8,12 +8,14 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.db import models
+from django.db import transaction
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import to_date
 from koku import celery_app
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ReportStep
@@ -29,6 +31,10 @@ class CostUsageReportManifest(models.Model):
         """Meta for CostUsageReportManifest."""
 
         unique_together = ("provider", "assembly_id")
+        indexes = [
+            # Newest manifest per provider (GET /sources/ status, last payload received).
+            models.Index(fields=["provider", "-creation_datetime"], name="manifest_provider_created_idx"),
+        ]
 
     assembly_id = models.TextField()
     creation_datetime = models.DateTimeField(null=True, default=timezone.now)
@@ -144,6 +150,10 @@ class RegionMapping(models.Model):
     region_name = models.CharField(max_length=64, null=False, unique=True)
 
 
+# DelayedCeleryTasks.metadata key: the row's deadline may only move earlier (see create_or_reset_timeout).
+KEEP_EARLIER_DEADLINE = "keep_earlier_deadline"
+
+
 class DelayedCeleryTasks(models.Model):
     """This table tracks summary tasks that are delaying execution."""
 
@@ -166,10 +176,42 @@ class DelayedCeleryTasks(models.Model):
     def trigger_delayed_tasks(cls):
         """Removes expired records triggering the celery task
         through the pre_delete signal trigger_celery_task.
+
+        The expired rows are locked and deleted in one transaction, so
+        pre_delete sends each row's current payload: a concurrent
+        create_or_reset_timeout (which also locks the row) either finishes
+        first, and its merged date range is what fires, or waits and then
+        finds the row gone and creates a new one. Without the lock, a merge
+        into an expired row (kept expired by keep_earlier_deadline) between
+        the read and the delete was lost: the old range fired and the merged
+        row was deleted.
         """
         now = timezone.now()
-        expired_records = cls.objects.filter(timeout_timestamp__lt=now)
-        expired_records.delete()
+        with transaction.atomic():
+            expired_records = list(cls.objects.select_for_update().filter(timeout_timestamp__lt=now).order_by("pk"))
+            for record in expired_records:
+                record.delete()
+
+    @staticmethod
+    def _merge_task_kwargs_date_range(existing_kwargs, new_kwargs):
+        """Widen start/end in new_kwargs against an existing delayed payload."""
+        merged = {**new_kwargs}
+        existing_start = to_date(existing_kwargs.get("start_date"))
+        existing_end = to_date(existing_kwargs.get("end_date"))
+        new_start = to_date(new_kwargs.get("start_date"))
+        new_end = to_date(new_kwargs.get("end_date"))
+
+        if existing_start and new_start:
+            merged["start_date"] = str(min(existing_start, new_start))
+        elif existing_start:
+            merged["start_date"] = str(existing_start)
+
+        if existing_end and new_end:
+            merged["end_date"] = str(max(existing_end, new_end))
+        elif existing_end:
+            merged["end_date"] = str(existing_end)
+
+        return merged
 
     @classmethod
     def create_or_reset_timeout(
@@ -180,31 +222,76 @@ class DelayedCeleryTasks(models.Model):
         provider_uuid,
         queue_name,
         timeout_seconds=settings.DELAYED_TASK_TIME,
+        billing_month=None,
+        merge_date_range=False,
+        keep_earlier_deadline=False,
     ):
         """
         Saves data regarding to the celery task being delayed.
+
+        When billing_month is provided, rows are keyed by
+        (task_name, provider_uuid, metadata.billing_month) so callers can
+        keep one pending task per calendar month. Omitting billing_month
+        preserves the legacy (task_name, provider_uuid) lookup.
+
+        Lookup/update runs under ``select_for_update`` so concurrent resets
+        for the same key serialize. When ``merge_date_range`` is True, the
+        stored ``start_date`` / ``end_date`` are widened (min/max) against the
+        locked row before save. When ``keep_earlier_deadline`` is True, the
+        row is marked (``metadata.keep_earlier_deadline``) and from then on
+        its deadline can only move earlier, whichever caller resets it, so
+        no stream of calls can postpone the task indefinitely. The mark
+        goes with the row when the task fires; unmarked rows keep the
+        ordinary debounce.
         """
-        existing_task = cls.objects.filter(task_name=task_name, provider_uuid=provider_uuid).first()
+        filters = {"task_name": task_name, "provider_uuid": provider_uuid}
+        billing_month_str = None
+        if billing_month is not None:
+            billing_month_str = (
+                billing_month.isoformat() if hasattr(billing_month, "isoformat") else str(billing_month)
+            )
+            filters["metadata__billing_month"] = billing_month_str
 
-        if existing_task:
-            # The task already exist extend the timeout.
-            existing_task.set_timeout(timeout_seconds)
-            existing_task.save()
-            return existing_task
+        with transaction.atomic():
+            existing_task = cls.objects.select_for_update().filter(**filters).first()
 
-        if not task_kwargs.get("tracing_id"):
-            task_kwargs["tracing_id"] = str(uuid4())
+            if existing_task:
+                if merge_date_range:
+                    task_kwargs = cls._merge_task_kwargs_date_range(existing_task.task_kwargs, task_kwargs)
+                # Refresh payload so the latest args/kwargs/queue win on fire.
+                if not task_kwargs.get("tracing_id") and existing_task.task_kwargs.get("tracing_id"):
+                    task_kwargs = {**task_kwargs, "tracing_id": existing_task.task_kwargs["tracing_id"]}
+                existing_task.task_args = task_args
+                existing_task.task_kwargs = task_kwargs
+                existing_task.queue_name = queue_name
+                previous_deadline = existing_task.timeout_timestamp
+                existing_task.set_timeout(timeout_seconds)
+                metadata = existing_task.metadata or {}
+                if keep_earlier_deadline:
+                    metadata = {**metadata, KEEP_EARLIER_DEADLINE: True}
+                    existing_task.metadata = metadata
+                if metadata.get(KEEP_EARLIER_DEADLINE) and previous_deadline < existing_task.timeout_timestamp:
+                    existing_task.timeout_timestamp = previous_deadline
+                existing_task.save()
+                return existing_task
 
-        new_task = cls(
-            task_name=task_name,
-            task_args=task_args,
-            task_kwargs=task_kwargs,
-            provider_uuid=provider_uuid,
-            queue_name=queue_name,
-        )
-        new_task.set_timeout(timeout_seconds)
-        new_task.save()
-        return new_task
+            if not task_kwargs.get("tracing_id"):
+                task_kwargs["tracing_id"] = str(uuid4())
+
+            metadata = {"billing_month": billing_month_str} if billing_month_str is not None else {}
+            if keep_earlier_deadline:
+                metadata[KEEP_EARLIER_DEADLINE] = True
+            new_task = cls(
+                task_name=task_name,
+                task_args=task_args,
+                task_kwargs=task_kwargs,
+                provider_uuid=provider_uuid,
+                queue_name=queue_name,
+                metadata=metadata,
+            )
+            new_task.set_timeout(timeout_seconds)
+            new_task.save()
+            return new_task
 
 
 @receiver(pre_delete, sender=DelayedCeleryTasks)
@@ -241,3 +328,69 @@ class DiskCapacity(models.Model):
     product_substring = models.CharField(max_length=20, primary_key=True)
     capacity = models.IntegerField()  # GiB
     provider_type = models.CharField(max_length=50, null=False, choices=Provider.CLOUD_PROVIDER_CHOICES)
+
+
+class IngressDeadLetterQueue(models.Model):
+    """Kafka ingress messages parked instead of processed."""
+
+    class Meta:
+        db_table = "reporting_common_ingress_dead_letter_queue"
+        indexes = [
+            models.Index(fields=["org_id"], name="ingress_dlq_org_id_idx"),
+            models.Index(fields=["schema_name"], name="ingress_dlq_schema_name_idx"),
+        ]
+
+    request_id = models.CharField(max_length=255, unique=True)
+    account = models.CharField(max_length=150, null=True)
+    org_id = models.CharField(max_length=36, null=True)
+    schema_name = models.TextField(null=True)
+    payload = models.JSONField()
+    s3_key = models.TextField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class IngressStagingState(models.TextChoices):
+    """Lifecycle of a staged ingress tarball."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    FAILED = "failed"
+
+
+class IngressStagingPayload(models.Model):
+    """Raw ingress tarball waiting for worker-side extract and line-item processing.
+
+    ``payload`` is the Kafka message value, including ``b64_identity`` for ROS.
+    It is cleared when the row is marked processed. Do not log ``payload``.
+    """
+
+    class Meta:
+        db_table = "reporting_common_ingress_staging_payload"
+        indexes = [
+            models.Index(fields=["state", "not_before"], name="ingress_staging_claim_idx"),
+            models.Index(fields=["state", "claimed_at"], name="ingress_staging_lease_idx"),
+            models.Index(fields=["state", "stored_at"], name="ingress_staging_stored_at_idx"),
+        ]
+
+    request_id = models.CharField(max_length=255, unique=True)
+    payload = models.JSONField(null=True)
+    claim_token = models.UUIDField(null=True)
+    enqueued_at = models.DateTimeField(null=True)
+    reconciled_at = models.DateTimeField(null=True)
+    s3_key = models.TextField(null=True)
+    org_id = models.CharField(max_length=36, null=True)
+    cluster_id = models.TextField(null=True)
+    assembly_id = models.TextField(null=True)
+    account = models.CharField(max_length=150, null=True)
+    state = models.CharField(
+        max_length=16,
+        null=True,
+        choices=IngressStagingState.choices,
+        default=IngressStagingState.PENDING,
+    )
+    attempts = models.IntegerField(null=True, default=0)
+    last_error = models.TextField(null=True)
+    stored_at = models.DateTimeField(null=True)
+    claimed_at = models.DateTimeField(null=True)
+    not_before = models.DateTimeField(null=True)

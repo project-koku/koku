@@ -22,16 +22,20 @@ from api.currency.utils import exchange_dictionary
 from api.models import Provider
 from api.provider.models import ProviderBillingSource
 from api.report.test.util.common import populate_ocp_topology
+from api.report.test.util.common import sync_test_rate_rows
 from api.report.test.util.common import update_cost_category
 from api.report.test.util.constants import AWS_COST_CATEGORIES
+from api.report.test.util.constants import OCP_CONSTANTS
 from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from api.report.test.util.data_loader import DataLoader
+from api.report.test.util.unit_test_report_db_accessor import ReportDBAccessor
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.tasks import update_cost_model_costs
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
+from masu.util.common import SummaryRangeConfig
 from reporting.models import AWSAccountAlias
 from reporting.models import AWSOrganizationalUnit
 
@@ -128,6 +132,7 @@ class ModelBakeryDataLoader(DataLoader):
                 "authentication__credentials": credentials,
                 "customer": self.customer,
                 "data_updated_timestamp": timezone.now(),
+                "setup_complete": True,
             }
 
             if provider_type == Provider.PROVIDER_OCP:
@@ -185,7 +190,7 @@ class ModelBakeryDataLoader(DataLoader):
             return baker.make(model_str, **data, **kwargs, _fill_optional=False)
 
     def create_cost_model(self, provider):
-        """Create a cost model and map entry."""
+        """Create a cost model, map entry, and corresponding Rate table rows."""
         with schema_context(self.schema):
             cost_model = baker.make(
                 "CostModel",
@@ -199,6 +204,7 @@ class ModelBakeryDataLoader(DataLoader):
                 _fill_optional=True,
             )
             baker.make("CostModelMap", provider_uuid=provider.uuid, cost_model=cost_model)
+            sync_test_rate_rows(cost_model)
 
     def load_aws_data(self, linked_openshift_provider=None, day_list=None):
         """Load AWS data for tests."""
@@ -315,7 +321,7 @@ class ModelBakeryDataLoader(DataLoader):
         return bills
 
     def load_gcp_data(self, linked_openshift_provider=None):
-        """Load Azure data for tests."""
+        """Load GCP data for tests."""
         bills = []
         provider_type = Provider.PROVIDER_GCP_LOCAL
         credentials = {"project_id": "test_project_id"}
@@ -330,13 +336,14 @@ class ModelBakeryDataLoader(DataLoader):
             self.create_manifest(provider, bill_date)
             bill = self.create_bill(provider_type, provider, bill_date)
             bills.append(bill)
+            invoice_month = bill_date.strftime("%Y%m")
             with schema_context(self.schema):
                 days = (end_date - start_date).days + 1
                 for i, project in product(range(days), projects):
                     baker.make_recipe(
                         "api.report.test.util.gcp_daily_summary",
                         cost_entry_bill=bill,
-                        invoice_month=bill_date.strftime("%Y%m"),
+                        invoice_month=invoice_month,
                         account_id=account_id,
                         project_id=project[0],
                         project_name=project[1],
@@ -346,10 +353,13 @@ class ModelBakeryDataLoader(DataLoader):
                         currency=self.currency,
                         source_uuid=provider.uuid,
                     )
+            with GCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_ui_summary_tables(
+                    self.first_start_date, self.last_end_date, provider.uuid, invoice_month
+                )
         bill_ids = [bill.id for bill in bills]
         with GCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
-            accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
         return bills
 
     def load_openshift_data(self, cluster_id, on_cloud=False):
@@ -397,6 +407,20 @@ class ModelBakeryDataLoader(DataLoader):
                         infrastructure_raw_cost=infra_raw_cost,
                         infrastructure_project_raw_cost=project_infra_raw_cost,
                     )
+                    # GPU data_source - create multiple GPUs with different models
+                    for gpu_idx in range(OCP_CONSTANTS.length):
+                        gpu_labels = OCP_CONSTANTS["gpu_labels"][gpu_idx % len(OCP_CONSTANTS["gpu_labels"])]
+                        baker.make_recipe(
+                            "api.report.test.util.ocp_usage_gpu",
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_id,
+                            usage_start=start_date + timedelta(i),
+                            usage_end=start_date + timedelta(i),
+                            source_uuid=provider.uuid,
+                            all_labels=gpu_labels,
+                            resource_id=f"GPU-{gpu_idx:08d}-{i}",
+                        )
                     if on_cloud:
                         # Network data comes from the cloud bill
                         baker.make_recipe(
@@ -425,9 +449,11 @@ class ModelBakeryDataLoader(DataLoader):
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description"
         ) as mock_description_sql, patch(
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_virtualization_ui_summary_table"
+        ), patch(
+            "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_gpu_ui_summary_table_with_usage_only"
         ):
             mock_description_sql.return_value = ([], [])
-            with OCPReportDBAccessor(self.schema) as accessor:
+            with ReportDBAccessor(self.schema) as accessor:
                 accessor.populate_unit_test_tag_data(report_period_ids, self.first_start_date, self.last_end_date)
                 update_cost_category(self.schema)
                 for date in self.dates:
@@ -439,9 +465,12 @@ class ModelBakeryDataLoader(DataLoader):
                         tracing_id="12345",
                         synchronous=True,
                     )
-                accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
                 accessor.populate_unit_test_virt_ui_table(
                     report_period_ids, self.first_start_date, self.last_end_date, provider.uuid
+                )
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_ui_summary_tables(
+                    SummaryRangeConfig(start_date=self.first_start_date, end_date=self.last_end_date), provider.uuid
                 )
 
         populate_ocp_topology(self.schema, provider, cluster_id)
@@ -458,7 +487,7 @@ class ModelBakeryDataLoader(DataLoader):
             dbaccessor, tags_update_method, ui_update_method = (
                 AWSReportDBAccessor,
                 "populate_ocp_on_aws_tag_information",
-                "populate_ocp_on_aws_ui_summary_tables",
+                "populate_unit_test_ocpaws_ui_summary_tables",
             )
             with schema_context(self.schema):
                 account_alias = random.choice(list(AWSAccountAlias.objects.all()))
@@ -470,7 +499,7 @@ class ModelBakeryDataLoader(DataLoader):
             dbaccessor, tags_update_method, ui_update_method = (
                 AzureReportDBAccessor,
                 "populate_ocp_on_azure_tag_information",
-                "populate_ocp_on_azure_ui_summary_tables",
+                "populate_unit_test_ocpazure_ui_summary_tables",
             )
             unique_fields = {"currency": self.currency, "subscription_guid": self.faker.uuid4()}
         elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
@@ -480,7 +509,7 @@ class ModelBakeryDataLoader(DataLoader):
             dbaccessor, tags_update_method, ui_update_method = (
                 GCPReportDBAccessor,
                 "populate_ocp_on_gcp_tag_information",
-                "populate_ocp_on_gcp_ui_summary_tables",
+                "populate_unit_test_ocpgcp_ui_summary_tables",
             )
             unique_fields = {
                 "currency": self.currency,
@@ -547,5 +576,6 @@ class ModelBakeryDataLoader(DataLoader):
                 "cluster_id": cluster_id,
                 "cluster_alias": cluster_id,
             }
+        with ReportDBAccessor(self.schema) as accessor:
             cls_method = getattr(accessor, ui_update_method)
             cls_method(sql_params)

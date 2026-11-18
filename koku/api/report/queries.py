@@ -21,11 +21,14 @@ from urllib.parse import quote
 import ciso8601
 import numpy as np
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
+from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
@@ -35,9 +38,11 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
+from django_tenants.utils import tenant_context
 from pandas.api.types import CategoricalDtype
 
-from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import build_exchange_rate_case
+from api.currency.utils import get_monthly_exchange_rate_map
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -45,13 +50,45 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 
 LOG = logging.getLogger(__name__)
 
 
-def strip_prefix(key, prefix):
+def strip_prefix(key, prefix=""):
     """Remove the query prefix from a key."""
-    return key.replace(prefix, "").replace("and:", "").replace("or:", "")
+    return key.replace(prefix, "").replace("and:", "").replace("or:", "").replace("exact:", "")
+
+
+def get_base_key(filter_key):
+    """Extract base key from filter by removing operator prefixes."""
+    for operator in ["exact:", "and:", "or:"]:
+        if operator in filter_key:
+            return filter_key.replace(operator, "")
+    return filter_key
+
+
+def group_filters_by_base_key(filter_list):
+    """Group filters by their base key, categorizing by operator type."""
+    filter_groups = {}
+
+    for filt in filter_list:
+        base_key = get_base_key(filt)
+
+        if base_key not in filter_groups:
+            filter_groups[base_key] = {"standard": [], "exact": [], "and": [], "or": []}
+
+        if "exact:" in filt:
+            filter_groups[base_key]["exact"].append(filt)
+        elif "and:" in filt:
+            filter_groups[base_key]["and"].append(filt)
+        elif "or:" in filt:
+            filter_groups[base_key]["or"].append(filt)
+        else:
+            filter_groups[base_key]["standard"].append(filt)
+
+    return filter_groups
 
 
 def _is_grouped_by_key(group_by, keys):
@@ -127,29 +164,36 @@ class ReportQueryHandler(QueryHandler):
     @cached_property
     def query_table_access_keys(self):
         """Return the access keys specific for selecting the query table."""
-        return set(self.parameters.get("access", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("access", {}).keys()}
 
     @cached_property
     def query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
-        return set(self.parameters.get("group_by", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("group_by", {}).keys()}
 
     @cached_property
     def query_table_filter_keys(self):
         """Return the filter keys specific for selecting the query table."""
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("filter", {}).keys())
+        filter_keys = {strip_prefix(key) for key in self.parameters.get("filter", {}).keys()}
         return filter_keys.difference(excluded_filters)
 
     @cached_property
     def query_table_exclude_keys(self):
         """Return the exclude keys specific for selecting the query table."""
-        return set(self.parameters.get("exclude", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("exclude", {}).keys()}
 
     @property
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
-        return self._mapper.report_type_map.get("annotations", {})
+        annotations = self._mapper.report_type_map.get("annotations", {})
+        if self.is_csv_output:
+            annotations = {
+                **annotations,
+                "base_currency": Max(self._mapper.cost_units_key),
+                "exchange_rate": Coalesce(Max("exchange_rate"), Value(1), output_field=DecimalField()),
+            }
+        return annotations
 
     @cached_property
     def query_table(self):
@@ -188,6 +232,7 @@ class ReportQueryHandler(QueryHandler):
 
         try:
             query_table = self._mapper.views[report_type][report_group]
+            LOG.debug(f"{report_group} for {report_type} has entry in views. Using {query_table}.")
         except KeyError:
             msg = f"{report_group} for {report_type} has no entry in views. Using the default."
             LOG.warning(msg)
@@ -197,6 +242,22 @@ class ReportQueryHandler(QueryHandler):
     def is_openshift(self):
         """Determine if we are working with an OpenShift API."""
         return "openshift" in self.parameters.request.path
+
+    @property
+    def _distinct_arrays_split_enabled(self):
+        """Whether clusters/source_uuid are computed via separate parallel-safe queries.
+
+        Base handlers keep the legacy inline ARRAY_AGG; OCP overrides this to gate
+        the split behind a feature flag.
+        """
+        return False
+
+    def _rank_metadata_annotations(self):
+        """ArrayAgg annotations for the ranked query's clusters/source_uuid metadata."""
+        annotations = {"source_uuid": ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True)}
+        if self.is_openshift:
+            annotations["clusters"] = ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True)
+        return annotations
 
     @property
     def is_aws(self):
@@ -285,8 +346,13 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        exact_composed_filters = self._set_operator_specified_filters("exact")
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+
+        # Apply combined OR conditions from exact+partial tag filter combinations
+        if hasattr(filter_collection, "_combined_or_conditions"):
+            for combined_or_condition in filter_collection._combined_or_conditions:
+                composed_filters = composed_filters & combined_or_condition
+
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -298,12 +364,54 @@ class ReportQueryHandler(QueryHandler):
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
         or_composed_filters = self._set_operator_specified_filters("or", True)
-        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
+
+    def _is_icontains_supported(self, filt_config):
+        """
+        Checks if a filter supports 'icontains' and has no custom business logic, like infrastructure, org_unit.
+        """
+        if isinstance(filt_config, list):
+            if not filt_config:
+                return False
+            return all(config.get("operation") == "icontains" and "custom" not in config for config in filt_config)
+
+        is_text_search = filt_config.get("operation") == "icontains"
+        has_no_custom_logic = "custom" not in filt_config
+        return is_text_search and has_no_custom_logic
+
+    def _handle_exact_partial_filter_combination(self, q_param, filt, partial_list, exact_list):
+        """
+        Handles the combination of exact and partial filters on the same field by joining them with OR logic.
+        This fixes the bug where exact+partial filters were incorrectly combined with AND operator.
+        """
+        exact_collection = QueryFilterCollection()
+        filt_list = filt if isinstance(filt, list) else [filt]
+
+        # Ensure lists
+        if not isinstance(partial_list, list):
+            partial_list = [partial_list] if partial_list else []
+        if not isinstance(exact_list, list):
+            exact_list = [exact_list] if exact_list else []
+
+        # Add partial match filters
+        if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
+            for item in partial_list:
+                for f in filt_list:  # Iterate through each config
+                    exact_collection.add(QueryFilter(parameter=item, **f))
+
+        # Add exact match filters
+        if exact_list:
+            for item in exact_list:
+                for f in filt_list:  # Iterate through each config
+                    exact_filt = f.copy()
+                    exact_filt["operation"] = "exact"
+                    exact_collection.add(QueryFilter(parameter=item, **exact_filt))
+
+        return exact_collection
 
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
@@ -318,7 +426,7 @@ class ReportQueryHandler(QueryHandler):
         fields = self._mapper._provider_map.get("filters")
 
         access_filters = QueryFilterCollection()
-
+        special_q_objects = Q()
         aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
         if aws_use_or_operator:
             aws_or_filter_collections = filters.compose()
@@ -334,6 +442,30 @@ class ReportQueryHandler(QueryHandler):
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
             exclude_ = self.parameters.get_exclude(q_param, list())
+            partial_list = self.parameters.get_filter(q_param, list())
+            exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
+
+            # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
+            # The 'continue' prevents duplicate processing.
+            # Exclude fields that have special handling or complex business logic
+            excluded_fields = ["org_unit_id", "infrastructure"]
+            if self._is_icontains_supported(filt) and (partial_list or exact_list) and q_param not in excluded_fields:
+                exact_collection = self._handle_exact_partial_filter_combination(
+                    q_param, filt, partial_list, exact_list
+                )
+                if exact_collection:
+                    special_q_objects &= exact_collection.compose(logical_operator="or")
+                exclude_ = self.parameters.get_exclude(q_param, list())
+                if exclude_:
+                    if isinstance(filt, list):
+                        for _filt in filt:
+                            for item in exclude_:
+                                exclusion.add(QueryFilter(parameter=item, **_filt))
+                    else:
+                        for item in exclude_:
+                            exclusion.add(QueryFilter(parameter=item, **filt))
+                continue
+
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if isinstance(filt, list):
@@ -385,8 +517,7 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = self._check_for_operator_specific_filters(filters)
         if composed_category_filters:
             composed_filters = composed_filters & composed_category_filters
-        # Additional filter[] specific options to consider.
-        multi_field_or_composed_filters = self._set_or_filters()
+        composed_filters &= special_q_objects
         if aws_use_or_operator and aws_or_filter_collections:
             composed_filters = aws_or_filter_collections & composed_filters
         if access_filters:
@@ -396,8 +527,10 @@ class ReportQueryHandler(QueryHandler):
             else:
                 composed_access_filters = access_filters.compose()
                 composed_filters = composed_filters & composed_access_filters
-        if multi_field_or_composed_filters:
-            composed_filters = composed_filters & multi_field_or_composed_filters
+        if report_type_composed_filters := self._mapper._report_type_map.get("composed_filters", []):
+            composed_filters = composed_filters & report_type_composed_filters
+        if conditional_filters := self._provider_map_conditional_filters():
+            composed_filters = composed_filters & conditional_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
         LOG.debug(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
@@ -418,23 +551,24 @@ class ReportQueryHandler(QueryHandler):
             exclusions.add(**exclusion)
         return exclusions.compose()
 
-    def _set_or_filters(self, or_filter=None):
-        """Create a composed filter collection of ORed filters.
-
-        This is designed to handle specific cases in the provider_map
-        not to accomodate user input via the API.
-
+    def _provider_map_conditional_filters(self):
         """
-        filters = QueryFilterCollection()
-        if not or_filter:
-            or_filter = self._mapper._report_type_map.get("or_filter", [])
-        for filt in or_filter:
-            q_filter = QueryFilter(**filt)
-            filters.add(q_filter)
+        Uses the provider_map conditionls to add filters to a query in certain scenarios.
 
-        return filters.compose(logical_operator="or")
+        Such as when we fall back to the daily summary table and need to apply certain filters.
+        """
+        composed_filters = (
+            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("composed_filters", [])
+        )
+        if composed_filters:
+            return composed_filters
+        conditional_filters = QueryFilterCollection()
+        filters_list = self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter", [])
+        for filter_dict in filters_list:
+            conditional_filters.add(**filter_dict)
+        return conditional_filters.compose()
 
-    def _set_prefix_based_exclusions(self, db_column, exclude_filters, prefix):
+    def _set_prefix_based_exclusions(self, db_column, exclude_filters, prefix):  # noqa C901
         """Creates exclusion fitlers for prefixed parameter keys
         that allow null returns.
 
@@ -491,7 +625,10 @@ class ReportQueryHandler(QueryHandler):
                 _filter_list.append(empty_json_filter)
             # We use OR here for our non ocp tables because the  keys will not live in the
             # same json structure.
-            _exclusion_composed = self._set_or_filters(_filter_list)
+            or_exclude_filters = QueryFilterCollection()
+            for filt in _filter_list:
+                or_exclude_filters.add(QueryFilter(**filt))
+            _exclusion_composed = or_exclude_filters.compose(logical_operator="or")
         if _exclusion_composed and null_composed:
             _exclusion_composed = _exclusion_composed | null_composed
         return _exclusion_composed
@@ -509,32 +646,123 @@ class ReportQueryHandler(QueryHandler):
         for _filter in operator_filters:
             # Update the _filter to use the label column name
             _db_name = db_column + "__" + strip_prefix(_filter, prefix)
-            filt = {"field": _db_name, "operation": "icontains"}
+            if operator == "exact":
+                filt = {"field": _db_name, "operation": "exact"}
+            else:
+                filt = {"field": _db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(_filter, list())
             filter_ = self.parameters.get_filter(_filter, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
+            if list_ and (operator == "exact" or not ReportQueryHandler.has_wildcard(list_)):
+                # we should always add exact filters to the filter collection
+                # even if the list has wildcards. Though maybe a wildcard should be invalid for exact filters...
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, logical_operator=operator, **filt)
                     filter_collection.add(q_filter)
         return filter_collection
 
-    def _set_prefix_based_filters(self, filter_collection, db_column, filter_list, prefix):
-        """Create and set colon prefixed filters.
-
-        filter_collection: FilterCollection
-        db_column: column to use to build filter
-        filter_list: list of filters from param's filter & group by
-        prefix: prefix to be stripped from parameter keys
+    def _handle_exact_partial_tag_filter_combination(self, db_column, filter_list, prefix):
         """
-        standard_filters = [filt for filt in filter_list if "and:" not in filt and "or:" not in filt]
+        Handles the combination of exact and partial tag filters by joining them with OR logic.
+        """
+        # Group filters by their base key using utility function
+        filter_groups = group_filters_by_base_key(filter_list)
+
+        combined_filter_collections = []
+        remaining_filters = []
+
+        for base_key, group in filter_groups.items():
+            standard_filters = group["standard"]
+            exact_filters = group["exact"]
+
+            # If we have both standard and exact filters for the same key, combine them with OR logic
+            if standard_filters and exact_filters:
+                combined_collection = QueryFilterCollection()
+
+                # Process all filters (standard and exact) for this base key
+                for prefix_filter in standard_filters + exact_filters:
+                    db_name = db_column + "__" + strip_prefix(prefix_filter, prefix)
+                    group_by = self.parameters.get_group_by(prefix_filter, list())
+                    filter_ = self.parameters.get_filter(prefix_filter, list())
+                    list_ = list(set(group_by + filter_))  # uniquify the list
+
+                    # Determine operation and field based on filter type
+                    if "exact:" in prefix_filter:
+                        filt = {"field": db_name, "operation": "exact"}
+                        logical_operator = "exact"
+                    elif filter_ and ReportQueryHandler.has_wildcard(filter_):
+                        filt = {"field": db_column, "operation": "has_key"}
+                        logical_operator = None
+                        list_ = [strip_prefix(prefix_filter, prefix)]
+                    else:
+                        filt = {"field": db_name, "operation": "icontains"}
+                        logical_operator = None
+
+                    # Add filters to collection
+                    if list_ and not ("exact:" not in prefix_filter and ReportQueryHandler.has_wildcard(list_)):
+                        for item in list_:
+                            q_filter = QueryFilter(parameter=item, logical_operator=logical_operator, **filt)
+                            combined_collection.add(q_filter)
+
+                if combined_collection:
+                    combined_filter_collections.append(combined_collection)
+            else:
+                # No combination needed, add to remaining filters to process normally
+                remaining_filters.extend(standard_filters + exact_filters + group["and"] + group["or"])
+
+        return combined_filter_collections, remaining_filters
+
+    def _set_prefix_based_filters(self, filter_collection, db_column, filter_list, prefix):
+        """Create and set colon prefixed filters. Simplified version using utility functions."""
+
+        # Quick check for exact+partial combinations using utility function
+        filter_groups = group_filters_by_base_key(filter_list)
+        has_exact_partial_combination = any(group["standard"] and group["exact"] for group in filter_groups.values())
+
+        # Only use the complex logic if we have actual exact+partial combinations
+        if has_exact_partial_combination:
+            combined_collections, remaining_filters = self._handle_exact_partial_tag_filter_combination(
+                db_column, filter_list, prefix
+            )
+
+            # Add combined OR collections to the main filter collection
+            for combined_collection in combined_collections:
+                combined_q = combined_collection.compose(logical_operator="or")
+                if combined_q:
+                    filter_collection._combined_or_conditions = getattr(
+                        filter_collection, "_combined_or_conditions", []
+                    )
+                    filter_collection._combined_or_conditions.append(combined_q)
+
+            filters_to_process = remaining_filters
+        else:
+            # Use simple logic for all filters if no exact+partial combinations exist
+            filters_to_process = filter_list
+
+        # Process standard filters using existing logic
+        self._process_standard_filters(filter_collection, db_column, filters_to_process, prefix)
+
+        # Process operator-specific filters
+        for operator in ["and", "or", "exact"]:
+            filter_collection = self._set_operator_specific_prefix_based_filters(
+                filter_collection, db_column, filters_to_process, operator, prefix
+            )
+
+        return filter_collection
+
+    def _process_standard_filters(self, filter_collection, db_column, filters_to_process, prefix):
+        """Process standard filters without operator prefixes."""
+        standard_filters = [
+            filt for filt in filters_to_process if not any(filt.startswith(op) for op in ["and:", "or:", "exact:"])
+        ]
+
         for prefix_filter in standard_filters:
-            # Update the _filter to use the label column name
             db_name = db_column + "__" + strip_prefix(prefix_filter, prefix)
             filt = {"field": db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(prefix_filter, list())
             filter_ = self.parameters.get_filter(prefix_filter, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
+
             if filter_ and ReportQueryHandler.has_wildcard(filter_):
                 filt = {"field": db_column, "operation": "has_key"}
                 q_filter = QueryFilter(parameter=strip_prefix(prefix_filter, prefix), **filt)
@@ -544,15 +772,6 @@ class ReportQueryHandler(QueryHandler):
                     q_filter = QueryFilter(parameter=item, **filt)
                     filter_collection.add(q_filter)
 
-        filter_collection = self._set_operator_specific_prefix_based_filters(
-            filter_collection, db_column, filter_list, "and", prefix
-        )
-        filter_collection = self._set_operator_specific_prefix_based_filters(
-            filter_collection, db_column, filter_list, "or", prefix
-        )
-
-        return filter_collection
-
     def _set_operator_specified_filters(self, operator, check_for_exclude=False):
         """Set any filters using AND instead of OR."""
         fields = self._mapper._provider_map.get("filters")
@@ -560,7 +779,7 @@ class ReportQueryHandler(QueryHandler):
         composed_filter = Q()
 
         for q_param, filt in fields.items():
-            q_param = operator + ":" + q_param
+            q_param = f"{operator}:{q_param}"
             group_by = self.parameters.get_group_by(q_param, list())
             if check_for_exclude:
                 list_ = self.parameters.get_exclude(q_param, list())
@@ -573,7 +792,8 @@ class ReportQueryHandler(QueryHandler):
             # of erroring on validation
             if len(list_) < 2 and logical_operator != "exact":
                 logical_operator = "or"
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
+            if list_ and (operator == "exact" or not ReportQueryHandler.has_wildcard(list_)):
+                # always add exact filters to the filter collection
                 if isinstance(filt, list):
                     for _filt in filt:
                         filt_filters = QueryFilterCollection()
@@ -613,10 +833,7 @@ class ReportQueryHandler(QueryHandler):
             (Dict): query filter dictionary
 
         """
-        if "gcp_filters" in dir(self._mapper) and self._mapper.gcp_filters:
-            filters = super()._get_gcp_filter(delta)
-        else:
-            filters = super()._get_filter(delta)
+        filters = super()._get_filter(delta)
 
         # set up filters for instance-type and storage queries.
         for filter_map in self._mapper._report_type_map.get("filter"):
@@ -693,30 +910,16 @@ class ReportQueryHandler(QueryHandler):
                 group_by.append((db_name, group_pos, original_aws_category))
         return group_by
 
-    @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
-    def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
-
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
         whens = [
             When(project__startswith="openshift-", then=Value("default")),
             When(project__startswith="kube-", then=Value("default")),
             When(project="openshift", then=Value("default")),
-            When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
+            When(
+                project__in=["Platform unallocated", "Worker unallocated", "GPU unallocated"],
+                then=Value("unallocated"),
+            ),
             When(project__in=["Storage unattributed", "Network unattributed"], then=Value("unattributed")),
         ]
 
@@ -880,7 +1083,107 @@ class ReportQueryHandler(QueryHandler):
         # remove access from the output
         output.pop("access")
 
+        if self.currency:
+            output["currency"] = self.currency
+            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
+                with tenant_context(self.tenant):
+                    # Raises ExchangeRateNotFound on missing coverage; cached, so no extra query
+                    # when the exchange-rate annotation already built it.
+                    self.monthly_exchange_rate_map
+
         return output
+
+    def _apply_conversion_query_hints(self, queryset):
+        """Hook for subclasses to add index hints to conversion-input queries."""
+        return queryset
+
+    @cached_property
+    def conversion_queryset(self):
+        """Return report-scoped rows used to discover conversion inputs."""
+        query = self._apply_conversion_query_hints(self.query_table.objects.filter(self.query_filter))
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
+        return query
+
+    @cached_property
+    def include_previous_period_for_conversion(self):
+        """Whether exchange-rate annotations must also cover previous-period delta rows."""
+        return bool(self._delta and "__" not in self._delta)
+
+    @cached_property
+    def previous_conversion_queryset(self):
+        """Return previous-period rows used by normal delta calculations."""
+        if not self.include_previous_period_for_conversion:
+            return self.query_table.objects.none()
+        query = self.query_table.objects.filter(self._get_filter(delta=True))
+        return self._apply_conversion_query_hints(query)
+
+    def _conversion_queryset_values(self, field_name):
+        """Return distinct field values from current and, when needed, previous-period rows."""
+        values = set(self.conversion_queryset.values_list(field_name, flat=True).distinct())
+        if self.include_previous_period_for_conversion:
+            values |= set(self.previous_conversion_queryset.values_list(field_name, flat=True).distinct())
+        return values - {None}
+
+    @cached_property
+    def raw_currencies_for_conversion(self):
+        """Return raw bill currencies present in the report-scoped rows."""
+        return self._conversion_queryset_values(self._mapper.cost_units_key)
+
+    def _get_base_currencies_for_conversion(self):
+        """Return the set of base currencies present in the report-scoped rows.
+
+        Subclasses (e.g. OCP) can override to include additional currency sources.
+        """
+        return self.raw_currencies_for_conversion
+
+    @cached_property
+    def monthly_exchange_rate_map(self):
+        """Return monthly rates for every base currency needed by this request."""
+        start_datetime = self.start_datetime
+        if self.include_previous_period_for_conversion:
+            start_datetime = start_datetime - self._get_date_delta()
+        return get_monthly_exchange_rate_map(
+            self._get_base_currencies_for_conversion(),
+            self.currency,
+            start_datetime.date(),
+            self.end_datetime.date(),
+        )
+
+    def _monthly_exchange_rate_case(self, field_name, base_currencies):
+        """Build a bounded Case expression for monthly rates on a currency field."""
+        whens = []
+        for base_currency in base_currencies:
+            for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
+                whens.append(
+                    When(
+                        **{
+                            field_name: base_currency,
+                            "usage_start__gte": month_start,
+                            "usage_start__lt": month_start + relativedelta(months=1),
+                            "then": Value(rate),
+                        }
+                    )
+                )
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation.
+
+        When constant currency is enabled, uses a bounded Case/When over the monthly
+        rates prefetched for this request. Otherwise uses ExchangeRateDictionary.
+        """
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
+            exchange_rate_annotation = self._monthly_exchange_rate_case(
+                self._mapper.cost_units_key, self.raw_currencies_for_conversion
+            )
+        else:
+            exchange_rate_annotation = build_exchange_rate_case(
+                self._mapper.cost_units_key, self.currency, self.exchange_rates
+            )
+
+        return {"exchange_rate": exchange_rate_annotation}
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
@@ -998,7 +1301,7 @@ class ReportQueryHandler(QueryHandler):
             df[sort_term] = df[sort_term].replace({none_sort_term: None})
         return df.to_dict("records")
 
-    def _order_by(self, data, order_fields):
+    def _order_by(self, data, order_fields):  # noqa: C901
         """Order a list of dictionaries by dictionary keys.
 
         Args:
@@ -1025,6 +1328,10 @@ class ReportQueryHandler(QueryHandler):
             "storage_class",
             "request_cpu",
             "request_memory",
+            "gpu_memory",
+            "gpu_count",
+            "usage_efficiency",
+            "wasted_cost",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
@@ -1056,6 +1363,14 @@ class ReportQueryHandler(QueryHandler):
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
                     reverse=reverse,
                 )
+
+        # Ensure "Others" is always the last item regardless of order_by direction
+        if self._limit:
+            group_by = self._get_group_by()
+            sorted_data = sorted(
+                sorted_data,
+                key=lambda item: any(item.get(f) in ("Others", "Other") for f in group_by),
+            )
 
         return sorted_data
 
@@ -1140,16 +1455,47 @@ class ReportQueryHandler(QueryHandler):
         if self.order_field == "subscription_name":
             group_by_value.append("subscription_name")
 
+        # rank_group_by allows ranking at a finer granularity than the response group_by
+        # (e.g. mig_profiles ranks by (mig_profile, mig_id) so filter[limit] limits instances).
+        rank_group_by = self._mapper.report_type_map.get("rank_group_by", group_by_value)
+
+        # Annotate alias fields in rank_group_by (e.g. mig_id = F("mig_instance_id")) that
+        # are not in self.annotations. Skip F(same_name) aliases — those are direct model
+        # fields and re-annotating them raises "conflicts with a field on the model".
+        extra_rank_group_annotations = {
+            field: expr
+            for field in rank_group_by
+            if (expr := self.report_annotations.get(field)) is not None
+            and not (isinstance(expr, F) and expr.name == field)
+        }
+
+        # Do not re-annotate names that are already in the rank GROUP BY columns.
+        # Otherwise Django raises ValueError
+        for grouped_col in rank_group_by:
+            rank_annotations.pop(grouped_col, None)
+
+        if self._distinct_arrays_split_enabled and not rank_annotations:
+            # A ranked query must aggregate to produce one row per
+            # rank_group_by tuple. Ordering by a rank group field removes it
+            # from rank_annotations, so use an internal aggregate to retain
+            # SQL grouping. _ranked_list drops rank fields from the response.
+            rank_annotations["rank_group_count"] = Count("pk")
+
+        rank_metadata_annotations = self._rank_metadata_annotations()
         ranks = (
             query.annotate(**self.annotations)
-            .values(*group_by_value)
+            .annotate(**extra_rank_group_annotations)
+            .values(*rank_group_by)
             .annotate(**rank_annotations)
-            .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
+        # When the split is enabled the DISTINCT array aggregates are computed in a
+        # separate query (below) so this ranked aggregation can parallelize.
+        if not self._distinct_arrays_split_enabled:
+            ranks = ranks.annotate(source_uuid=rank_metadata_annotations["source_uuid"])
         if self.is_aws and "account" in self._get_group_by():
             ranks = ranks.annotate(**{"account_alias": F("account_alias__account_alias")})
-        if self.is_openshift:
-            ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
+        if self.is_openshift and not self._distinct_arrays_split_enabled:
+            ranks = ranks.annotate(clusters=rank_metadata_annotations["clusters"])
 
         # The Window annotation MUST happen after aggregations in Django 4.2 or later.
         # https://forum.djangoproject.com/t/django-4-2-behavior-change-when-using-arrayagg-on-unnested-arrayfield-postgresql-specific/21547
@@ -1159,19 +1505,41 @@ class ReportQueryHandler(QueryHandler):
         rankings = []
         distinct_ranks = []
         for rank in ranks:
-            rank_value = (rank.get(group) for group in group_by_value)
+            rank_value = tuple(rank.get(group) for group in rank_group_by)
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks, set(rank_annotations))
 
-    def _ranked_list(self, data_list, ranks, rank_fields=None):  # noqa C901
+        # When the split is enabled, compute clusters/source_uuid in a separate
+        # DISTINCT aggregation (no currency math / window) so the ranked query
+        # above can parallelize.  Grouped identically to the ranks.
+        rank_metadata_rows = None
+        if self._distinct_arrays_split_enabled and rank_metadata_annotations:
+            rank_metadata_rows = list(
+                query.annotate(**self.annotations)
+                .annotate(**extra_rank_group_annotations)
+                .values(*rank_group_by)
+                .annotate(**rank_metadata_annotations)
+            )
+        return self._ranked_list(
+            data,
+            distinct_ranks,
+            set(rank_annotations),
+            rank_group_by=rank_group_by,
+            rank_metadata_rows=rank_metadata_rows,
+        )
+
+    def _ranked_list(  # noqa C901
+        self, data_list, ranks, rank_fields=None, rank_group_by=None, rank_metadata_rows=None
+    ):
         """Get list of ranked items less than top.
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
             ranks (List): list of ranks to use; overrides ranking that may present in data_list.
             rank_fields (Set): the fields on which ranking is performed.
+            rank_group_by (List): fields used for ranking; defaults to self._get_group_by().
+                When set, filter[limit] limits individual items rather than response groups.
         Returns:
             List(Dict): List of data points meeting the rank criteria
 
@@ -1180,6 +1548,8 @@ class ReportQueryHandler(QueryHandler):
             rank_fields = set()
         is_offset = "offset" in self.parameters.get("filter", {})
         group_by = self._get_group_by()
+        if rank_group_by is None:
+            rank_group_by = group_by
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
         drop_columns = {"source_uuid"}
@@ -1189,11 +1559,24 @@ class ReportQueryHandler(QueryHandler):
         if not data_list:
             return data_list
         data_frame = pd.DataFrame(data_list)
+        # Rank rows may include dimensions not selected on the main queryset (e.g. subscription_name).
+        merge_rank_keys = [col for col in rank_group_by if col in data_frame.columns]
+        if not merge_rank_keys:
+            merge_rank_keys = list(rank_group_by)
 
         rank_data_frame = pd.DataFrame(ranks)
         rank_data_frame = rank_data_frame.drop(
             columns=["cost_total", "cost_total_distributed", "usage"], errors="ignore"
         )
+        if rank_metadata_rows:
+            # Merge in clusters/source_uuid from the separate (parallel-safe)
+            # metadata query, keyed on the rank group columns.
+            metadata_frame = pd.DataFrame(rank_metadata_rows)
+            metadata_keys = [
+                col for col in rank_group_by if col in metadata_frame.columns and col in rank_data_frame.columns
+            ]
+            if metadata_keys:
+                rank_data_frame = rank_data_frame.merge(metadata_frame, on=metadata_keys, how="left")
 
         # Determine what to get values for in our rank data frame
         if self.is_aws and "account" in group_by:
@@ -1206,12 +1589,12 @@ class ReportQueryHandler(QueryHandler):
             drop_columns.add(col)
             agg_fields[col] = ["max"]
 
-        aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
+        aggs = data_frame.groupby(merge_rank_keys, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
         aggs.columns = columns
         aggs = aggs.reset_index()
         aggs = aggs.replace({np.nan: None})
-        rank_data_frame = rank_data_frame.merge(aggs, on=group_by)
+        rank_data_frame = rank_data_frame.merge(aggs, on=merge_rank_keys)
 
         # Create a dataframe of days in the query
         days = data_frame["date"].unique()
@@ -1228,7 +1611,7 @@ class ReportQueryHandler(QueryHandler):
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN
         account_aliases = None
-        merge_on = group_by + ["date"]
+        merge_on = merge_rank_keys + ["date"]
         if self.is_aws and "account" in group_by:
             account_aliases = data_frame[["account", "account_alias"]]
             account_aliases = account_aliases.drop_duplicates(subset="account")
@@ -1244,13 +1627,14 @@ class ReportQueryHandler(QueryHandler):
                 (data_frame["rank"] > self._offset) & (data_frame["rank"] <= (self._offset + self._limit))
             ]
         else:
-            # Get others category
-            others_data_frame = self._aggregate_ranks_over_limit(data_frame, group_by)
-            # Reduce data to limit
-            data_frame = data_frame[data_frame["rank"] <= self._limit]
-
-            # Add the others category to the data set
-            data_frame = pd.concat([data_frame, others_data_frame])
+            include_others = self._mapper.report_type_map.get("rank_limit_include_others", True)
+            if include_others:
+                # Aggregate rank > limit before trimming; _aggregate_ranks_over_limit needs those rows.
+                others_data_frame = self._aggregate_ranks_over_limit(data_frame, group_by)
+                data_frame = data_frame[data_frame["rank"] <= self._limit]
+                data_frame = pd.concat([data_frame, others_data_frame])
+            else:
+                data_frame = data_frame[data_frame["rank"] <= self._limit]
 
         # Replace NaN with 0
         numeric_columns = [col for col in self.report_annotations if "unit" not in col]
@@ -1268,19 +1652,22 @@ class ReportQueryHandler(QueryHandler):
         groups = ["date"]
 
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+        aggregate_ranks_exclusions = self._mapper.report_type_map.get("aggregate_ranks_exclusions", [])
+        skip_columns.extend(aggregate_ranks_exclusions)
 
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
+
         others_data_frame = data_frame[data_frame["rank"] > self._limit]
         other_count = len(others_data_frame[group_by].drop_duplicates())
-
         source_uuids = list(others_data_frame["source_uuid"].explode().dropna().unique())
         if self.is_openshift:
             clusters = list(others_data_frame["clusters"].explode().dropna().unique())
             drop_columns.append("clusters")
 
         others_data_frame = others_data_frame.drop(columns=drop_columns, errors="ignore")
+
         others_data_frame = others_data_frame.groupby(groups, dropna=True).agg(aggs, axis=1)
         columns = others_data_frame.columns.droplevel(1)
         others_data_frame.columns = columns
@@ -1304,7 +1691,8 @@ class ReportQueryHandler(QueryHandler):
         others_data_frame["source_uuid"] = [source_uuids] * len(others_data_frame)
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
-
+        for column in aggregate_ranks_exclusions:
+            others_data_frame[column] = other_str
         return others_data_frame
 
     def date_group_data(self, data_list):
@@ -1340,7 +1728,7 @@ class ReportQueryHandler(QueryHandler):
         date_delta = self._get_date_delta()
         # Added deltas for each grouping
         # e.g. date, account, region, availability zone, et cetera
-        delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
+        delta_field = self._get_delta_field()
         delta_annotation = {self._delta: delta_field}
 
         previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
@@ -1353,6 +1741,10 @@ class ReportQueryHandler(QueryHandler):
             previous_dict[json_dumps(key)] = row[self._delta]
 
         return previous_dict
+
+    def _get_delta_field(self):
+        """Return the aggregate expression used for previous-period deltas."""
+        return self._mapper._report_type_map.get("delta_key").get(self._delta)
 
     def _get_previous_totals_filter(self, filter_dates):
         """Filter previous time range to exlude days from the current range.
@@ -1382,6 +1774,19 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
+    def _get_previous_query(self, delta_filter):
+        """Return the previous-period queryset used for row and total deltas."""
+        return self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
+
+    def _get_previous_rows_query(self, previous_query, query_data):
+        """Return the query used for per-row previous-period delta values.
+
+        Providers can narrow this queryset when doing so preserves all returned
+        row deltas. The full ``previous_query`` remains the source for the
+        response-level delta total.
+        """
+        return previous_query
+
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
 
@@ -1395,8 +1800,9 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        previous_query = self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
-        previous_dict = self._create_previous_totals(previous_query, delta_group_by)
+        previous_query = self._get_previous_query(delta_filter)
+        previous_rows_query = self._get_previous_rows_query(previous_query, query_data)
+        previous_dict = self._create_previous_totals(previous_rows_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)
             previous_total = previous_dict.get(json_dumps(key)) or 0
@@ -1414,7 +1820,7 @@ class ReportQueryHandler(QueryHandler):
                 current_total_sum = Decimal(query_sum.get("cost", {}).get("total").get("value") or 0)
             else:
                 current_total_sum = Decimal(query_sum.get("cost") or 0)
-        delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
+        delta_field = self._get_delta_field()
         prev_total_sum = previous_query.aggregate(value=delta_field)
         if self.resolution == "daily":
             dates = [entry.get("date") for entry in query_data]

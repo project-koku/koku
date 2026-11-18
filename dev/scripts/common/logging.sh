@@ -11,12 +11,13 @@ RESET=$(tput sgr0)
 
 log(){
     local _tag_name=${1}
-    local _msg=${@:2}
-    # timestamp
-    local TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+    shift
+    local _msg="$*"
+    local TIMESTAMP
+    TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 
-    printf "${TS}${TIMESTAMP} ${TAG}[${_tag_name}\t] ${_msg}\n"
-    printf  ${RESET}
+    # Use %s so messages containing '%' (e.g. HTML error bodies) do not break printf.
+    printf '%s\n' "${TS}${TIMESTAMP} ${TAG}[${_tag_name}"$'\t'"] ${_msg}${RESET}"
 }
 
 log-info() {

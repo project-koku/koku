@@ -14,7 +14,7 @@ To submit an issue please visit https://issues.redhat.com/projects/COST/.
 
 ## Getting Started
 
-This project is developed using Python 3.11. Make sure you have at least this version installed.
+This project is developed using Python 3.12. Make sure you have at least this version installed.
 
 ### Prerequisites
 
@@ -36,6 +36,11 @@ do the following:
 1.  Copy [`.env.example`](.env.example) into a `.env` and update the following in your `.env`:
 
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
+
+    **For on-premise deployments** without access to Red Hat SaaS services, also set:
+
+        ONPREM=True
+
 
 2.  Copy [`dev/credentials/aws.example`](dev/credentials/aws.example) into `dev/credentials/aws`, obtain AWS credentials, then update the credentials file:
 
@@ -91,14 +96,37 @@ This will explain how to start the server and its dependencies using Docker (or 
 
         make docker-logs
 
-With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
+With all containers running any source added will be processed by saving CSV files in local S4 object storage and storing Parquet files there. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
+
+##### Multi-Worker Support
+
+Koku supports running multiple Celery workers locally:
+
+```bash
+# Start with multiple workers (e.g., 3 workers)
+make docker-up-min scale=3
+
+# Or with Trino
+make docker-up-min-trino-no-build scale=3
+
+# View logs from all workers
+make docker-logs
+```
+
+The `scale` parameter works with any docker-compose target:
+- `scale=1` (default): Single worker with debug port available for VSCode debugging
+- `scale>1`: Multiple workers without debug port (prevents port conflicts)
+
+**Note:** Debug port 5678 is automatically managed - included for single worker (`scale=1`), excluded for multi-worker to prevent conflicts.
 
 To add test sources and data:
 
     make create-test-customer
     make load-test-customer-data # Optional parameters: start={start_date} end={end_date} test_source=AWS
 
-The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials.
+The S4 web UI will be available at [http://127.0.0.1:5002/](http://127.0.0.1:5002/). Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials (defaults: `s4admin` / `s4secret`).
+
+The S3 API (used by nise and OCP ingestion) is exposed at [http://127.0.0.1:9000/](http://127.0.0.1:9000/) via `s4-path-proxy`. `make docker-up-min` starts the proxy, S4 backend, and creates required buckets automatically.
 
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 
@@ -247,11 +275,11 @@ This will rebuild the tox virtual env and then run all tests.
 
 To run unit tests specifically:
 
-    tox -e py39
+    tox -e py312
 
 To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the -- separator. For example:
 
-    tox -e py39 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
+    tox -e py312 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
 To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker compose run:
 

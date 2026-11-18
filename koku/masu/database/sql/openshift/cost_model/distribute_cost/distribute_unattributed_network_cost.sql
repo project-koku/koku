@@ -1,11 +1,3 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-WHERE lids.usage_start >= {{start_date}}::date
-    AND lids.usage_start <= {{end_date}}::date
-    AND lids.report_period_id = {{report_period_id}}
-    AND lids.cost_model_rate_type = 'unattributed_network'
-;
-
-{% if populate %}
 WITH cte_narrow_dataset as (
     SELECT
         lids.usage_start,
@@ -156,10 +148,9 @@ SELECT
     ctl.cluster_capacity_cpu_core_hours,
     ctl.cluster_capacity_memory_gigabyte_hours,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
-    'unattributed_network' as cost_model_rate_type,
+    {{cost_model_rate_type}} as cost_model_rate_type,
     ctl.distributed_cost,
     ctl.cost_category_id,
     ctl.raw_currency
 FROM cte_line_items as ctl
 WHERE ctl.distributed_cost != 0;
-{% endif %}

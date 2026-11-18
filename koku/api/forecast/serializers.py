@@ -5,7 +5,7 @@
 """Forecast Serializers."""
 from rest_framework import serializers
 
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import CurrencyField
 from api.report.constants import AWS_COST_TYPE_CHOICES
 from api.report.serializers import handle_invalid_fields
 from api.utils import get_cost_type
@@ -17,7 +17,7 @@ class ForecastParamSerializer(serializers.Serializer):
 
     limit = serializers.IntegerField(required=False, min_value=1)
     offset = serializers.IntegerField(required=False, min_value=0)
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""

@@ -7,6 +7,8 @@ import base64
 import copy
 import json
 import logging
+import sys
+import threading
 import time
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -15,13 +17,14 @@ from unittest.mock import patch
 from cachetools import TTLCache
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 from django.db.utils import IntegrityError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import JsonResponse
-from django.test.utils import modify_settings
+from django.test.utils import CaptureQueriesContext
 from django.test.utils import override_settings
 from django.urls import reverse
-from django_prometheus.testutils import save_registry
 from faker import Faker
 from requests.exceptions import ConnectionError
 from rest_framework import status
@@ -34,12 +37,19 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from koku import middleware as MD
 from koku.cache import CacheEnum
-from koku.middleware import EXTENDED_METRICS
+from koku.middleware import _extract_masu_admin_token
+from koku.middleware import _path_after_api_prefix
+from koku.middleware import capture_soft_timeout_exception
+from koku.middleware import check_masu_admin_token
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
 from koku.middleware import KokuTenantSchemaExistsMiddleware
+from koku.middleware import RequestTimeoutError
+from koku.middleware import RequestTimeoutMiddleware
 from koku.middleware import RequestTimingMiddleware
+from koku.middleware import requires_masu_admin_token
+from koku.middleware import sentry_before_send
 from koku.test_rbac import mocked_requests_get_500_text
 
 
@@ -52,6 +62,20 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
 
     def test_process_exception_not_empty_response(self):
         """Assert that an exception raised for a valid tenant does not return emtpy result set."""
+        mock_request = self.request_context["request"]
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
+        self.assertIsNone(result)
+
+    @patch("koku.middleware.schema_exists", return_value=False)
+    def test_process_exception_schema_not_yet_created(self, _mock_schema_exists):
+        """Assert empty result set when Tenant exists but PG schema is not yet created."""
+        mock_request = self.request_context["request"]
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, ProgrammingError())
+        self.assertIsInstance(result, JsonResponse)
+
+    @patch("koku.middleware.schema_exists", return_value=False)
+    def test_process_exception_non_programming_error_not_intercepted(self, _mock_schema_exists):
+        """Assert that non-ProgrammingError exceptions are not intercepted when PG schema is missing."""
         mock_request = self.request_context["request"]
         result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
         self.assertIsNone(result)
@@ -247,6 +271,48 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         orig_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id, "POST")
         dup_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id, "POST")
         self.assertEqual(orig_cust, dup_cust)
+
+    @patch("koku.middleware.IdentityHeaderMiddleware.customer_cache", TTLCache(5, 0.1))
+    @patch("koku.middleware.USER_CACHE", TTLCache(5, 0.1))
+    @patch("koku.rbac.RbacService.get_access_for_user", return_value={})
+    def test_user_cache_hit_syncs_customer_after_get_then_write(self, _get_access_mock):
+        """USER_CACHE hit must sync customer after GET leaves an unsaved instance cached."""
+        org_id = "7962001"
+        account_id = "7962001"
+        customer_data = self._create_customer_data(account=account_id, org_id=org_id)
+        user_data = self._create_user_data()
+        request_context = self._create_request_context(
+            customer_data, user_data, create_customer=False, create_user=False
+        )
+        mock_request = request_context["request"]
+        mock_request.path = "/api/v1/tags/aws/"
+        mock_request.META["QUERY_STRING"] = ""
+        middleware = IdentityHeaderMiddleware(self.mock_get_response)
+
+        mock_request.method = "GET"
+        middleware.process_request(mock_request)
+        self.assertIsNone(mock_request.user.customer.pk)
+        self.assertFalse(Customer.objects.filter(org_id=org_id).exists())
+
+        mock_request.method = "DELETE"
+        middleware.process_request(mock_request)
+        persisted = Customer.objects.get(org_id=org_id)
+        self.assertIsNotNone(mock_request.user.customer.pk)
+        self.assertEqual(mock_request.user.customer.pk, persisted.pk)
+
+        user_key = f"{org_id}_{user_data['username']}"
+        self.assertEqual(MD.USER_CACHE[user_key].customer.pk, persisted.pk)
+
+    def test_create_customer_get_does_not_persist(self):
+        """GET/HEAD must not persist a Customer for a brand-new org (COST-5198)."""
+        org_id = "7962002"
+        account_id = "7962002"
+        for method in ("GET", "HEAD"):
+            with self.subTest(method=method):
+                Customer.objects.filter(org_id=org_id).delete()
+                customer = IdentityHeaderMiddleware.create_customer(account_id, org_id, method)
+                self.assertIsNone(customer.pk)
+                self.assertFalse(Customer.objects.filter(org_id=org_id).exists())
 
     @override_settings(CACHES={CacheEnum.rbac: {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     @patch("koku.rbac.RbacService.get_access_for_user")
@@ -546,27 +612,407 @@ class RequestTimingMiddlewareTest(IamTestCase):
             self.assertTrue(logged)
 
 
-class AccountEnhancedMiddlewareTest(IamTestCase):
-    """Test middleware to add account info to Prometheus API metrics."""
+class RequestTimeoutMiddlewareTest(IamTestCase):
+    """Tests for the request timeout middleware."""
 
-    @modify_settings(
-        MIDDLEWARE={
-            "append": "koku.middleware.AccountEnhancedMetricsAfterMiddleware",
-            "prepend": "koku.middleware.AccountEnhancedMetricsBeforeMiddleware",
-            "remove": [
-                "django_prometheus.middleware.PrometheusBeforeMiddleware",
-                "django_prometheus.middleware.PrometheusAfterMiddleware",
-            ],
-        }
-    )
-    def test_label_metric(self):
-        """Test that the metric comes back with the account label."""
+    def setUp(self):
+        super().setUp()
+        self.middleware = RequestTimeoutMiddleware(Mock())
 
-        url = reverse("reports-openshift-costs")
-        client = APIClient()
-        client.get(url, **self.headers)
+    @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
+    @patch("koku.middleware.signal.alarm")
+    @patch("koku.middleware.signal.signal")
+    def test_process_request_sets_timeouts(self, mock_signal, mock_alarm, mock_faulthandler, mock_thread):
+        mock_thread.return_value = threading.main_thread()
+        request = Mock(method="GET", path="/api/v1/reports/aws/costs/")
+        self.middleware.process_request(request)
+        mock_signal.assert_called_once()
+        mock_alarm.assert_called_once_with(RequestTimeoutMiddleware.SOFT_TIMEOUT)
+        mock_faulthandler.assert_called_once_with(
+            RequestTimeoutMiddleware.FAULTHANDLER_TIMEOUT,
+            repeat=False,
+            file=sys.stderr,
+            exit=False,
+        )
 
-        registry = save_registry()
-        for metric in registry:
-            if metric.name in EXTENDED_METRICS:
-                self.assertIn("account", metric.samples[0].labels)
+    @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.cancel_dump_traceback_later")
+    @patch("koku.middleware.signal.alarm")
+    def test_process_response_cancels_timeouts(self, mock_alarm, mock_faulthandler, mock_thread):
+        mock_thread.return_value = threading.main_thread()
+        request = Mock()
+        response = Mock(status_code=200)
+        result = self.middleware.process_response(request, response)
+        mock_alarm.assert_called_once_with(0)
+        mock_faulthandler.assert_called_once_with()
+        self.assertEqual(result, response)
+
+    @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
+    @patch("koku.middleware.signal.alarm")
+    def test_timeout_raises_request_timeout_error(self, mock_alarm, mock_faulthandler, mock_thread):
+        mock_thread.return_value = threading.main_thread()
+        request = Mock(method="GET", path="/api/v1/reports/openshift/costs/", start_time=time.time() - 85)
+        with patch("koku.middleware.signal.signal") as mock_signal:
+            self.middleware.process_request(request)
+            handler = mock_signal.call_args[0][1]
+        with self.assertRaises(RequestTimeoutError) as ctx:
+            handler(None, None)
+        self.assertIn("GET", str(ctx.exception))
+        self.assertIn("/api/v1/reports/openshift/costs/", str(ctx.exception))
+
+    @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
+    @patch("koku.middleware.signal.alarm")
+    def test_timeout_handler_without_start_time(self, mock_alarm, mock_faulthandler, mock_thread):
+        mock_thread.return_value = threading.main_thread()
+        request = Mock(method="POST", path="/api/v1/cost-models/", spec=["method", "path"])
+        with patch("koku.middleware.signal.signal") as mock_signal:
+            self.middleware.process_request(request)
+            handler = mock_signal.call_args[0][1]
+        with self.assertRaises(RequestTimeoutError) as ctx:
+            handler(None, None)
+        self.assertIn("POST", str(ctx.exception))
+        self.assertIn("/api/v1/cost-models/", str(ctx.exception))
+
+    def test_process_exception_reports_soft_timeout_and_returns_gateway_timeout(self):
+        request = Mock()
+        timeout = RequestTimeoutError("Request exceeded 28s")
+
+        with patch("koku.middleware.capture_soft_timeout_exception") as mock_capture:
+            response = self.middleware.process_exception(request, timeout)
+
+        mock_capture.assert_called_once_with(timeout)
+        self.assertEqual(response.status_code, 504)
+        self.assertJSONEqual(response.content, {"errors": [{"detail": "Request timed out.", "status": 504}]})
+
+    def test_process_exception_returns_gateway_timeout_when_sentry_capture_fails(self):
+        timeout = RequestTimeoutError("Request exceeded 28s")
+
+        with patch(
+            "koku.middleware.capture_soft_timeout_exception",
+            side_effect=RuntimeError("Sentry unavailable"),
+        ), self.assertLogs("koku.middleware", "WARNING"):
+            response = self.middleware.process_exception(Mock(), timeout)
+
+        self.assertEqual(response.status_code, 504)
+
+    def test_process_exception_ignores_other_exceptions(self):
+        self.assertIsNone(self.middleware.process_exception(Mock(), ValueError("not a timeout")))
+
+    def test_capture_soft_timeout_event_has_frames_without_vars(self):
+        def raise_timeout():
+            local_value = {"keep": "me"}
+            raise RequestTimeoutError(f"Request exceeded 28s ({id(local_value)})")
+
+        try:
+            raise_timeout()
+        except RequestTimeoutError as timeout:
+            with patch("sentry_sdk.capture_event") as mock_capture:
+                capture_soft_timeout_exception(timeout)
+
+        event = mock_capture.call_args.args[0]
+        frames = event["exception"]["values"][0]["stacktrace"]["frames"]
+        self.assertTrue(frames)
+        for frame in frames:
+            self.assertNotIn("vars", frame)
+
+    def test_capture_soft_timeout_does_not_evaluate_dangerous_repr(self):
+        class SqlOnRepr:
+            def __repr__(self):
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                return "sql-on-repr"
+
+        def raise_timeout():
+            dangerous = SqlOnRepr()
+            raise RequestTimeoutError(f"Request exceeded 28s ({id(dangerous)})")
+
+        try:
+            raise_timeout()
+        except RequestTimeoutError as timeout:
+            with patch("sentry_sdk.capture_event"), CaptureQueriesContext(connection) as ctx:
+                capture_soft_timeout_exception(timeout)
+
+        self.assertEqual(len(ctx), 0)
+
+    def test_capture_soft_timeout_passes_exc_info_hint_for_before_send(self):
+        def raise_timeout():
+            raise RequestTimeoutError("Request exceeded 28s")
+
+        try:
+            raise_timeout()
+        except RequestTimeoutError as timeout:
+            with patch("sentry_sdk.capture_event") as mock_capture:
+                capture_soft_timeout_exception(timeout)
+
+        hint = mock_capture.call_args.kwargs["hint"]
+        self.assertIn("exc_info", hint)
+        self.assertIs(hint["exc_info"][0], RequestTimeoutError)
+        tagged = sentry_before_send({}, hint)
+        self.assertEqual(tagged["tags"]["timeout"], "soft")
+
+    def test_capture_soft_timeout_disables_local_variables_in_client_options(self):
+        timeout = RequestTimeoutError("Request exceeded 28s")
+        mock_client = Mock()
+        mock_client.options = {"include_local_variables": True, "max_value_length": 1024}
+
+        with patch("sentry_sdk.get_client", return_value=mock_client), patch(
+            "sentry_sdk.utils.event_from_exception", return_value=({}, {})
+        ) as mock_efe, patch("sentry_sdk.capture_event"):
+            capture_soft_timeout_exception(timeout)
+
+        client_options = mock_efe.call_args.kwargs["client_options"]
+        self.assertFalse(client_options["include_local_variables"])
+        self.assertEqual(client_options["max_value_length"], 1024)
+
+    @patch("koku.middleware.signal.alarm")
+    @patch("koku.middleware.signal.signal")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
+    def test_skips_timeouts_in_non_main_thread(self, mock_faulthandler, mock_signal, mock_alarm):
+        with patch("koku.middleware.threading.current_thread", return_value=threading.Thread()):
+            request = Mock(method="GET", path="/api/v1/reports/aws/costs/")
+            self.middleware.process_request(request)
+        mock_signal.assert_not_called()
+        mock_alarm.assert_not_called()
+        mock_faulthandler.assert_not_called()
+
+    def test_soft_timeout_default(self):
+        self.assertEqual(RequestTimeoutMiddleware.SOFT_TIMEOUT, 90)
+
+    def test_faulthandler_timeout_default(self):
+        self.assertEqual(RequestTimeoutMiddleware.FAULTHANDLER_TIMEOUT, 95)
+
+    def test_faulthandler_timeout_uses_default_for_invalid_value(self):
+        for value in ("0", "-1", "invalid"):
+            with self.subTest(value=value), patch.dict(
+                "koku.middleware.os.environ", {"REQUEST_FAULTHANDLER_TIMEOUT": value}
+            ):
+                self.assertEqual(MD._parse_faulthandler_timeout(), 95)
+
+
+class SentryBeforeSendTest(IamTestCase):
+    """Tests for the sentry before_send hook."""
+
+    def test_before_send_tags_timeout_events(self):
+        from koku.middleware import sentry_before_send
+
+        event = {}
+        hint = {"exc_info": (RequestTimeoutError, RequestTimeoutError("test"), None)}
+        result = sentry_before_send(event, hint)
+        self.assertEqual(result["tags"]["timeout"], "soft")
+
+    def test_before_send_passes_through_other_events(self):
+        from koku.middleware import sentry_before_send
+
+        event = {"tags": {"existing": "value"}}
+        hint = {"exc_info": (ValueError, ValueError("test"), None)}
+        result = sentry_before_send(event, hint)
+        self.assertEqual(result["tags"], {"existing": "value"})
+
+    def test_before_send_handles_no_exc_info(self):
+        from koku.middleware import sentry_before_send
+
+        event = {"message": "test"}
+        hint = {}
+        result = sentry_before_send(event, hint)
+        self.assertEqual(result, event)
+
+
+class MasuAdminTokenGateTest(IamTestCase):
+    """On-prem Masu shared-secret gate (COST-8059)."""
+
+    def setUp(self):
+        """Set up middleware tests."""
+        super().setUp()
+        self.mock_get_response = Mock()
+
+    @classmethod
+    def tearDownClass(cls):
+        """Reload masu URLconf so ONPREM imports do not strip SaaS routes for later tests.
+
+        ``masu.api.urls`` builds ``urlpatterns`` at import time from ``settings.ONPREM``.
+        Client tests that set ``ONPREM=True`` + ``ROOT_URLCONF='masu.urls'`` can leave a
+        truncated module cached in ``sys.modules``, breaking later ``reverse()`` calls.
+        """
+        import importlib
+        import sys
+
+        from django.urls import clear_url_caches
+
+        for name in ("masu.api.urls", "masu.urls"):
+            sys.modules.pop(name, None)
+        clear_url_caches()
+        # Re-import under default settings (ONPREM=False) so SaaS routes are restored.
+        importlib.import_module("masu.api.urls")
+        super().tearDownClass()
+
+    def _request(self, path, authorization=None):
+        request = Mock(path=path, META={})
+        if authorization is not None:
+            request.META["HTTP_AUTHORIZATION"] = authorization
+        return request
+
+    @override_settings(ONPREM=True)
+    @patch("koku.middleware.MASU", True)
+    def test_requires_token_for_admin_paths(self):
+        """Allow-listed admin paths require the token when ONPREM+MASU."""
+        for path in (
+            "/api/cost-management/v1/report_data/",
+            "/api/cost-management/v1/running_celery_tasks/",
+            "/api/cost-management/v1/celery_queue_tasks/",
+            "/api/cost-management/v1/celery_queue_lengths/",
+            "/api/cost-management/v1/db-performance/db-settings/",
+        ):
+            self.assertTrue(requires_masu_admin_token(self._request(path)), path)
+
+    @override_settings(ONPREM=True)
+    @patch("koku.middleware.MASU", True)
+    def test_exempts_status_and_probes(self):
+        """Health and probe paths stay open without a token."""
+        for path in (
+            "/api/cost-management/v1/status/",
+            "/api/cost-management/v1/openapi.json",
+            "/livez",
+            "/readyz",
+        ):
+            self.assertFalse(requires_masu_admin_token(self._request(path)), path)
+
+    @override_settings(ONPREM=True, API_PATH_PREFIX="/api/status")
+    @patch("koku.middleware.MASU", True)
+    def test_exempt_substring_in_prefix_does_not_bypass_gate(self):
+        """Exempt text inside API_PATH_PREFIX must not skip the token on admin routes."""
+        self.assertTrue(requires_masu_admin_token(self._request("/api/status/v1/report_data/")))
+        self.assertFalse(requires_masu_admin_token(self._request("/api/status/v1/status/")))
+
+    def test_path_after_api_prefix_edge_cases(self):
+        """Cover prefix strip branches used by exempt matching (codecov patch)."""
+        with override_settings(API_PATH_PREFIX=""):
+            self.assertEqual(_path_after_api_prefix("/livez"), "/livez")
+        with override_settings(API_PATH_PREFIX="api/cost-management"):
+            self.assertEqual(
+                _path_after_api_prefix("/api/cost-management/v1/report_data/"),
+                "/v1/report_data/",
+            )
+        with override_settings(API_PATH_PREFIX="/api/cost-management"):
+            self.assertEqual(_path_after_api_prefix("/api/cost-management"), "/")
+            self.assertEqual(
+                _path_after_api_prefix("/api/cost-management/v1/status/"),
+                "/v1/status/",
+            )
+            # Path outside the configured prefix is left unchanged.
+            self.assertEqual(_path_after_api_prefix("/livez"), "/livez")
+
+    def test_extract_masu_admin_token_edge_cases(self):
+        """Cover Bearer parsing branches (missing / non-bearer / empty value)."""
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/")))
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/", authorization="Basic abc")))
+        self.assertIsNone(_extract_masu_admin_token(self._request("/report_data/", authorization="Bearer ")))
+        self.assertEqual(
+            _extract_masu_admin_token(self._request("/report_data/", authorization="bearer  tok  ")),
+            "tok",
+        )
+
+    @override_settings(ONPREM=False)
+    @patch("koku.middleware.MASU", True)
+    def test_saas_does_not_require_token(self):
+        """SaaS Masu keeps relying on network isolation (no token gate)."""
+        self.assertFalse(requires_masu_admin_token(self._request("/api/cost-management/v1/report_data/")))
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    def test_check_accepts_valid_bearer_token(self):
+        """Valid Bearer token is accepted."""
+        request = self._request("/report_data/", authorization="Bearer secret-token")
+        self.assertIsNone(check_masu_admin_token(request))
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token\n")
+    def test_check_accepts_token_when_configured_has_trailing_whitespace(self):
+        """Configured MASU_ADMIN_TOKEN is stripped so k8s Secret newlines do not 401."""
+        request = self._request("/report_data/", authorization="Bearer secret-token")
+        self.assertIsNone(check_masu_admin_token(request))
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    def test_check_rejects_missing_invalid_and_empty_config(self):
+        """Missing/invalid tokens and empty configured secret fail closed."""
+        cases = [
+            self._request("/report_data/"),
+            self._request("/report_data/", authorization="Bearer wrong"),
+            self._request("/report_data/", authorization="Basic secret-token"),
+        ]
+        for request in cases:
+            response = check_masu_admin_token(request)
+            self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+        with override_settings(MASU_ADMIN_TOKEN=""):
+            response = check_masu_admin_token(self._request("/report_data/", authorization="Bearer anything"))
+            self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    @patch("koku.middleware.MASU", True)
+    def test_process_request_returns_401_without_token(self):
+        """Middleware short-circuits with 401 when the token is missing."""
+        middleware = IdentityHeaderMiddleware(self.mock_get_response)
+        response = middleware.process_request(self._request("/api/cost-management/v1/report_data/"))
+        self.assertIsInstance(response, HttpResponseUnauthorizedRequest)
+
+    # IQE_TEST_RUN=True keeps the full masu.api.urls surface when ONPREM reloads
+    # the URLconf (avoids stripping SaaS-only routes from the cached module).
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_missing_token_returns_401(self):
+        """High-risk path /report_data/ rejects requests without a token."""
+        response = self.client.get(reverse("report_data"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_invalid_token_returns_401(self):
+        """High-risk path /report_data/ rejects an invalid token."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer wrong")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_valid_token_passes_gate(self):
+        """Valid token clears the gate (missing query params yield 400, not 401)."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer secret-token")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    def test_report_data_empty_secret_fails_closed(self):
+        """Empty MASU_ADMIN_TOKEN in on-prem mode denies even with a Bearer header."""
+        response = self.client.get(reverse("report_data"), HTTP_AUTHORIZATION="Bearer anything")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(ONPREM=True, MASU_ADMIN_TOKEN="secret-token")
+    @patch("koku.middleware.MASU", True)
+    def test_status_remains_open_without_token(self):
+        """/status/ is exempt from the admin-token gate."""
+        middleware = IdentityHeaderMiddleware(self.mock_get_response)
+        request = self._request("/api/cost-management/v1/status/")
+        response = middleware.process_request(request)
+        # Exempt path continues the MASU no-auth flow (sets anonymous user, no 401).
+        self.assertIsNone(response)
+        self.assertTrue(hasattr(request, "user"))
+
+    @override_settings(ONPREM=True, IQE_TEST_RUN=True, MASU_ADMIN_TOKEN="secret-token", ROOT_URLCONF="masu.urls")
+    @patch("koku.middleware.MASU", True)
+    @patch("masu.api.running_celery_tasks.CELERY_INSPECT")
+    def test_gate_applies_across_allow_list(self, mock_celery):
+        """Shared gate covers the full on-prem allow list, not only report_data."""
+        mock_celery.active.return_value = {}
+        allow_list = (
+            "running_celery_tasks",
+            "celery_queue_tasks",
+            "celery_queue_lengths",
+            "db_settings",
+        )
+        for name in allow_list:
+            denied = self.client.get(reverse(name))
+            self.assertEqual(denied.status_code, status.HTTP_401_UNAUTHORIZED, name)
+
+        # Valid token: exercise one allow-listed view end-to-end (others need Redis on host).
+        allowed = self.client.get(reverse("running_celery_tasks"), HTTP_AUTHORIZATION="Bearer secret-token")
+        self.assertEqual(allowed.status_code, status.HTTP_200_OK)

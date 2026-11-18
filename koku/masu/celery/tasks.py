@@ -8,15 +8,17 @@ import logging
 
 import requests
 from botocore.exceptions import ClientError
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django_tenants.utils import schema_context
 from requests.adapters import HTTPAdapter
-from requests.exceptions import HTTPError
-from requests.exceptions import RetryError
+from requests.exceptions import RequestException
 from urllib3.util.retry import Retry
 
+import masu.external.downloader.ocp.payload_landing  # noqa: F401  registers reconcile_ingress_staging
+import masu.processor.ocp.staged_payloads.process_staged  # noqa: F401  registers process_staged_ingress_payload
 from api.common import log_json
-from api.currency.currencies import VALID_CURRENCIES
+from api.currency.currencies import is_valid_iso_currency
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.iam.models import Tenant
@@ -26,13 +28,18 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
+from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import purge_expired_exchange_rates_for_all_tenants
 from koku import celery_app
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
+from koku.pg_partition import precreate_monthly_partitions
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
+from masu.processor import is_ocp_tag_cleanup_disabled
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
@@ -69,6 +76,7 @@ def remove_expired_data(simulate=False):
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
     orchestrator.remove_expired_trino_partitions(simulate)
+    purge_expired_exchange_rates_for_all_tenants(simulate=simulate)
 
 
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
@@ -99,7 +107,7 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
         raise TypeError("purge_trino_files() %s", ", ".join(messages))
 
     if settings.SKIP_MINIO_DATA_DELETION:
-        LOG.info("Skipping purge_trino_files. MinIO in use.")
+        LOG.info("Skipping purge_trino_files. Local S4 data deletion disabled.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
@@ -200,7 +208,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
         raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
     if settings.SKIP_MINIO_DATA_DELETION:
-        LOG.info("Skipping delete_archived_data. MinIO in use.")
+        LOG.info("Skipping delete_archived_data. Local S4 data deletion disabled.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
@@ -237,8 +245,18 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
 
     if provider_type == Provider.PROVIDER_OCP:
         accessor = OCPReportDBAccessor(schema_name)
-        for table, partition_column in TRINO_MANAGED_TABLES.items():
-            accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
+        if settings.ONPREM:
+            # For on-prem, delete from all self-hosted tables via source column
+            accessor.delete_self_hosted_data_by_source(provider_uuid)
+        else:
+            # For SaaS, delete Hive partitions in Trino
+            for table, partition_column in TRINO_MANAGED_TABLES.items():
+                accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
+
+        # The provider's report periods (and their label summaries) are cascade-deleted
+        # synchronously before this task runs; prune any resulting orphan tag index rows.
+        if not is_ocp_tag_cleanup_disabled(schema_name):
+            accessor.cleanup_ocp_tags_values()
 
 
 # This task will process the autovacuum tuning as a background process
@@ -258,12 +276,41 @@ def autovacuum_tune_schemas():
         autovacuum_tune_schema.delay(schema_name)
 
 
-@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
-def get_daily_currency_rates():
-    """Task to get latest daily conversion rates."""
-    rate_metrics = {}
+def _tenant_schema_names():
+    """Return tenant schema names, excluding public and the template schema."""
+    excluded = {"public", Tenant._TEMPLATE_SCHEMA}
+    return [
+        schema_name
+        for schema_name in Tenant.objects.values_list("schema_name", flat=True)
+        if schema_name and schema_name not in excluded
+    ]
 
-    url = settings.CURRENCY_URL
+
+@celery_app.task(name="masu.celery.tasks.precreate_upcoming_partitions", queue=DEFAULT)
+def precreate_upcoming_partitions():
+    """Queue creation of next month's partitions for every tenant schema.
+
+    Scheduled from the middle of the month so the first of the month does not need
+    partition DDL on the processing path.
+    """
+    next_month = (DateHelper().this_month_start + relativedelta(months=1)).date()
+    for schema_name in _tenant_schema_names():
+        precreate_schema_partitions.delay(schema_name, str(next_month))
+
+
+@celery_app.task(name="masu.celery.tasks.precreate_schema_partitions", queue=DEFAULT)
+def precreate_schema_partitions(schema_name, month_start):
+    """Create the partitions for month_start in one schema, skipping busy tables."""
+    counts = precreate_monthly_partitions(schema_name, month_start)
+    LOG.info(log_json(msg="pre-created partitions", schema=schema_name, month_start=month_start, **counts))
+
+
+# Bound connect/read so schema-create and the daily beat cannot hang on a stalled FX service.
+_CURRENCY_RATES_HTTP_TIMEOUT = (5, 30)
+
+
+def _fetch_and_store_exchange_rates(url):
+    """Fetch exchange rates from the configured URL. Returns rate_metrics dict (empty on failure)."""
     retries = Retry(
         total=5,
         allowed_methods={"GET"},
@@ -273,37 +320,68 @@ def get_daily_currency_rates():
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retries))
 
-    # Retrieve conversion rates from URL
     try:
-        response = session.get(url)
+        response = session.get(url, timeout=_CURRENCY_RATES_HTTP_TIMEOUT)
         response.raise_for_status()
-    except (HTTPError, RetryError) as e:
+    except RequestException as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
+        return {}
 
-        return rate_metrics
+    try:
+        data = response.json()
+    except (ValueError, KeyError) as e:
+        LOG.error(f"Invalid or malformed response from {url}")
+        LOG.error(e)
+        return {}
 
-    data = response.json()
-
+    rate_metrics = {}
     rates = data["rates"]
-    # Update conversion rates in database
-    for curr_type in rates.keys():
-        if curr_type.upper() in VALID_CURRENCIES:
-            value = rates[curr_type]
-            try:
-                exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
-                LOG.info(f"Updating currency {curr_type} to {value}")
-            except ExchangeRates.DoesNotExist:
-                LOG.info(f"Creating the exchange rate {curr_type} to {value}")
-                exchange = ExchangeRates(currency_type=curr_type.lower())
-            rate_metrics[curr_type] = value
-            exchange.exchange_rate = value
-            exchange.save()
+    for curr_type, value in rates.items():
+        if not is_valid_iso_currency(curr_type):
+            LOG.warning(f"Skipping unsupported currency {curr_type}")
+            continue
+        if not value or value <= 0:
+            LOG.warning(f"Skipping currency {curr_type} with invalid rate {value}")
+            continue
+        try:
+            exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
+            LOG.info(f"Updating currency {curr_type} to {value}")
+        except ExchangeRates.DoesNotExist:
+            LOG.info(f"Creating the exchange rate {curr_type} to {value}")
+            exchange = ExchangeRates(currency_type=curr_type.lower())
+        rate_metrics[curr_type] = value
+        exchange.exchange_rate = value
+        exchange.save()
     exchange_dictionary(rate_metrics)
     return rate_metrics
 
 
-@celery_app.task(name="masu.celery.scrape_azure_storage_capacities", queue=DEFAULT)
+@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
+def get_daily_currency_rates():
+    """Fetch exchange rates when configured, then upsert/backfill MER per tenant."""
+    url = settings.CURRENCY_URL
+    if url:
+        rate_metrics = _fetch_and_store_exchange_rates(url)
+    else:
+        LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
+        rate_metrics = {}
+
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        try:
+            with schema_context(tenant.schema_name):
+                rates_changed = populate_dynamic_monthly_rates()
+                if rates_changed:
+                    invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
+        except Exception as e:
+            LOG.error(
+                log_json(msg="Failed to populate monthly exchange rates", schema=tenant.schema_name, error=str(e))
+            )
+
+    return rate_metrics
+
+
+@celery_app.task(name="masu.celery.tasks.scrape_azure_storage_capacities", queue=DEFAULT)
 def scrape_azure_storage_capacities():
     """Task to retrieve the Azure disk capacities.
 
@@ -314,10 +392,10 @@ def scrape_azure_storage_capacities():
     disk_size_mapping = disk_fetcher.scrape_disk_size()
     if disk_size_mapping:
         for sku_prefix, disk_size in disk_size_mapping.items():
-            DiskCapacity.objects.get_or_create(
+            DiskCapacity.objects.update_or_create(
                 product_substring=sku_prefix,
-                capacity=disk_size,
                 provider_type=Provider.PROVIDER_AZURE,
+                defaults={"capacity": disk_size},
             )
     return disk_size_mapping
 
@@ -368,7 +446,9 @@ def check_cost_model_status(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in providers:
-        with CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid) as cmdba:
+        with CostModelDBAccessor(
+            provider.account.get("schema_name"), provider.uuid, price_list_effective_on=None
+        ) as cmdba:
             if cmdba.cost_model:
                 skipped += 1
                 continue
@@ -423,9 +503,6 @@ def out_of_order_source_delete_async(source_id):
             f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete."
         )
         return
-    if source.account_id in settings.DEMO_ACCOUNTS:
-        LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
-        return
     delete_source_helper(source)
 
 
@@ -436,9 +513,6 @@ def missing_source_delete_async(source_id):
         source = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
         LOG.warning(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
-        return
-    if source.account_id in settings.DEMO_ACCOUNTS:
-        LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
         return
     delete_source_helper(source)
 

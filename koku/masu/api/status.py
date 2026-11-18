@@ -23,6 +23,7 @@ from rest_framework.settings import api_settings
 
 from api.utils import DateHelper
 from koku import celery_app
+from koku.rbac import RbacService
 from masu.api import API_VERSION
 from masu.config import Config
 from masu.prometheus_stats import CELERY_ERRORS_COUNTER
@@ -51,9 +52,13 @@ def get_status(request):
         "api_version": app_status.api_version,
         "celery_status": app_status.celery_status,
         "commit": app_status.commit,
+        "config": {
+            "debug": app_status.debug,
+            "masu_retain_num_months": Config.MASU_RETAIN_NUM_MONTHS,
+            "rbac_cache_ttl": RbacService().get_cache_ttl(),
+        },
         "current_datetime": app_status.current_datetime,
         "database_status": app_status.database_status,
-        "debug": app_status.debug,
         "modules": app_status.modules,
         "platform_info": app_status.platform_info,
         "python_version": app_status.python_version,

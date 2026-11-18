@@ -18,11 +18,15 @@ from api.common import log_json
 from api.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_unattributed_storage_enabled_azure
-from masu.processor import is_tag_processing_disabled
+from masu.database.tag_mapping_guardrails import run_tag_mapping_update
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
+from masu.processor import OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG
+from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
@@ -90,7 +94,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_azurecostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.trino_sql_folder_name}/azure/reporting_azurecostentrylineitem_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -114,7 +120,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["tags_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_azuretags_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/azure/reporting_azuretags_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
@@ -163,26 +169,37 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "report_period_id": report_period_id,
         }
-        # Tag summary
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazuretags_summary.sql")
+        # Map fact-table keys first so tags summary is built from parent keys.
+        with schema_context(self.schema):
+            has_mappings = TagMapping.objects.filter(
+                Q(child__provider_type=Provider.PROVIDER_AZURE) | Q(child__provider_type=Provider.PROVIDER_OCP)
+            ).exists()
+        if has_mappings:
+            sql = pkgutil.get_data(
+                "masu.database", "sql/azure/openshift/ocpazure_tag_mapping_update_daily_summary.sql"
+            )
+            sql = sql.decode("utf-8")
+            sql_params["materialize_tag_mapping_candidates"] = is_feature_flag_enabled_by_schema(
+                self.schema, OCP_TAG_MAPPING_MATERIALIZED_CANDIDATES_FLAG, dev_fallback=True
+            )
+            run_tag_mapping_update(
+                self,
+                self._table_map["ocp_on_azure_project_daily_summary"],
+                sql,
+                sql_params,
+                label="OCP-on-Azure",
+                flag_checker=is_feature_flag_enabled_by_schema,
+            )
+        else:
+            LOG.debug("No tag mappings for Azure.")
+        sql = pkgutil.get_data("masu.database", "sql/azure/openshift/reporting_ocpazuretags_summary.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_azure_tags_summary"], sql, sql_params)
-        # Tag Mapping
-        with schema_context(self.schema):
-            # Early return check to see if they have any tag mappings set.
-            if not TagMapping.objects.filter(
-                Q(child__provider_type=Provider.PROVIDER_AZURE) | Q(child__provider_type=Provider.PROVIDER_OCP)
-            ).exists():
-                LOG.debug("No tag mappings for Azure.")
-                return
-        sql = pkgutil.get_data("masu.database", "sql/azure/openshift/ocpazure_tag_mapping_update_daily_summary.sql")
-        sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_azure_project_daily_summary"], sql, sql_params)
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/azure/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/azure/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "start_date": start_date,
@@ -195,7 +212,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ocp_on_azure_ui_summary_tables(self, sql_params, tables=OCPAZURE_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/azure/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/azure/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
@@ -206,10 +223,12 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
+        days_tup = hive_partition_day_values(days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"trino_sql/azure/openshift/{table_name}.sql")
+            sql = pkgutil.get_data(
+                "masu.database", f"{self.trino_sql_folder_name}/azure/openshift/ui_summary/{table_name}.sql"
+            )
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -239,13 +258,15 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                sql = f"""
-                    DELETE FROM hive.{self.schema}.{TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE}
-                        WHERE source = '{az_source}'
-                        AND ocp_source = '{ocp_source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        AND day = '{day}'"""
+                sql = get_report_db_accessor().get_delete_by_day_ocp_on_cloud_sql(
+                    schema_name=self.schema,
+                    table_name=TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
+                    cloud_source=az_source,
+                    ocp_source=ocp_source,
+                    year=year,
+                    month=month,
+                    day=day,
+                )
                 self._execute_trino_raw_sql_query(
                     sql,
                     context={"year": year, "month": month, "day": day, "table": TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE},
@@ -274,14 +295,14 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bill_id,
             report_period_id,
         )
-        managed_path = "trino_sql/azure/openshift/populate_daily_summary"
+        managed_path = f"{self.trino_sql_folder_name}/azure/openshift/populate_daily_summary"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
         LOG.info(log_json(msg="Preparing tables for OCP on Azure flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
         self.delete_ocp_on_azure_hive_partition_by_day(
-            sql_metadata.days_tup,
+            sql_metadata.days_delete_tup,
             sql_metadata.cloud_provider_uuid,
             sql_metadata.ocp_provider_uuid,
             sql_metadata.year,
@@ -300,15 +321,16 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{managed_path}/2_summarize_data_by_cluster.sql",
             {
                 **sql_metadata.build_cost_model_params(),
-                "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
+                "zero_pad_hive_partitions": is_feature_flag_enabled_by_schema(
+                    self.schema, OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG, dev_fallback=True
+                ),
             },
         )
         LOG.info(log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params))
         self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
         # Insert into postgresql
         psql_insert, psql_params = sql_metadata.prepare_template(
-            f"{managed_path}/3_reporting_ocpazurecostlineitem_project_daily_summary_p.sql",
-            {"unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema)},
+            f"{managed_path}/3_reporting_ocpazurecostlineitem_project_daily_summary_p.sql"
         )
         LOG.info(log_json(msg="running OCP on Azure Managed table SQL", **psql_params))
         self._execute_trino_multipart_sql_query(psql_insert, bind_params=psql_params)
@@ -343,7 +365,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_openshift_on_cloud_matched_tags(self, azure_bill_id):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "sql/azure/openshift/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
         sql_params = {"bill_id": azure_bill_id, "schema": self.schema}
         sql, bind_params = self.prepare_query(sql, sql_params)
@@ -358,7 +380,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, azure_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazure_matched_tags.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.trino_sql_folder_name}/azure/openshift/reporting_ocpazure_matched_tags.sql"
+        )
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)
@@ -371,7 +395,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": tuple(str(day.day) for day in days),
+            "days": hive_partition_day_values(days),
         }
 
         results = self._execute_trino_raw_sql_query(
@@ -384,7 +408,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the OCP on Azure and OCP daily summary tables. after populating the project table via trino."""
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_ocp_infrastructure_back_populate.sql")
+        sql = pkgutil.get_data(
+            "masu.database", "sql/azure/openshift/reporting_ocpazure_ocp_infrastructure_back_populate.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -427,15 +453,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             enabled_tags = self.check_for_matching_enabled_keys()
             if EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).exists() and enabled_tags:
                 matched_tags = self.get_openshift_on_cloud_matched_tags(bill_id)
-        if not matched_tags and enabled_tags:
-            LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
-            if is_tag_processing_disabled(self.schema):
-                LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
-                return []
-            LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
-            matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
-                azure_provider_uuid, [ocp_provider_uuid], start_date, end_date, invoice_month=None
-            )
         if matched_tags:
-            return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-        return matched_tags
+            return self._matched_tags_to_strings(matched_tags)
+        if not enabled_tags:
+            return []
+        LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+        return self._trino_matched_tag_strings(azure_provider_uuid, ocp_provider_uuid, start_date, end_date, ctx)

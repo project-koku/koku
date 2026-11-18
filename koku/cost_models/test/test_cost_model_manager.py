@@ -3,20 +3,31 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model Manager."""
+import threading
+from datetime import timedelta
 from unittest.mock import patch
+from uuid import uuid4
 
+import django.test
 from django_tenants.utils import tenant_context
+from model_bakery import baker
 
 from api.iam.models import Customer
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
+from api.models import Tenant
 from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.utils import DateHelper
 from common.queues import PriorityQueue
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from cost_models.models import PriceList
+from cost_models.models import PriceListCostModelMap
+from reporting_common.models import CostUsageReportManifest
 
 
 class MockResponse:
@@ -45,12 +56,18 @@ class CostModelManagerTest(IamTestCase):
         data = {
             "name": "Test Cost Model",
             "description": "Test",
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
@@ -77,14 +94,21 @@ class CostModelManagerTest(IamTestCase):
             "name": "Test Cost Model",
             "description": "Test",
             "provider_uuids": [provider_uuid],
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
-                mock_update.s.return_value.set.return_value.apply_async.assert_called()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
+                mock_update.assert_called()
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -96,7 +120,13 @@ class CostModelManagerTest(IamTestCase):
             self.assertEqual(cost_model_map.first().provider_uuid, provider_uuid)
             self.assertEqual(
                 CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
-                [{"uuid": str(provider_uuid), "name": "sample_provider", "last_processed": None}],
+                [
+                    {
+                        "uuid": str(provider_uuid),
+                        "name": "sample_provider",
+                        "last_processed": None,
+                    }
+                ],
             )
 
     def test_create_second_cost_model_same_provider(self):
@@ -108,7 +138,11 @@ class CostModelManagerTest(IamTestCase):
         # Get Provider UUID
         provider_uuid = provider.uuid
         provider_names_uuids = [
-            {"uuid": str(provider.uuid), "name": provider.name, "last_processed": provider.data_updated_timestamp}
+            {
+                "uuid": str(provider.uuid),
+                "name": provider.name,
+                "last_processed": provider.data_updated_timestamp,
+            }
         ]
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
@@ -117,22 +151,32 @@ class CostModelManagerTest(IamTestCase):
             "name": "Test Cost Model",
             "description": "Test",
             "provider_uuids": [provider_uuid],
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
-                mock_update.s.return_value.set.return_value.apply_async.assert_called()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
+                mock_update.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             self.assertEqual(cost_model_map.first().cost_model, cost_model_obj)
-            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids)
+            self.assertEqual(
+                CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
+                provider_names_uuids,
+            )
 
             second_cost_model_obj = None
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 with self.assertRaises(CostModelException):
                     second_cost_model_obj = manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
@@ -142,6 +186,128 @@ class CostModelManagerTest(IamTestCase):
 
             # Make sure second cost model was never created.
             self.assertIsNone(second_cost_model_obj)
+
+    def test_get_provider_names_uuids_operator_update_available(self):
+        """Sources include operator_update_available for OCP providers with a manifest."""
+        provider_authentication = ProviderAuthentication.objects.create(
+            credentials={"cluster_id": "cluster_id_cost_model_sources"}
+        )
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="ocp_provider_sources",
+                type=Provider.PROVIDER_OCP,
+                created_by=self.user,
+                customer=self.customer,
+                authentication=provider_authentication,
+            )
+        date_helper = DateHelper()
+        manifest = baker.make(
+            CostUsageReportManifest,
+            provider=provider,
+            billing_period_start_datetime=date_helper.this_month_start,
+            operator_version="koku-metrics-operator:v4.7.0",
+            creation_datetime=date_helper.now_utc,
+        )
+        cost_model_data = {
+            "name": "Test Cost Model Operator Update",
+            "description": "Test",
+            "provider_uuids": [provider.uuid],
+            "rates": [
+                {
+                    "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+                    "source_type": Provider.PROVIDER_OCP,
+                    "tiered_rates": [{"unit": "USD", "value": 0.22}],
+                }
+            ],
+        }
+        with tenant_context(self.tenant):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = CostModelManager().create(**cost_model_data)
+            manager = CostModelManager(cost_model_obj.uuid)
+
+            test_matrix = [
+                ("koku-metrics-operator:v4.7.0", "4.8.0", True),
+                ("koku-metrics-operator:v4.8.0", "4.8.0", False),
+            ]
+            for operator_version, latest_version, update_available in test_matrix:
+                with self.subTest(operator_version=operator_version, latest_version=latest_version):
+                    manifest.operator_version = operator_version
+                    manifest.save()
+                    with patch("cost_models.cost_model_manager.LATEST_OPERATOR_VERSION", new=latest_version):
+                        sources = manager.get_provider_names_uuids()
+                    self.assertEqual(sources[0]["operator_update_available"], update_available)
+
+            manifest.operator_version = None
+            manifest.save()
+            sources = manager.get_provider_names_uuids()
+            self.assertNotIn("operator_update_available", sources[0])
+
+            manifest.operator_version = str(uuid4())
+            manifest.save()
+            sources = manager.get_provider_names_uuids()
+            self.assertFalse(sources[0]["operator_update_available"])
+
+            manifest.delete()
+            sources = manager.get_provider_names_uuids()
+            self.assertNotIn("operator_update_available", sources[0])
+
+    def test_get_provider_names_uuids_uses_newest_manifest_per_provider(self):
+        """Each OCP source uses its own newest manifest of this or last month."""
+        date_helper = DateHelper()
+        now = date_helper.now_utc
+        providers = []
+        for name in ("ocp_newest_manifest_old", "ocp_newest_manifest_new"):
+            provider_authentication = ProviderAuthentication.objects.create(credentials={"cluster_id": name})
+            with patch("masu.celery.tasks.check_report_updates"):
+                providers.append(
+                    Provider.objects.create(
+                        name=name,
+                        type=Provider.PROVIDER_OCP,
+                        created_by=self.user,
+                        customer=self.customer,
+                        authentication=provider_authentication,
+                    )
+                )
+        outdated, current = providers
+        manifests = [
+            # outdated: its newest manifest in range has an old operator.
+            (outdated, date_helper.last_month_start, "koku-metrics-operator:v4.8.0", now - timedelta(days=3)),
+            (outdated, date_helper.this_month_start, "koku-metrics-operator:v4.7.0", now - timedelta(days=1)),
+            # Ignored: billing period out of range, or no creation time.
+            (outdated, date_helper.next_month_start, "koku-metrics-operator:v4.8.0", now),
+            (outdated, date_helper.this_month_start, "koku-metrics-operator:v4.8.0", None),
+            # current: newest manifest is up to date, an older one is not.
+            (current, date_helper.this_month_start, "koku-metrics-operator:v4.7.0", now - timedelta(days=2)),
+            (current, date_helper.this_month_start, "koku-metrics-operator:v4.8.0", now - timedelta(hours=1)),
+        ]
+        for provider, billing_period_start, operator_version, creation_datetime in manifests:
+            baker.make(
+                CostUsageReportManifest,
+                provider=provider,
+                billing_period_start_datetime=billing_period_start,
+                operator_version=operator_version,
+                creation_datetime=creation_datetime,
+            )
+        cost_model_data = {
+            "name": "Test Cost Model Newest Manifest",
+            "description": "Test",
+            "provider_uuids": [outdated.uuid, current.uuid],
+            "rates": [
+                {
+                    "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+                    "source_type": Provider.PROVIDER_OCP,
+                    "tiered_rates": [{"unit": "USD", "value": 0.22}],
+                }
+            ],
+        }
+        with tenant_context(self.tenant):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = CostModelManager().create(**cost_model_data)
+            with patch("cost_models.cost_model_manager.LATEST_OPERATOR_VERSION", new="4.8.0"):
+                sources = CostModelManager(cost_model_obj.uuid).get_provider_names_uuids()
+
+        update_available = {source["uuid"]: source["operator_update_available"] for source in sources}
+        self.assertEqual(update_available, {str(outdated.uuid): True, str(current.uuid): False})
 
     def test_create_with_two_providers(self):
         """Test creating a cost model with multiple providers."""
@@ -164,14 +330,21 @@ class CostModelManagerTest(IamTestCase):
             "name": "Test Cost Model",
             "description": "Test",
             "provider_uuids": [provider_uuid, provider_uuid_2],
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
-                mock_update.s.return_value.set.return_value.apply_async.assert_called()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
+                mock_update.assert_called()
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -180,8 +353,14 @@ class CostModelManagerTest(IamTestCase):
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 2)
-            self.assertEqual(CostModelMap.objects.get(provider_uuid=provider_uuid).cost_model, cost_model_obj)
-            self.assertEqual(CostModelMap.objects.get(provider_uuid=provider_uuid_2).cost_model, cost_model_obj)
+            self.assertEqual(
+                CostModelMap.objects.get(provider_uuid=provider_uuid).cost_model,
+                cost_model_obj,
+            )
+            self.assertEqual(
+                CostModelMap.objects.get(provider_uuid=provider_uuid_2).cost_model,
+                cost_model_obj,
+            )
 
         # Remove Rate object and verify that the CostModelMap is updated to no longer contain the providers.
         with tenant_context(self.tenant):
@@ -197,14 +376,21 @@ class CostModelManagerTest(IamTestCase):
         data = {
             "name": "Test Cost Model",
             "description": "Test",
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
         cost_model_obj = None
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
-                mock_update.s.return_value.set.return_value.apply_async.assert_not_called()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
+                mock_update.assert_not_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
@@ -219,10 +405,16 @@ class CostModelManagerTest(IamTestCase):
         # Add provider to existing cost model
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                with patch("cost_models.cost_model_manager.get_customer_queue", return_value=PriorityQueue.XL):
-                    manager.update_provider_uuids(provider_uuids=[provider_uuid])
-                    mock_update.s.return_value.set.assert_called_with(queue=PriorityQueue.XL)
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with patch(
+                    "cost_models.cost_model_manager.get_customer_queue",
+                    return_value=PriorityQueue.XL,
+                ):
+                    with self.captureOnCommitCallbacks(execute=True):
+                        manager.update_provider_uuids(provider_uuids=[provider_uuid])
+                    mock_update.assert_called()
+                    _, kwargs = mock_update.call_args
+                    self.assertEqual(kwargs.get("queue_name"), PriorityQueue.XL)
 
     def test_update_provider_uuids(self):
         """Test creating a cost model then update with a provider uuid."""
@@ -232,14 +424,21 @@ class CostModelManagerTest(IamTestCase):
         data = {
             "name": "Test Cost Model",
             "description": "Test",
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
         cost_model_obj = None
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
-                mock_update.s.return_value.set.return_value.apply_async.assert_not_called()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
+                mock_update.assert_not_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
@@ -254,9 +453,10 @@ class CostModelManagerTest(IamTestCase):
         # Add provider to existing cost model
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                manager.update_provider_uuids(provider_uuids=[provider_uuid])
-                mock_update.s.return_value.set.return_value.apply_async.assert_called()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with self.captureOnCommitCallbacks(execute=True):
+                    manager.update_provider_uuids(provider_uuids=[provider_uuid])
+                mock_update.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
@@ -266,9 +466,10 @@ class CostModelManagerTest(IamTestCase):
         # Add provider again to existing cost model.  Verify there is still only 1 item in map
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                manager.update_provider_uuids(provider_uuids=[provider_uuid])
-                mock_update.s.return_value.set.return_value.apply_async.assert_called()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with self.captureOnCommitCallbacks(execute=True):
+                    manager.update_provider_uuids(provider_uuids=[provider_uuid])
+                mock_update.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
@@ -278,14 +479,15 @@ class CostModelManagerTest(IamTestCase):
         # Remove provider from existing rate
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                manager.update_provider_uuids(provider_uuids=[])
-                mock_update.s.return_value.set.return_value.apply_async.assert_called()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs") as mock_update:
+                with self.captureOnCommitCallbacks(execute=True):
+                    manager.update_provider_uuids(provider_uuids=[])
+                mock_update.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
 
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_deleting_cost_model_triggers_tasks(self, mock_update):
         """Test deleting a cost model refreshes the materialized views."""
         provider_name = "sample_provider"
@@ -304,17 +506,19 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with self.captureOnCommitCallbacks(execute=True):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
 
             # simulates deleting a cost_model
-            manager.update_provider_uuids(provider_uuids=[])
-            mock_update.s.return_value.set.return_value.apply_async.assert_called()
+            with self.captureOnCommitCallbacks(execute=True):
+                manager.update_provider_uuids(provider_uuids=[])
+            mock_update.assert_called()
 
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_deleting_cost_model_not_triggers_tasks(self, mock_update):
         """Test deleting a cost model with an inactive provider does not trigger tasks."""
         provider_name = "sample_provider"
@@ -335,15 +539,17 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
-                cost_model_obj = manager.create(**data)
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
 
             # simulates deleting a cost_model
-            manager.update_provider_uuids(provider_uuids=[])
+            with self.captureOnCommitCallbacks(execute=True):
+                manager.update_provider_uuids(provider_uuids=[])
             mock_update.assert_not_called()
 
     def test_update_distribution_choice(self):
@@ -356,13 +562,19 @@ class CostModelManagerTest(IamTestCase):
         data = {
             "name": "Test Cost Model",
             "description": "Test",
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
             "distribution": distribution,
         }
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             self.assertEqual(cost_model_obj.distribution, distribution)
@@ -371,6 +583,285 @@ class CostModelManagerTest(IamTestCase):
                 self.assertEqual(rate.get("tiered_rates"), tiered_rates)
                 self.assertEqual(rate.get("source_type"), source_type)
             data["distribution"] = update_distribution
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 cost_model_obj = manager.update(**data)
                 self.assertEqual(manager.instance.distribution, update_distribution)
+
+    def test_create_with_rates_creates_price_list(self):
+        """Test that creating a cost model with rates also creates a PriceList."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
+        rates = [
+            {
+                "metric": {"name": metric},
+                "source_type": source_type,
+                "tiered_rates": tiered_rates,
+            }
+        ]
+        data = {
+            "name": "Test CM with PL",
+            "description": "Test",
+            "rates": rates,
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = manager.create(**data)
+
+            mapping = PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).first()
+            self.assertIsNotNone(mapping)
+            self.assertEqual(mapping.priority, 1)
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(len(pl_rates), len(rates))
+            self.assertEqual(pl_rates[0]["metric"], rates[0]["metric"])
+            self.assertEqual(pl_rates[0]["tiered_rates"], rates[0]["tiered_rates"])
+            self.assertIn("rate_id", pl_rates[0])
+            self.assertIn("custom_name", pl_rates[0])
+            self.assertEqual(mapping.price_list.currency, cost_model_obj.currency)
+            self.assertEqual(mapping.price_list.name, "Test CM with PL prices")
+
+    def test_create_without_rates_no_price_list(self):
+        """Test that creating a cost model without rates does not create a PriceList."""
+        data = {
+            "name": "Test CM no rates",
+            "description": "Test",
+            "markup": {"value": 10, "unit": "percent"},
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = manager.create(**data)
+
+            mapping = PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).first()
+            self.assertIsNone(mapping)
+
+    def test_update_with_rates_syncs_to_price_list(self):
+        """Test that updating rates syncs them to the linked PriceList."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        original_rates = [
+            {
+                "metric": {"name": metric},
+                "source_type": source_type,
+                "tiered_rates": [{"unit": "USD", "value": 0.22}],
+            }
+        ]
+        data = {
+            "name": "Test CM sync",
+            "description": "Test",
+            "rates": original_rates,
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = manager.create(**data)
+
+            mapping = PriceListCostModelMap.objects.get(cost_model=cost_model_obj)
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(pl_rates[0]["metric"], original_rates[0]["metric"])
+            self.assertEqual(pl_rates[0]["tiered_rates"], original_rates[0]["tiered_rates"])
+
+            updated_rates = [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": [{"unit": "USD", "value": 0.50}],
+                }
+            ]
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            manager.update(rates=updated_rates)
+
+            mapping.price_list.refresh_from_db()
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(pl_rates[0]["metric"], updated_rates[0]["metric"])
+            self.assertEqual(pl_rates[0]["tiered_rates"], updated_rates[0]["tiered_rates"])
+
+    def test_update_with_rates_creates_price_list_if_missing(self):
+        """Test that updating rates creates a PriceList if no mapping exists."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        rates = [
+            {
+                "metric": {"name": metric},
+                "source_type": source_type,
+                "tiered_rates": [{"unit": "USD", "value": 0.22}],
+            }
+        ]
+
+        with tenant_context(self.tenant):
+            # Create cost model and remove the auto-created PriceList link
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = manager.create(name="Test CM no PL link", description="Test", rates=rates)
+            PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).delete()
+
+            # Update should recreate the PriceList
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            updated_rates = [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": [{"unit": "USD", "value": 0.99}],
+                }
+            ]
+            manager.update(rates=updated_rates)
+            instance_rates = manager.instance.rates
+            self.assertEqual(instance_rates[0]["metric"], updated_rates[0]["metric"])
+            self.assertEqual(instance_rates[0]["tiered_rates"], updated_rates[0]["tiered_rates"])
+
+            mapping = PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).first()
+            self.assertIsNotNone(mapping)
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(pl_rates[0]["metric"], updated_rates[0]["metric"])
+            self.assertIn("rate_id", pl_rates[0])
+
+    def test_update_empty_rates_does_not_wipe_linked_price_list(self):
+        """Test that updating a cost model with empty rates does not wipe a linked price list's rates."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        rates = [
+            {
+                "metric": {"name": metric},
+                "source_type": Provider.PROVIDER_OCP,
+                "tiered_rates": [{"unit": "USD", "value": 0.5}],
+            }
+        ]
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = manager.create(
+                    name="CM no rates",
+                    description="Test",
+                    rates={},
+                )
+
+            pl = PriceList.objects.create(
+                name="User PL",
+                currency="USD",
+                rates=rates,
+                effective_start_date="2026-01-01",
+                effective_end_date="2099-12-31",
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model_obj, priority=1)
+
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            manager.update(rates={})
+
+            pl.refresh_from_db()
+            self.assertEqual(len(pl.rates), 1)
+            self.assertEqual(pl.rates[0]["tiered_rates"][0]["value"], 0.5)
+
+    def test_update_without_rates_no_sync(self):
+        """Test that updating without rates in data does not sync to PriceList."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        original_rates = [
+            {
+                "metric": {"name": metric},
+                "source_type": source_type,
+                "tiered_rates": [{"unit": "USD", "value": 0.22}],
+            }
+        ]
+        data = {
+            "name": "Test CM no sync",
+            "description": "Test",
+            "rates": original_rates,
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = manager.create(**data)
+
+            mapping = PriceListCostModelMap.objects.get(cost_model=cost_model_obj)
+
+            # Update only name, no rates
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            manager.update(name="Renamed CM")
+
+            mapping.price_list.refresh_from_db()
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(pl_rates[0]["metric"], original_rates[0]["metric"])
+            self.assertEqual(pl_rates[0]["tiered_rates"], original_rates[0]["tiered_rates"])
+
+
+class CostModelManagerConcurrencyTest(django.test.TransactionTestCase):
+    """Tests that concurrent access to update_provider_uuids serializes correctly."""
+
+    def _fixture_teardown(self):
+        """Skip TRUNCATE flush — django-tenants FK graph breaks TransactionTestCase flush."""
+
+    def setUp(self):
+        """Set up test fixtures using the pre-existing test tenant."""
+        from koku.koku_test_runner import KokuTestRunner
+
+        self.schema = KokuTestRunner.schema
+        self.tenant = Tenant.objects.get(schema_name=self.schema)
+        self.customer = Customer.objects.get(
+            account_id=KokuTestRunner.account,
+            org_id=KokuTestRunner.org_id,
+        )
+        self.user = User.objects.filter(customer=self.customer).first()
+
+        with patch("masu.celery.tasks.check_report_updates"):
+            self.provider_a = Provider.objects.create(
+                name="concurrency_test_a", created_by=self.user, customer=self.customer
+            )
+            self.provider_b = Provider.objects.create(
+                name="concurrency_test_b", created_by=self.user, customer=self.customer
+            )
+
+    def tearDown(self):
+        """Clean up test-specific data."""
+        uuids = [self.provider_a.uuid, self.provider_b.uuid]
+        with tenant_context(self.tenant):
+            CostModelMap.objects.filter(provider_uuid__in=uuids).delete()
+            CostModel.objects.filter(name__startswith="concurrency_test_").delete()
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM public.api_provider WHERE uuid IN (%s, %s)", uuids)
+
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
+    def test_concurrent_update_provider_uuids_no_deadlock(self, mock_update):
+        """Concurrent updates to the same cost model serialize without deadlock."""
+        with tenant_context(self.tenant):
+            cost_model = CostModel.objects.create(
+                name="concurrency_test_model",
+                description="test",
+                source_type="OCP",
+            )
+            CostModelMap.objects.create(cost_model=cost_model, provider_uuid=self.provider_a.uuid)
+            CostModelMap.objects.create(cost_model=cost_model, provider_uuid=self.provider_b.uuid)
+
+        barrier = threading.Barrier(2, timeout=10)
+        results = [None, None]
+
+        def update_fn(index, keep_provider_uuid):
+            try:
+                barrier.wait()
+                with tenant_context(self.tenant):
+                    mgr = CostModelManager(cost_model_uuid=cost_model.uuid)
+                    mgr.update_provider_uuids([str(keep_provider_uuid)])
+                results[index] = "ok"
+            except Exception as exc:
+                results[index] = f"{type(exc).__name__}: {exc}"
+
+        t1 = threading.Thread(target=update_fn, args=(0, self.provider_a.uuid))
+        t2 = threading.Thread(target=update_fn, args=(1, self.provider_b.uuid))
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        self.assertEqual(results[0], "ok", f"Thread 1 failed: {results[0]}")
+        self.assertEqual(results[1], "ok", f"Thread 2 failed: {results[1]}")
+
+        # Last writer wins — exactly one provider should remain
+        with tenant_context(self.tenant):
+            maps = CostModelMap.objects.filter(cost_model=cost_model)
+            self.assertEqual(maps.count(), 1)

@@ -16,7 +16,7 @@ from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
 
 
 class AzureReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, start_date):
         numeric_columns = [
             "quantity",
             "resourcerate",
@@ -41,9 +41,9 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
             column_types=column_types,
             table_name=table_name,
+            start_date=start_date,
         )
 
     @property

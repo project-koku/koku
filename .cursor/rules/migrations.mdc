@@ -1,0 +1,8 @@
+---
+description: "Django migration rules: multi-release strategy, nullable columns, partitioned tables"
+globs:
+  - "**/migrations/*.py"
+alwaysApply: false
+---
+
+@docs/agent/migrations.md

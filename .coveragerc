@@ -15,7 +15,6 @@ omit =
   *feature_flags.py
   *probe_server.py
   *settings.py
-  *sentry.py
   *urls.py
   *wsgi.py
   */migrations/*
@@ -25,6 +24,9 @@ omit =
   */test_*.py
   *provider_interface.py
   *dev_middleware.py
+  *reportdb_accessor.py
+  *koku_test_runner.py
+  *parallel_test_worker.py
 
 [paths]
 source = koku

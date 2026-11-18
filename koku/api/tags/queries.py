@@ -253,16 +253,11 @@ class TagQueryHandler(QueryHandler):
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
+        exact_composed_filters = self._set_operator_specified_filters("exact")
         composed_filters = filters.compose()
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
-        category_list = (
-            self.parameters.get("category")
-            if self.parameters.get("category")
-            else self.parameters.get_filter("category")
-        )
-        if category_list:
-            composed_category_filters = self._build_namespace_filters_from_category_list(category_list)
-            if composed_category_filters:
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+        if category_list := self.parameters.get("category") or self.parameters.get_filter("category"):
+            if composed_category_filters := self._build_namespace_filters_from_category_list(category_list):
                 composed_filters = composed_filters & composed_category_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
@@ -281,12 +276,13 @@ class TagQueryHandler(QueryHandler):
         filters = QueryFilterCollection()
         composed_filter = Q()
         for filter_key in self.SUPPORTED_FILTERS:
-            operator_key = operator + ":" + filter_key
+            operator_key = f"{operator}:{filter_key}"
             filter_value = self.parameters.get_filter(operator_key)
             logical_operator = operator
-            if filter_value and len(filter_value) < 2:
+            if filter_value and len(filter_value) < 2 and logical_operator != "exact":
                 logical_operator = "or"
-            if filter_value and not TagQueryHandler.has_wildcard(filter_value):
+            if filter_value and (operator == "exact" or not TagQueryHandler.has_wildcard(filter_value)):
+                # always add exact filters to the filter collection
                 filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_obj, list):
                     for _filt in filter_obj:
@@ -333,6 +329,28 @@ class TagQueryHandler(QueryHandler):
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
 
+    def _report_period_ids_filter(self, source):
+        """Return a filter on the report period ids matching the time filter, or None.
+
+        The time filter compares the related report period's start date, so
+        PostgreSQL joins the period table and scans every period of the tag
+        summary table (e.g. 26 M rows to keep 1 M for one month). Filtering on
+        the period ids as well lets it use the index on the foreign key. The
+        time filter stays in place, so the result is unchanged.
+        """
+        if self.parameters.get_filter("value"):
+            return None
+        fk_name, _, period_field = (source.get("db_column_period") or "").partition("__")
+        if not period_field:
+            return None
+        period_model = source["db_table"]._meta.get_field(fk_name).related_model
+        start = self.dh.month_start(self.start_datetime)
+        end = self.dh.month_end(self.end_datetime)
+        period_ids = period_model.objects.filter(
+            **{f"{period_field}_start__gte": start, f"{period_field}_start__lte": end}
+        ).values_list("id", flat=True)
+        return Q(**{f"{fk_name}_id__in": list(period_ids)})
+
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
         type_filter = self.parameters.get_filter("type")
@@ -347,6 +365,8 @@ class TagQueryHandler(QueryHandler):
                     select_cols.extend(annotations)
                 if filters is True:
                     tag_keys_query = tag_keys_query.filter(self.query_filter)
+                    if (period_ids_filter := self._report_period_ids_filter(source)) is not None:
+                        tag_keys_query = tag_keys_query.filter(period_ids_filter)
 
                 if type_filter and type_filter != source.get("type"):
                     continue

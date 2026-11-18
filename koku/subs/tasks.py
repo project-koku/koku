@@ -14,7 +14,6 @@ from koku import celery_app
 from koku import settings
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.util.common import convert_account
 from subs.subs_data_extractor import SUBSDataExtractor
 from subs.subs_data_messenger import SUBSDataMessenger
 
@@ -29,7 +28,6 @@ QUEUE_LIST = [SUBS_EXTRACTION_QUEUE, SUBS_TRANSMISSION_QUEUE]
 
 def enable_subs_extraction(schema_name: str, metered: str) -> bool:  # pragma: no cover
     """Helper to determine if source is enabled for SUBS extraction."""
-    schema_name = convert_account(schema_name)
     context = {"schema": schema_name}
     LOG.info(log_json(msg="enable_subs_extraction context", context=context))
     return bool(
@@ -41,7 +39,6 @@ def enable_subs_extraction(schema_name: str, metered: str) -> bool:  # pragma: n
 
 def enable_subs_messaging(schema_name: str) -> bool:  # pragma: no cover
     """Helper to determine if source is enabled for SUBS messaging."""
-    schema_name = convert_account(schema_name)
     context = {"schema": schema_name}
     LOG.info(log_json(msg="enable_subs_messaging context", context=context))
     return bool(

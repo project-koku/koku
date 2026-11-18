@@ -159,12 +159,51 @@ OCP_PVC_LABELS = (
     {"app": "current", "disabled": "Castel_Emili", "storageclass": "Emerald"},
     {"app": "molarity", "disabled": "Teluk_Intan", "storageclass": "Garnet"},
 )
+OCP_GPU_LABELS = (
+    {
+        "gpu-model": "Tesla T4",
+        "gpu-vendor": "nvidia",
+        "gpu-memory-mib": "15360",
+        "pod-name": "gpu_pod_0",
+    },
+    {
+        "gpu-model": "A100",
+        "gpu-vendor": "nvidia",
+        "gpu-memory-mib": "40960",
+        "pod-name": "gpu_pod_1",
+    },
+    {
+        "gpu-model": "Tesla T4",
+        "gpu-vendor": "nvidia",
+        "gpu-memory-mib": "15360",
+        "pod-name": "gpu_pod_2",
+    },
+    {
+        "gpu-model": "H100",
+        "gpu-vendor": "nvidia",
+        "gpu-memory-mib": "81920",
+        "pod-name": "gpu_pod_3",
+    },
+    {
+        "gpu-model": "V100",
+        "gpu-vendor": "nvidia",
+        "gpu-memory-mib": "16384",
+        "pod-name": "gpu_pod_4",
+    },
+    {
+        "gpu-model": "A100",
+        "gpu-vendor": "nvidia",
+        "gpu-memory-mib": "40960",
+        "pod-name": "gpu_pod_5",
+    },
+)
 OCP_CONSTANTS = SameLengthDict(
     {
         "namespaces": OCP_NAMESPACES,
         "storage_classes": OCP_STORAGE_CLASSES,
         "pod_labels": OCP_POD_LABELS,
         "pvc_labels": OCP_PVC_LABELS,
+        "gpu_labels": OCP_GPU_LABELS,
     }
 )
 

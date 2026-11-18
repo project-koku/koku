@@ -1,0 +1,9 @@
+---
+description: "On-premise vs SaaS architectural patterns and decision guidance"
+globs:
+  - "**/masu/**/*.py"
+  - "**/api/report/**/*.py"
+alwaysApply: false
+---
+
+@docs/agent/onprem-vs-saas.md

@@ -159,7 +159,7 @@ class AWSProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {
@@ -262,7 +262,7 @@ class AWSProviderMap(ProviderMap):
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -358,7 +358,7 @@ class AWSProviderMap(ProviderMap):
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                             "account_alias": Coalesce(Max("account_alias__account_alias"), Max("usage_account_id")),
                             "account": Max("usage_account_id"),
@@ -511,7 +511,7 @@ class AWSProviderMap(ProviderMap):
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},

@@ -1,0 +1,10 @@
+{
+    "files": [
+        "empty-file.csv",
+        "not-empty-file.csv"
+    ],
+    "date": "2119-02-05 16:18:40.706683",
+    "uuid": "f6b3701e-1e91-433b-b238-a31e49937558",
+    "cluster_id": "my-ocp-cluster-8",
+    "daily_reports": true
+}

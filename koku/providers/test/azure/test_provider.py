@@ -6,7 +6,7 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from azure.common import AzureException
+from azure.core.exceptions import AzureError
 from django.test import TestCase
 from faker import Faker
 from rest_framework.serializers import ValidationError
@@ -70,9 +70,9 @@ class AzureProviderTestCase(TestCase):
             obj = AzureProvider()
             self.assertTrue(obj.cost_usage_source_is_reachable(credentials, source_name))
 
-    @patch("providers.azure.provider.AzureService", side_effect=AzureException("test exception"))
+    @patch("providers.azure.provider.AzureService", side_effect=AzureError("test exception"))
     def test_cost_usage_source_is_reachable_exception(self, _):
-        """Test that ValidationError is raised when AzureException is raised."""
+        """Test that ValidationError is raised when AzureError is raised."""
         subscription_id = FAKE.uuid4()
         scope = f"subscriptions/{subscription_id}"
         credentials = {
@@ -276,11 +276,11 @@ class AzureProviderTestCase(TestCase):
         provider_interface.is_file_reachable(self.source, self.files)
         mock_azure_client.cloud_storage_account.get_blob_client.assert_called
 
-    @patch("providers.azure.client.AzureClientFactory")
+    @patch("providers.azure.provider.AzureClientFactory")
     def test_is_file_reachable_authentication_error(self, mock_azure_client):
         """Test ingress file check azure authentication error."""
         err_msg = "Azure Error"
-        mock_azure_client.side_effect = AzureException(err_msg)
+        mock_azure_client.side_effect = AzureError(err_msg)
         with self.assertRaises(ValidationError):
             provider_interface = AzureProvider()
             provider_interface.is_file_reachable(self.source, self.files)

@@ -15,6 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
+from api.report.filter_collection import gcp_storage_conditional_filter_collection
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPGCPComputeSummaryP
 from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
@@ -170,9 +171,11 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {
@@ -300,14 +303,16 @@ class OCPGCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
                                 Value("hour", output_field=CharField()),
                             ),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "cost_units_key": "currency",
@@ -433,17 +438,19 @@ class OCPGCPProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
                                 Value("gibibyte month", output_field=CharField()),
                             ),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
                             {"field": "unit", "operation": "exact", "parameter": "gibibyte month"},
-                            {
-                                "field": "service_alias",
-                                "operation": "in",
-                                "parameter": ["Filestore", "Data Transfer", "Storage", "Cloud Storage"],
-                            },
                         ],
+                        "conditionals": {
+                            OCPGCPCostLineItemProjectDailySummaryP: {
+                                "composed_filters": gcp_storage_conditional_filter_collection(),
+                            },
+                        },
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],

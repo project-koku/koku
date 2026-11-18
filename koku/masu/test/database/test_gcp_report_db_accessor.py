@@ -5,6 +5,7 @@
 """Test the GCPReportDBAccessor utility object."""
 import datetime
 import decimal
+import pkgutil
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -137,6 +138,16 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.assertEqual(cost_entries.count(), 0)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
+    def test_fetch_invoice_month_dates(self, mock_trino):
+        """Test that we fetch extended date range for given invoice month correctly querying Trino."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        invoice_month = start_date.strftime("%Y%m")
+
+        self.accessor.fetch_invoice_month_dates(start_date, end_date, invoice_month, self.gcp_provider_uuid)
+        mock_trino.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_line_item_daily_summary_table_trino(self, mock_trino):
         """Test that we construst our SQL and query using Trino."""
         start_date = self.dh.this_month_start.date()
@@ -148,7 +159,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self.schema, self.gcp_provider.uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
@@ -297,26 +310,10 @@ class GCPReportDBAccessorTest(MasuTestCase):
         """Test that we call Trino to get topology."""
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
-        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
-        invoice_month_date = self.dh.invoice_month_start(invoice_month)
-        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date, invoice_month_date)
+        invoice_month = self.dh.invoice_month_from_bill_date(start_date)
+        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date, invoice_month)
 
         mock_trino.assert_called()
-
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
-    def test_populate_ocp_gcp_ui_summary_tables(self, mock_sql):
-        """Test that we construst our SQL and query using Trino."""
-        start_date = self.dh.this_month_start.date()
-        end_date = self.dh.this_month_end.date()
-        summary_sql_params = {
-            "schema": self.schema,
-            "start_date": start_date,
-            "end_date": end_date,
-            "gcp_source_uuid": self.gcp_provider_uuid,
-            "ocp_source_uuid": self.ocp_on_gcp_ocp_provider,
-        }
-        self.accessor.populate_ocp_on_gcp_ui_summary_tables(summary_sql_params)
-        mock_sql.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
     def test_populate_ocp_on_gcp_tag_information_assert_call(self, mock_trino):
@@ -492,42 +489,199 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.assertEqual(0, actual_child_count)
 
     @patch(
-        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
-        return_value=None,
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
     )
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
-    def test_get_matched_tags_strings_trino(self, mock_postgres_tags, mock_trino_tags):
-        """Test fetching match tag strings via trino."""
-        tags = ['"app"']
-        mock_trino_tags.return_value = {"app"}
-        start = self.dh.this_month_start
-        end = self.dh.this_month_end
-        result = self.accessor._get_matched_tags_strings(1, self.gcp_provider_uuid, self.ocp_provider_uuid, start, end)
-        self.assertEqual(tags, result)
-
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
+    @patch("masu.database.report_db_accessor_base.set_cached_ocp_on_cloud_matched_tags")
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
     @patch(
         "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
         return_value=None,
     )
     @patch(
         "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
-        return_value=[],
+        return_value=[{"app": "mobile"}],
     )
-    def test_get_matched_tags_strings_no_tags(self, mock_postgres_tags, mock_trino_tags):
-        """Test fetching match tag with no tags returned."""
+    def test_get_matched_tags_strings_empty_postgres_uses_month_wide_trino(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_set_cache,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+    ):
+        """Empty Postgres falls through to one month-wide Trino query and caches it."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
         start = self.dh.this_month_start
-        end = self.dh.this_month_end
+        end = start + datetime.timedelta(days=4)
         result = self.accessor._get_matched_tags_strings(1, self.gcp_provider_uuid, self.ocp_provider_uuid, start, end)
-        self.assertEqual([], result)
+        self.assertEqual(['"app": "mobile"'], result)
+        month_start = self.accessor._as_date(self.dh.month_start(start))
+        month_end = self.accessor._as_date(self.dh.month_end(start))
+        mock_trino_tags.assert_called_once()
+        args, kwargs = mock_trino_tags.call_args
+        self.assertEqual(args[0], self.gcp_provider_uuid)
+        self.assertEqual(list(args[1]), [self.ocp_provider_uuid])
+        self.assertEqual(self.accessor._as_date(args[2]), month_start)
+        self.assertEqual(self.accessor._as_date(args[3]), month_end)
+        self.assertEqual(self.accessor._as_date(kwargs.get("invoice_month_date")), month_start)
+        mock_set_cache.assert_called_once()
+        mock_worker_cache.return_value.try_lock_single_task.assert_called()
+        mock_worker_cache.return_value.release_single_task.assert_called_once()
 
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch(
+        "masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags",
+        return_value=['"app": "cached"'],
+    )
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
     @patch(
         "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
         return_value=None,
     )
-    @patch("masu.database.gcp_report_db_accessor.is_tag_processing_disabled", return_value=True)
-    def test_get_matched_tags_strings_trino_disabled(self, mock_postgres_tags, mock_unleash):
-        """Test fetching match tag strings."""
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_cache_hit_skips_trino(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+    ):
+        """A Valkey hit for the cluster/month must not re-query Trino."""
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.gcp_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "cached"'], result)
+        mock_trino_tags.assert_not_called()
+        mock_worker_cache.return_value.try_lock_single_task.assert_not_called()
+
+    @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags")
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_waits_for_in_flight_trino(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+        mock_sleep,
+    ):
+        """Another worker holding the lock should wait for the cached month-wide result."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = True
+        mock_get_cache.side_effect = [None, None, ['"app": "waited"']]
+        start = self.dh.this_month_start
+        end = start + datetime.timedelta(days=4)
+        result = self.accessor._get_matched_tags_strings(1, self.gcp_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(['"app": "waited"'], result)
+        mock_trino_tags.assert_not_called()
+        mock_sleep.assert_called()
+
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=True)
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_trino_disabled(
+        self, mock_trino_tags, mock_postgres_tags, _mock_keys, _mock_flag
+    ):
+        """The tag-processing kill-switch must skip Trino."""
+        start = self.dh.this_month_start
         result = self.accessor._get_matched_tags_strings(
-            1, self.gcp_provider_uuid, self.ocp_provider_uuid, "2022-04-01", "2022-04-10"
+            1, self.gcp_provider_uuid, self.ocp_provider_uuid, start, start
         )
         self.assertEqual([], result)
+        mock_trino_tags.assert_not_called()
+
+    @patch(
+        "masu.database.report_db_accessor_base.is_ocp_on_cloud_month_wide_matched_tags_enabled",
+        return_value=True,
+    )
+    @patch("masu.database.report_db_accessor_base.is_tag_processing_disabled", return_value=False)
+    @patch("masu.database.report_db_accessor_base.WorkerCache")
+    @patch("masu.database.report_db_accessor_base.get_cached_ocp_on_cloud_matched_tags", return_value=None)
+    @patch("masu.database.report_db_accessor_base.set_cached_ocp_on_cloud_matched_tags")
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.check_for_matching_enabled_keys",
+        return_value=True,
+    )
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=[],
+    )
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
+        return_value=[],
+    )
+    def test_get_matched_tags_strings_no_tags(
+        self,
+        mock_trino_tags,
+        mock_postgres_tags,
+        _mock_keys,
+        mock_set_cache,
+        mock_get_cache,
+        mock_worker_cache,
+        _mock_flag,
+        _mock_month_flag,
+    ):
+        """Test fetching match tag with no tags returned from Postgres or Trino."""
+        mock_worker_cache.return_value.single_task_is_running.return_value = False
+        mock_worker_cache.return_value.try_lock_single_task.return_value = True
+        start = self.dh.this_month_start
+        end = self.dh.this_month_end
+        result = self.accessor._get_matched_tags_strings(1, self.gcp_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual([], result)
+        mock_trino_tags.assert_called_once()
+        mock_set_cache.assert_called_once()
+
+    def test_matched_tags_sql_filters_gcp_dates_through_end_date(self):
+        """GCP cloud tag scan must use end_date, not a one-day start_date window."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql",
+        ).decode("utf-8")
+        self.assertIn("usage_start_time >= {{start_date}}", sql_template)
+        self.assertIn("date_add('day', 1, {{end_date}})", sql_template)
+        self.assertNotIn("date_add('day', 1, {{start_date}})", sql_template)

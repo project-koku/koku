@@ -6,7 +6,7 @@ generators:
       nodes:
         - node:
           node_name: compute_1
-          node_labels: label_instance-type:medium
+          node_labels: label_instance-type:medium|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:2|nvidia_com_gpu_product:Tesla_T4|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -20,7 +20,14 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:OpenCart|label_stage:Production|label_group:Marketing|label_dashed-key-on-prem:dashed-value|label_vm_kubevirt_io_name:exclude_A||label_exclude:A
+                  labels: label_application:OpenCart|label_stage:Production|label_group:Marketing|label_dashed-key-on-prem:dashed-value|label_vm_kubevirt_io_name:exclude_A|label_exclude:A
+                  gpus:
+                    - gpu:
+                      gpu_model: "Tesla T4"
+                      gpu_memory_capacity_mib: 15360
+                    - gpu:
+                      gpu_model: "Tesla T4"
+                      gpu_memory_capacity_mib: 15360
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
@@ -66,7 +73,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_2
-          node_labels: label_instance-type:small
+          node_labels: label_instance-type:small|label_kubernetes_io_arch:arm64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1|nvidia_com_mig_strategy:mixed
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -78,8 +85,22 @@ generators:
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
-                  pod_seconds: 3600
-                  labels: label_application:Candlepin|label_stage:Development|label_group:Marketing|label_vm_kubevirt_io_name:exclude_B||label_exclude:B
+                  pod_seconds: 3000
+                  labels: label_application:Candlepin|label_stage:Development|label_group:Marketing|label_vm_kubevirt_io_name:exclude_B|label_exclude:B
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 40960
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.5gb"
+                          mig_strategy: "mixed"
+                        - mig_instance:
+                          mig_profile: "2g.10gb"
+                          mig_strategy: "mixed"
+                        - mig_instance:
+                          mig_profile: "4g.20gb"
+                          mig_strategy: "mixed"
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
@@ -101,7 +122,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Candlepin|label_stage:Production|label_group:Sales|label_vm_kubevirt_io_name:exclude_C||label_exclude:C
+                  labels: label_application:Candlepin|label_stage:Production|label_group:Sales|label_vm_kubevirt_io_name:exclude_C|label_exclude:C
               volumes:
                 - volume:
                   volume_name: pvc-volume_4
@@ -129,7 +150,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Cygwin|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:sushi||label_excluded:sushi
+                  labels: label_application:Cygwin|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:sushi|label_excluded:sushi
               volumes:
                 - volume:
                   volume_name: pvc-volume_5
@@ -166,7 +187,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_4
-          node_labels: label_instance-type:large
+          node_labels: label_instance-type:large|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:4|nvidia_com_gpu_product:H100|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -178,8 +199,21 @@ generators:
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
-                  pod_seconds: 3600
+                  pod_seconds: 1800
                   labels: label_application:CMSapp|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:fedora|label_excluded:fedora
+                  gpus:
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
               volumes:
                 - volume:
                   volume_name: pvc-volume_7
@@ -192,6 +226,21 @@ generators:
                     pod_name: pod_name7
                     labels: label_environment:Production|label_app:CMSapp|label_version:Production|label_storageclass:gold
                     capacity_gig: 20
+            openshift-gpu-demo:
+              namespace_labels: team:platform
+              pods:
+                - pod:
+                  pod_name: platform_gpu_demo
+                  cpu_request: 1
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 8
+                  pod_seconds: 1800
+                  labels: label_application:PlatformGPU|label_stage:Production|label_group:Platform
+                  gpus:
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
             Paris:
               pods:
                 - pod:
@@ -201,7 +250,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Atomic|label_stage:Test|label_group:Support|label_vm_kubevirt_io_name:exclude_D||label_exclude:D
+                  labels: label_application:Atomic|label_stage:Test|label_group:Support|label_vm_kubevirt_io_name:exclude_D|label_exclude:D
               volumes:
                 - volume:
                   volume_name: pvc-volume_8
@@ -216,7 +265,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_5
-          node_labels: label_instance-type:xlarge
+          node_labels: label_instance-type:xlarge|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:Tesla_T4|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -230,6 +279,10 @@ generators:
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_application:Wordpress|label_stage:Production|label_group:Marketing
+                  gpus:
+                    - gpu:
+                      gpu_model: "Tesla T4"
+                      gpu_memory_capacity_mib: 15360
               volumes:
                 - volume:
                   volume_name: pvc-volume_9
@@ -266,7 +319,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_6
-          node_labels: label_instance-type:xxlarge
+          node_labels: label_instance-type:xxlarge|label_kubernetes_io_arch:amd64
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -373,6 +426,156 @@ generators:
                     pod_name: multi_pvc
                     labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
                     capacity_gig: 20
+        - node:
+          node_name: compute_a100_dedicated
+          node_labels: label_instance-type:gpu-a100|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True
+          cpu_cores: 8
+          memory_gig: 64
+          namespaces:
+            deep-learning:
+              namespace_labels: team:research
+              pods:
+                - pod:
+                  pod_name: training_dedicated
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 8
+                  mem_limit_gig: 32
+                  pod_seconds: 1800
+                  labels: label_application:PyTorch|label_stage:Training|label_group:Research
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+        - node:
+          node_name: compute_mig
+          node_labels: label_instance-type:gpu-mig|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True|nvidia_com_mig_strategy:single
+          cpu_cores: 8
+          memory_gig: 64
+          namespaces:
+            ml-training:
+              namespace_labels: team:data-science
+              pods:
+                - pod:
+                  pod_name: training_job_1
+                  cpu_request: 2
+                  mem_request_gig: 8
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+                  pod_seconds: 1500
+                  labels: label_application:PyTorch|label_stage:Training|label_group:DataScience
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "4g.40gb"
+                          mig_strategy: "single"
+            ml-inference:
+              namespace_labels: team:ml-ops
+              pods:
+                - pod:
+                  pod_name: inference_service_1
+                  cpu_request: 1
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 8
+                  pod_seconds: 3000
+                  labels: label_application:TensorRT|label_stage:Production|label_group:MLOps
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_strategy: "single"
+                - pod:
+                  pod_name: inference_service_2
+                  cpu_request: 1
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 8
+                  pod_seconds: 3000
+                  labels: label_application:TensorRT|label_stage:Production|label_group:MLOps
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_strategy: "single"
+            model-serving:
+              namespace_labels: team:platform
+              pods:
+                - pod:
+                  pod_name: serving_endpoint
+                  cpu_request: 1
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 8
+                  pod_seconds: 1500
+                  labels: label_application:Triton|label_stage:Production|label_group:Platform
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_strategy: "single"
+        - node:
+          node_name: compute_h100_mig
+          node_labels: label_instance-type:gpu-h100-mig|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:H100|nvidia_com_gpu_present:True|nvidia_com_mig_strategy:mixed
+          cpu_cores: 16
+          memory_gig: 128
+          namespaces:
+            llm-training:
+              namespace_labels: team:ai-research
+              pods:
+                - pod:
+                  pod_name: llm_finetuning
+                  cpu_request: 4
+                  mem_request_gig: 32
+                  cpu_limit: 8
+                  mem_limit_gig: 64
+                  pod_seconds: 14400
+                  labels: label_application:LLaMA|label_stage:Training|label_group:AIResearch
+                  gpus:
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "3g.40gb"
+                          mig_strategy: "mixed"
+                        - mig_instance:
+                          mig_profile: "2g.20gb"
+                          mig_strategy: "mixed"
+            llm-serving:
+              namespace_labels: team:ai-platform
+              pods:
+                - pod:
+                  pod_name: llm_inference_api
+                  cpu_request: 2
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 32
+                  pod_seconds: 28800
+                  labels: label_application:vLLM|label_stage:Production|label_group:AIPlatform
+                  gpus:
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_strategy: "mixed"
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_strategy: "mixed"
         - node:
           node_name: master_1
           cpu_cores: 4

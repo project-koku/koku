@@ -2,119 +2,137 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""List of currencies."""
-# turn off black formatting
-# fmt: off
-CURRENCIES = [
-    {
-        "code": "AUD",
-        "name": "Australian Dollar",
-        "symbol": "A$",
-        "description": "AUD (A$) - Australian Dollar",
-    },
-    {
-        "code": "BRL",
-        "name": "Brazilian Real",
-        "symbol": "R$",
-        "description": "BRL (R$) - Brazilian Real",
-    },
-    {
-        "code": "CAD",
-        "name": "Canadian Dollar",
-        "symbol": "CA$",
-        "description": "CAD (CA$) - Canadian Dollar",
-    },
-    {
-        "code": "CHF",
-        "name": "Swiss Franc",
-        "symbol": "CHF",
-        "description": "CHF (CHF) - Swiss Franc",
-    },
-    {
-        "code": "CNY",
-        "name": "Chinese Yuan",
-        "symbol": "CN\u00a5",
-        "description": "CNY (CN\u00a5) - Chinese Yuan",
-    },
-    {
-        "code": "CZK",
-        "name": "Czech Koruna",
-        "symbol": "K\u010d",
-        "description": "CZK (K\u010d) - Czech Koruna",
-    },
-    {
-        "code": "DKK",
-        "name": "Danish Krone",
-        "symbol": "DKK",
-        "description": "DKK (DKK) - Danish Krone",
-    },
-    {
-        "code": "EUR",
-        "name": "Euro",
-        "symbol": "\u20ac",
-        "description": "EUR (\u20ac) - Euro",
-    },
-    {
-        "code": "GBP",
-        "name": "British Pound",
-        "symbol": "\u00a3",
-        "description": "GBP (\u00a3) - British Pound",
-    },
-    {
-        "code": "HKD",
-        "name": "Hong Kong Dollar",
-        "symbol": "HK$",
-        "description": "HKD (HK$) - Hong Kong Dollar",
-    },
-    {
-        "code": "INR",
-        "name": "Indian Rupee",
-        "symbol": "\u20b9",
-        "description": "INR (\u20b9) - Indian Rupee",
-    },
-    {
-        "code": "JPY",
-        "name": "Japanese Yen",
-        "symbol": "\u00a5",
-        "description": "JPY (\u00a5) - Japanese Yen",
-    },
-    {
-        "code": "NOK",
-        "name": "Norwegian Krone",
-        "symbol": "NOK",
-        "description": "NOK (NOK) - Norwegian Krone",
-    },
-    {
-        "code": "NZD",
-        "name": "New Zealand Dollar",
-        "symbol": "NZ$",
-        "description": "NZD (NZ$) - New Zealand Dollar",
-    },
-    {
-        "code": "SEK",
-        "name": "Swedish Krona",
-        "symbol": "SEK",
-        "description": "SEK (SEK) - Swedish Krona",
-    },
-    {
-        "code": "SGD",
-        "name": "Singapore Dollar",
-        "symbol": "SGD",
-        "description": "SGD (SGD) - Singapore Dollar",
-    },
-    {
-        "code": "USD",
-        "name": "United States Dollar",
-        "symbol": "$",
-        "description": "USD ($) - United States Dollar",
-    },
-    {
-        "code": "ZAR",
-        "name": "South African Rand",
-        "symbol": "ZAR",
-        "description": "ZAR (ZAR) - South African Rand",
-    },
-]
-# fmt: on
-VALID_CURRENCIES = [currency["code"] for currency in CURRENCIES]
-CURRENCY_CHOICES = tuple((currency, currency) for currency in VALID_CURRENCIES)
+"""Currency helpers backed by the EnabledCurrency table.
+
+Full ISO 4217 validation uses babel's complete registry
+(``is_valid_iso_currency`` / ``get_all_iso_currency_codes``). The Settings
+catalog uses current tender codes from babel territory data
+(``is_active_iso_currency`` / ``get_active_iso_currency_codes``), minus
+``settings.CURRENCY_CATALOG_DENYLIST``.
+
+Only currencies that an administrator has explicitly enabled are stored in
+the ``EnabledCurrency`` table (tenant schema).
+
+Name, symbol, and description are computed at response time via babel.
+"""
+from babel.core import get_global
+from babel.numbers import get_currency_name
+from babel.numbers import get_currency_symbol
+from babel.numbers import get_territory_currencies
+from django.conf import settings
+from django.db import connection
+from rest_framework import serializers
+
+from api.currency.models import ExchangeRates
+from cost_models.models import EnabledCurrency
+from koku.cache import build_enabled_currency_codes_key
+from koku.cache import get_value_from_cache
+from koku.cache import set_value_in_cache
+
+_ISO_4217_CURRENCIES = get_global("all_currencies")
+
+
+def _build_active_iso_currency_codes():
+    """Build the set of current tender ISO 4217 codes from babel territory data."""
+    codes = set()
+    for territory in get_global("territory_currencies"):
+        codes.update(get_territory_currencies(territory, tender=True, non_tender=False))
+    return codes
+
+
+_ACTIVE_ISO_4217_CURRENCIES = _build_active_iso_currency_codes()
+
+
+def get_enabled_currency_codes():
+    """Return the set of currency codes that are currently enabled.
+
+    Requires tenant schema context (set by django-tenants middleware for
+    requests or by ``schema_context()`` in tasks). Cached per tenant schema
+    since this is validated on nearly every report/forecast/settings/cost-model
+    request; invalidated by ``EnabledCurrencyView`` whenever a currency is
+    enabled or disabled.
+
+    Stored in the cache as a list rather than a set, since not all cache
+    serializer backends can round-trip a set.
+    """
+    cache_key = build_enabled_currency_codes_key(connection.schema_name)
+    cached_codes = get_value_from_cache(cache_key)
+    if cached_codes is None:
+        codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        set_value_in_cache(cache_key, list(codes))
+        return codes
+    return set(cached_codes)
+
+
+class CurrencyField(serializers.CharField):
+    """CharField that normalizes to uppercase and validates against enabled currencies."""
+
+    def __init__(self, *, enabled_only, **kwargs):
+        kwargs.setdefault("max_length", 5)
+        self.enabled_only = enabled_only
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data).upper()
+        if not is_valid_iso_currency(value):
+            raise serializers.ValidationError(f'"{value}" is not a valid ISO 4217 currency.')
+        if self.enabled_only and value not in get_enabled_currency_codes():
+            raise serializers.ValidationError(f'"{value}" is not an enabled currency.')
+        return value
+
+
+def get_all_iso_currency_codes():
+    """Return all ISO 4217 currency codes as a set from babel's registry."""
+    return set(_ISO_4217_CURRENCIES)
+
+
+def is_valid_iso_currency(code):
+    """Check whether *code* is a valid ISO 4217 currency using babel's registry."""
+    return code.upper() in get_all_iso_currency_codes()
+
+
+def get_currency_catalog_denylist():
+    """Return uppercase currency codes excluded from the Settings enablement catalog."""
+    return {
+        str(code).strip().upper()
+        for code in getattr(settings, "CURRENCY_CATALOG_DENYLIST", ())
+        if code and str(code).strip()
+    }
+
+
+def get_active_iso_currency_codes():
+    """Return current tender ISO 4217 codes from babel, minus the catalog denylist.
+
+    The babel tender set is built once at import. The denylist is read from
+    settings on each call so ``override_settings`` works in tests and so
+    deploy-time env changes do not require rebuilding the babel cache.
+    """
+    return set(_ACTIVE_ISO_4217_CURRENCIES) - get_currency_catalog_denylist()
+
+
+def is_active_iso_currency(code):
+    """Check whether *code* is a current tender currency available for enablement."""
+    return code.upper() in get_active_iso_currency_codes()
+
+
+def get_dynamic_rate_currencies():
+    """Return the set of currency codes that have a dynamic exchange rate available."""
+    return set(ExchangeRates.objects.values_list("currency_type", flat=True).distinct())
+
+
+def get_currency_info(code, locale="en_US"):
+    """Return a dict with code, name, symbol, and description.
+
+    All metadata is resolved via babel at call time.
+    Callers must validate the code before calling this function.
+    """
+    code = code.upper()
+    name = get_currency_name(code, locale=locale)
+    symbol = get_currency_symbol(code, locale=locale)
+
+    return {
+        "code": code,
+        "name": name,
+        "symbol": symbol,
+        "description": f"{code} ({symbol}) - {name}",
+    }

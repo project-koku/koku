@@ -17,11 +17,17 @@ objects:
     - rbac
     - sources-api
     deployments:
-    - name: api-reads
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: api-reads
       podSpec:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_KOKU_READS}
         - name: SCHEMA_SUFFIX
@@ -34,8 +40,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -50,6 +66,14 @@ objects:
           value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -95,8 +119,20 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
+        - name: REQUEST_SOFT_TIMEOUT
+          value: ${REQUEST_SOFT_TIMEOUT}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: TIMEOUT
+          value: ${KOKU_READS_GUNICORN_TIMEOUT}
+        - name: DATABASE_STATEMENT_TIMEOUT_MS
+          value: ${KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${KOKU_READS_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
+        - name: OCP_REPORT_THROTTLE_RATE
+          value: ${OCP_REPORT_THROTTLE_RATE}
+        - name: OCP_REPORT_THROTTLE_TIGHT_RATE
+          value: ${OCP_REPORT_THROTTLE_TIGHT_RATE}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -128,6 +164,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -146,9 +186,6 @@ objects:
             cpu: ${CPU_REQUEST_KOKU_READS}
             memory: ${MEMORY_REQUEST_KOKU_READS}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -160,12 +197,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -193,11 +224,17 @@ objects:
           enabled: false
         public:
           enabled: true
-    - name: api-writes
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: api-writes
       podSpec:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_KOKU_WRITES}
         - name: SCHEMA_SUFFIX
@@ -210,8 +247,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -226,6 +273,14 @@ objects:
           value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -271,8 +326,14 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
+        - name: REQUEST_SOFT_TIMEOUT
+          value: ${REQUEST_SOFT_TIMEOUT}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: OCP_REPORT_THROTTLE_RATE
+          value: ${OCP_REPORT_THROTTLE_RATE}
+        - name: OCP_REPORT_THROTTLE_TIGHT_RATE
+          value: ${OCP_REPORT_THROTTLE_TIGHT_RATE}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -309,6 +370,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -327,9 +392,6 @@ objects:
             cpu: ${CPU_REQUEST_KOKU_WRITES}
             memory: ${MEMORY_REQUEST_KOKU_WRITES}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -338,12 +400,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -356,7 +412,11 @@ objects:
           enabled: false
         public:
           enabled: true
-    - name: clowder-api
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-api
       podSpec:
         command:
         - nginx
@@ -388,6 +448,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -419,7 +483,11 @@ objects:
         public:
           apiPath: cost-management
           enabled: true
-    - name: clowder-listener
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-listener
       podSpec:
         command:
         - /bin/bash
@@ -428,6 +496,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_LISTENER}
         - name: SCHEMA_SUFFIX
@@ -436,8 +506,24 @@ objects:
           value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+          value: ${KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+          value: ${OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+          value: ${OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -446,6 +532,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -503,6 +597,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -521,9 +619,6 @@ objects:
             cpu: ${CPU_REQUEST_LISTENER}
             memory: ${MEMORY_REQUEST_LISTENER}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-listener-data
         - mountPath: /etc/gcp
@@ -536,12 +631,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-listener-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -563,6 +652,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_MASU}
         - name: SCHEMA_SUFFIX
@@ -577,8 +670,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -599,6 +702,20 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: MASU_ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: koku-masu-admin-token
+              optional: true
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -630,8 +747,6 @@ objects:
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: DATE_OVERRIDE
@@ -703,9 +818,6 @@ objects:
             cpu: ${CPU_REQUEST_MASU}
             memory: ${MEMORY_REQUEST_MASU}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -714,12 +826,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -750,14 +856,26 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SCHEDULER}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -766,6 +884,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -802,6 +928,8 @@ objects:
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_SCHEDULE
           value: ${SOURCE_STATUS_SCHEDULE}
+        - name: PRECREATE_PARTITIONS_START_DAY
+          value: ${PRECREATE_PARTITIONS_START_DAY}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
           value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
         - name: REMOVE_EXPIRED_REPORT_UTC_TIME
@@ -861,9 +989,6 @@ objects:
             cpu: ${CPU_REQUEST_SCHEDULER}
             memory: ${MEMORY_REQUEST_SCHEDULER}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -872,12 +997,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -899,6 +1018,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SOURCES_CLIENT}
         - name: SCHEMA_SUFFIX
@@ -921,8 +1042,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -935,6 +1066,14 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: GUNICORN_WORKERS
@@ -1012,9 +1151,6 @@ objects:
             cpu: ${CPU_REQUEST_SOURCES_CLIENT}
             memory: ${MEMORY_REQUEST_SOURCES_CLIENT}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -1023,12 +1159,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1055,6 +1185,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SOURCES_LISTENER}
         - name: SCHEMA_SUFFIX
@@ -1077,8 +1209,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -1091,6 +1233,14 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -1165,9 +1315,6 @@ objects:
             cpu: ${CPU_REQUEST_SOURCES_LISTENER}
             memory: ${MEMORY_REQUEST_SOURCES_LISTENER}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -1176,12 +1323,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1208,14 +1349,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_CELERY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -1230,6 +1385,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1262,6 +1425,8 @@ objects:
           value: ${WORKER_CELERY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1332,9 +1497,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_CELERY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -1347,12 +1509,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1365,7 +1521,19 @@ objects:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_COST_MODEL_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_COST_MODEL_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_COST_MODEL_TRIGGER_QUERY}
+            threshold: ${WORKER_COST_MODEL_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -1379,14 +1547,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -1401,6 +1583,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1433,6 +1623,8 @@ objects:
           value: ${WORKER_COST_MODEL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1509,9 +1701,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_COST_MODEL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -1524,25 +1713,30 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_COST_MODEL_XL_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_COST_MODEL_XL_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_COST_MODEL_XL_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_COST_MODEL_XL_TRIGGER_QUERY}
+            threshold: ${WORKER_COST_MODEL_XL_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -1556,14 +1750,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -1578,6 +1786,14 @@ objects:
               optional: true
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1610,6 +1826,8 @@ objects:
           value: ${WORKER_COST_MODEL_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1686,9 +1904,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_COST_MODEL_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -1701,25 +1916,30 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_COST_MODEL_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_COST_MODEL_PENALTY_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_COST_MODEL_PENALTY_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_COST_MODEL_PENALTY_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_COST_MODEL_PENALTY_TRIGGER_QUERY}
+            threshold: ${WORKER_COST_MODEL_PENALTY_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -1733,14 +1953,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -1755,6 +1989,14 @@ objects:
               optional: true
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1787,6 +2029,8 @@ objects:
           value: ${WORKER_COST_MODEL_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1863,9 +2107,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_COST_MODEL_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -1878,19 +2119,12 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_COST_MODEL_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -1922,14 +2156,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -1944,6 +2192,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1978,6 +2234,8 @@ objects:
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2056,9 +2314,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2071,12 +2326,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -2088,7 +2337,19 @@ objects:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_DOWNLOAD_XL_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_DOWNLOAD_XL_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_DOWNLOAD_XL_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_DOWNLOAD_XL_TRIGGER_QUERY}
+            threshold: ${WORKER_DOWNLOAD_XL_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -2102,14 +2363,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2124,6 +2399,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2158,6 +2441,8 @@ objects:
           value: ${WORKER_DOWNLOAD_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2236,9 +2521,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2251,25 +2533,30 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_DOWNLOAD_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_DOWNLOAD_PENALTY_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_DOWNLOAD_PENALTY_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_DOWNLOAD_PENALTY_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_DOWNLOAD_PENALTY_TRIGGER_QUERY}
+            threshold: ${WORKER_DOWNLOAD_PENALTY_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -2283,14 +2570,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2305,6 +2606,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2339,6 +2648,8 @@ objects:
           value: ${WORKER_DOWNLOAD_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2417,9 +2728,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2432,25 +2740,30 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_DOWNLOAD_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_OCP_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_OCP_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_OCP_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_OCP_TRIGGER_QUERY}
+            threshold: ${WORKER_OCP_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -2464,14 +2777,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2486,6 +2813,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2496,10 +2831,20 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
+        - name: DISABLE_ROS_MSG
+          value: ${DISABLE_ROS_MSG}
+        - name: KAFKA_CONNECT
+          value: ${KAFKA_CONNECT}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -2518,6 +2863,8 @@ objects:
           value: ${WORKER_OCP_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2596,9 +2943,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_OCP}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2611,25 +2955,30 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_OCP_XL_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_OCP_XL_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_OCP_XL_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_OCP_XL_TRIGGER_QUERY}
+            threshold: ${WORKER_OCP_XL_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -2643,14 +2992,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2665,6 +3028,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2675,10 +3046,20 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
+        - name: DISABLE_ROS_MSG
+          value: ${DISABLE_ROS_MSG}
+        - name: KAFKA_CONNECT
+          value: ${KAFKA_CONNECT}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -2697,6 +3078,8 @@ objects:
           value: ${WORKER_OCP_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2775,9 +3158,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_OCP_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2790,25 +3170,30 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_OCP_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_OCP_PENALTY_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_OCP_PENALTY_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_OCP_PENALTY_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_OCP_PENALTY_TRIGGER_QUERY}
+            threshold: ${WORKER_OCP_PENALTY_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -2822,14 +3207,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2844,6 +3243,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2854,10 +3261,20 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
+        - name: DISABLE_ROS_MSG
+          value: ${DISABLE_ROS_MSG}
+        - name: KAFKA_CONNECT
+          value: ${KAFKA_CONNECT}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -2876,6 +3293,8 @@ objects:
           value: ${WORKER_OCP_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2954,9 +3373,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_OCP_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2969,19 +3385,12 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_OCP_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -3001,14 +3410,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3023,6 +3446,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3057,6 +3488,8 @@ objects:
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3139,9 +3572,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_PRIORITY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3154,12 +3584,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3186,14 +3610,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3208,6 +3646,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3242,6 +3688,8 @@ objects:
           value: ${WORKER_PRIORITY_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3324,9 +3772,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_PRIORITY_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3339,12 +3784,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3371,14 +3810,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3393,6 +3846,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3427,6 +3888,8 @@ objects:
           value: ${WORKER_PRIORITY_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3509,9 +3972,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_PRIORITY_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3524,12 +3984,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3556,14 +4010,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3578,6 +4046,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3610,6 +4086,8 @@ objects:
           value: ${WORKER_REFRESH_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3686,9 +4164,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_REFRESH}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3701,12 +4176,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3733,14 +4202,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3755,6 +4238,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3787,6 +4278,8 @@ objects:
           value: ${WORKER_REFRESH_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3863,9 +4356,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_REFRESH_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3878,12 +4368,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3910,14 +4394,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3932,6 +4430,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3964,6 +4470,8 @@ objects:
           value: ${WORKER_REFRESH_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4040,9 +4548,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_REFRESH_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4055,12 +4560,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4073,7 +4572,28 @@ objects:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_SCALE_DOWN_STABILIZATION_SECONDS}}
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_SUMMARY_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_SUMMARY_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_SUMMARY_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_SUMMARY_TRIGGER_QUERY}
+            threshold: ${WORKER_SUMMARY_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -4087,14 +4607,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4109,6 +4643,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4123,6 +4665,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4141,6 +4685,8 @@ objects:
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4219,11 +4765,8 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4236,25 +4779,39 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS}}
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_SUMMARY_XL_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_SUMMARY_XL_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_SUMMARY_XL_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_SUMMARY_XL_TRIGGER_QUERY}
+            threshold: ${WORKER_SUMMARY_XL_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -4268,14 +4825,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4290,6 +4861,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4304,6 +4883,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4322,6 +4903,8 @@ objects:
           value: ${WORKER_SUMMARY_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4400,11 +4983,8 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY_XL}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY_XL}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_XL_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4417,25 +4997,39 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_SUMMARY_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_PENALTY_SCALE_DOWN_STABILIZATION_SECONDS}}
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_SUMMARY_PENALTY_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_SUMMARY_PENALTY_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_SUMMARY_PENALTY_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_SUMMARY_PENALTY_TRIGGER_QUERY}
+            threshold: ${WORKER_SUMMARY_PENALTY_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -4449,14 +5043,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4471,6 +5079,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4485,6 +5101,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4503,6 +5121,8 @@ objects:
           value: ${WORKER_SUMMARY_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4581,11 +5201,8 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY_PENALTY}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY_PENALTY}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_PENALTY_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4598,19 +5215,12 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_SUMMARY_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -4630,14 +5240,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_HCS}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4652,6 +5276,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: ENABLE_HCS_DEBUG
           value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -4686,6 +5318,8 @@ objects:
           value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4762,9 +5396,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_HCS}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4777,12 +5408,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4795,7 +5420,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-subs-extraction
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-subs-extraction
       podSpec:
         command:
         - /bin/bash
@@ -4805,14 +5434,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUBS_EXTRACTION}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4827,6 +5470,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -4863,6 +5514,8 @@ objects:
           value: ${WORKER_SUBS_EXTRACTION_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4906,6 +5559,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -4925,9 +5582,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_SUBS_EXTRACTION}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4940,12 +5594,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4958,7 +5606,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-subs-transmission
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-subs-transmission
       podSpec:
         command:
         - /bin/bash
@@ -4968,14 +5620,28 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUBS_TRANSMISSION}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4990,6 +5656,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
+        - name: CURRENCY_CATALOG_DENYLIST
+          value: ${CURRENCY_CATALOG_DENYLIST}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5026,6 +5700,8 @@ objects:
           value: ${WORKER_SUBS_TRANSMISSION_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -5067,6 +5743,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -5086,9 +5766,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_SUBS_TRANSMISSION}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -5101,12 +5778,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -5132,8 +5803,20 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -5154,6 +5837,8 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
@@ -5171,8 +5856,20 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -5187,6 +5884,8 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
         resources:
           limits:
@@ -5226,11 +5925,17 @@ objects:
     jobs:
     - management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
 - apiVersion: v1
-  data:
-    django-secret-key: ${SECRET_KEY}
   kind: Secret
   metadata:
     name: koku-secret
+  stringData:
+    django-secret-key: ${SECRET_KEY}
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: koku-masu-admin-token
+  stringData:
+    token: ${MASU_ADMIN_TOKEN}
 - apiVersion: v1
   data:
     nginx.conf: |-
@@ -5320,6 +6025,25 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- description: Enable TLS for Redis connections.
+  name: REDIS_SSL
+  value: "False"
+- description: toggles onprem data processing logic
+  name: ONPREM
+  value: "False"
+- description: enables SaaS-only masu endpoints even when ONPREM=True, so IQE/integration
+    tests can reach them
+  name: IQE_TEST_RUN
+  value: "False"
+- description: Exchange rate API URL for dynamic currency rates. Empty disables the
+    daily currency beat.
+  name: CURRENCY_URL
+  value: ""
+- description: Comma-separated ISO currency codes excluded from the Settings enablement
+    catalog (babel tender minus these). Already-enabled codes remain visible so they
+    can be disabled.
+  name: CURRENCY_CATALOG_DENYLIST
+  value: ""
 - description: Image tag
   name: IMAGE_TAG
   required: true
@@ -5343,8 +6067,6 @@ parameters:
   value: hccm-ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
   value: hccm-subs-eph-s3
-- name: AWS_SHARED_CREDENTIALS_FILE
-  value: /etc/aws/aws-credentials
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
@@ -5441,6 +6163,27 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- description: Seconds before a sync request is aborted and reported with request
+    context
+  displayName: Soft request timeout
+  name: REQUEST_SOFT_TIMEOUT
+  value: "90"
+- description: Seconds before a stuck sync request's Python stacks are written to
+    stderr
+  displayName: Faulthandler request timeout
+  name: REQUEST_FAULTHANDLER_TIMEOUT
+  value: "95"
+- description: Global per-schema rate limit for OCP report API GETs (DRF SimpleRateThrottle
+    format, e.g. 10000/m). Keep high by default so UI, IQE, and on-prem are not blocked;
+    tighten via Unleash + OCP_REPORT_THROTTLE_TIGHT_RATE.
+  displayName: OCP report throttle rate
+  name: OCP_REPORT_THROTTLE_RATE
+  value: 10000/m
+- description: Stricter per-schema OCP report rate when cost-management.backend.rate-limit-ocp-report-queries
+    is enabled for the schema (e.g. 500/m)
+  displayName: OCP report tighten throttle rate
+  name: OCP_REPORT_THROTTLE_TIGHT_RATE
+  value: 500/m
 - displayName: Celery log level
   name: CELERY_LOG_LEVEL
   value: INFO
@@ -5496,15 +6239,22 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
+- description: Maximum duration in milliseconds for an enabled OCP tag-mapping UPDATE
+    (default 8 hours)
+  displayName: OCP tag-mapping statement timeout
+  name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+  value: "28800000"
+- description: PostgreSQL client_connection_check_interval (ms) for masu and worker
+    connections, so queries of killed workers are cancelled; 0 disables
+  displayName: Worker client connection check interval
+  name: WORKER_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+  required: true
+  value: "5000"
 - description: Number of days to expand the data validation
   displayName: Data validation
   name: VALIDATION_RANGE
   required: true
   value: "5"
-- description: Flag to use account enhanced prometheus metricsworker
-  displayName: Account Enhanced Metrics
-  name: ACCOUNT_ENHANCED_METRICS
-  value: "False"
 - description: Flag to enable/disable caching
   displayName: cached views
   name: CACHED_VIEWS_DISABLED
@@ -5525,6 +6275,11 @@ parameters:
   displayName: Worker Proc Alive Timeout
   name: WORKER_PROC_ALIVE_TIMEOUT
   value: "4"
+- description: Seconds of stale Celery parent heartbeat before worker /livez fails
+    (default 60). Long-running tasks stay live while the parent still ticks.
+  displayName: Probe liveness heartbeat seconds
+  name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+  value: "60"
 - description: Demo account JSON
   displayName: Demo account JSON
   name: DEMO_ACCOUNTS
@@ -5539,6 +6294,10 @@ parameters:
   displayName: Report download schedule
   name: REPORT_DOWNLOAD_SCHEDULE
   value: 0 * * * *
+- description: First day to pre-create next month's partitions (1-28)
+  displayName: Partition pre-creation start day
+  name: PRECREATE_PARTITIONS_START_DAY
+  value: "15"
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -5601,6 +6360,19 @@ parameters:
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
+- description: Emit Kafka listener diagnostics before the 18-minute poll interval;
+    diagnostic-only.
+  displayName: Kafka listener watchdog timeout in seconds
+  name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+  value: "900"
+- description: Wall-clock limit for streaming an OCP ingress tarball on the listener.
+  displayName: OCP ingress download timeout in seconds
+  name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+  value: "900"
+- description: Maximum OCP ingress tarball size in bytes before download is aborted.
+  displayName: OCP ingress download max payload bytes
+  name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+  value: "5368709120"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
@@ -5639,6 +6411,11 @@ parameters:
   generate: expression
   name: SECRET_KEY
   required: true
+- description: on-prem Masu admin shared secret, generated per ephemeral deploy
+  displayName: Masu admin token (Ephemeral)
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  name: MASU_ADMIN_TOKEN
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
@@ -5695,6 +6472,23 @@ parameters:
   name: KOKU_READ_ONLY_DB
   required: true
   value: cost-db-ro
+- description: Seconds before Gunicorn kills a reads API worker stuck in a request
+    (3scale gives up at ~30 s)
+  displayName: Reads API Gunicorn worker timeout
+  name: KOKU_READS_GUNICORN_TIMEOUT
+  required: true
+  value: "35"
+- description: PostgreSQL statement_timeout (ms) for reads API connections; 0 disables
+  displayName: Reads API statement timeout
+  name: KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS
+  required: true
+  value: "30000"
+- description: PostgreSQL client_connection_check_interval (ms) so queries of dropped
+    reads API clients are cancelled; 0 disables
+  displayName: Reads API client connection check interval
+  name: KOKU_READS_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+  required: true
+  value: "5000"
 - displayName: Minimum replicas
   name: KOKU_WRITES_REPLICAS
   required: true
@@ -5926,9 +6720,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_CELERY
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_COST_MODEL_REPLICAS
+  name: WORKER_COST_MODEL_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_COST_MODEL_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_COST_MODEL_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_COST_MODEL_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_COST_MODEL_TRIGGER_QUERY
+  required: true
+  value: koku:celery:cost_model_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_COST_MODEL
   required: true
@@ -5953,9 +6763,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_COST_MODEL
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_COST_MODEL_XL_REPLICAS
+  name: WORKER_COST_MODEL_XL_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_COST_MODEL_XL_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_COST_MODEL_XL_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_COST_MODEL_XL_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_COST_MODEL_XL_TRIGGER_QUERY
+  required: true
+  value: koku:celery:cost_model_xl_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_COST_MODEL_XL
   required: true
@@ -5980,9 +6806,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_COST_MODEL_XL
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_COST_MODEL_PENALTY_REPLICAS
+  name: WORKER_COST_MODEL_PENALTY_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_COST_MODEL_PENALTY_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_COST_MODEL_PENALTY_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_COST_MODEL_PENALTY_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_COST_MODEL_PENALTY_TRIGGER_QUERY
+  required: true
+  value: koku:celery:cost_model_penalty_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_COST_MODEL_PENALTY
   required: true
@@ -6050,9 +6892,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_DOWNLOAD
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_DOWNLOAD_XL_REPLICAS
+  name: WORKER_DOWNLOAD_XL_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_DOWNLOAD_XL_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_DOWNLOAD_XL_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_DOWNLOAD_XL_TRIGGER_THRESHOLD
+  required: true
+  value: "19.5"
+- displayName: Trigger query
+  name: WORKER_DOWNLOAD_XL_TRIGGER_QUERY
+  required: true
+  value: koku:celery:download_xl_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_DOWNLOAD_XL
   required: true
@@ -6077,9 +6935,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_DOWNLOAD_XL
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_DOWNLOAD_PENALTY_REPLICAS
+  name: WORKER_DOWNLOAD_PENALTY_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_DOWNLOAD_PENALTY_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_DOWNLOAD_PENALTY_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_DOWNLOAD_PENALTY_TRIGGER_THRESHOLD
+  required: true
+  value: "19.5"
+- displayName: Trigger query
+  name: WORKER_DOWNLOAD_PENALTY_TRIGGER_QUERY
+  required: true
+  value: koku:celery:download_penalty_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_DOWNLOAD_PENALTY
   required: true
@@ -6104,9 +6978,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_DOWNLOAD_PENALTY
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_OCP_REPLICAS
+  name: WORKER_OCP_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_OCP_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_OCP_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_OCP_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_OCP_TRIGGER_QUERY
+  required: true
+  value: koku:celery:ocp_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_OCP
   required: true
@@ -6131,9 +7021,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_OCP
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_OCP_XL_REPLICAS
+  name: WORKER_OCP_XL_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_OCP_XL_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_OCP_XL_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_OCP_XL_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_OCP_XL_TRIGGER_QUERY
+  required: true
+  value: koku:celery:ocp_xl_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_OCP_XL
   required: true
@@ -6158,9 +7064,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_OCP_XL
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_OCP_PENALTY_REPLICAS
+  name: WORKER_OCP_PENALTY_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_OCP_PENALTY_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_OCP_PENALTY_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_OCP_PENALTY_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_OCP_PENALTY_TRIGGER_QUERY
+  required: true
+  value: koku:celery:ocp_penalty_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_OCP_PENALTY
   required: true
@@ -6347,9 +7269,42 @@ parameters:
   name: REDEPLOY_HASH_WORKER_REFRESH_PENALTY
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_SUMMARY_REPLICAS
+  name: WORKER_SUMMARY_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_SUMMARY_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_SUMMARY_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
+- displayName: Trigger threshold
+  name: WORKER_SUMMARY_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_SUMMARY_TRIGGER_QUERY
+  required: true
+  value: koku:celery:summary_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_SUMMARY
   required: true
@@ -6374,9 +7329,42 @@ parameters:
   name: REDEPLOY_HASH_WORKER_SUMMARY
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_SUMMARY_XL_REPLICAS
+  name: WORKER_SUMMARY_XL_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_SUMMARY_XL_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_SUMMARY_XL_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_XL_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
+- displayName: Trigger threshold
+  name: WORKER_SUMMARY_XL_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_SUMMARY_XL_TRIGGER_QUERY
+  required: true
+  value: koku:celery:summary_xl_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_SUMMARY_XL
   required: true
@@ -6401,9 +7389,42 @@ parameters:
   name: REDEPLOY_HASH_WORKER_SUMMARY_XL
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_SUMMARY_PENALTY_REPLICAS
+  name: WORKER_SUMMARY_PENALTY_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_SUMMARY_PENALTY_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_SUMMARY_PENALTY_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_PENALTY_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
+- displayName: Trigger threshold
+  name: WORKER_SUMMARY_PENALTY_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_SUMMARY_PENALTY_TRIGGER_QUERY
+  required: true
+  value: koku:celery:summary_penalty_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_SUMMARY_PENALTY
   required: true

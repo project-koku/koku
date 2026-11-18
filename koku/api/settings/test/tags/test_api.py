@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import itertools
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import rest_framework.test
@@ -12,6 +13,7 @@ from rest_framework import status
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
+from api.settings.tags.view import SettingsEnableTagView
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
@@ -209,6 +211,20 @@ class TagsSettings(IamTestCase):
         self.assertEqual(enable_response.status_code, status.HTTP_204_NO_CONTENT, enable_response.data)
         self.assertEqual(get_response.data["meta"]["count"], len(self.enabled_objs) + slice_size)
         self.assertTrue(set(ids_to_enable).issubset(enabled_uuids))
+
+    @patch("api.settings.tags.view.invalidate_ocp_on_cloud_matched_tags")
+    def test_enable_tags_invalidates_matched_tags_cache(self, mock_invalidate):
+        """Enabling tag keys must drop cached OCP-on-cloud matched tags for the tenant."""
+        with schema_context(self.schema_name):
+            ids_to_enable = [str(obj.uuid) for obj in self.disabled_objs[:1]]
+            request = MagicMock()
+            request.data = {"ids": ids_to_enable}
+            request.user.customer.schema_name = self.schema_name
+            response = SettingsEnableTagView().put(request)
+            self.assertTrue(EnabledTagKeys.objects.get(uuid=ids_to_enable[0]).enabled)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        mock_invalidate.assert_called_once_with(self.schema_name)
 
     def test_disable_tags(self):
         """PUT a list of UUIDs and ensure they are disabled"""

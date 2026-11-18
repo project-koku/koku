@@ -99,7 +99,7 @@ class ProviderModelTest(MasuTestCase):
         }
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=self.aws_provider_uuid)
             self.assertIsNotNone(cost_model_map)
@@ -122,6 +122,24 @@ class ProviderModelTest(MasuTestCase):
 
         # restore filters on logging
         logging.disable(logging.CRITICAL)
+
+    @patch("masu.celery.tasks.delete_archived_data")
+    def test_delete_uses_correct_db_router_hint(self, mock_delete_archived_data):
+        """Assert db_for_write is called with instance= hint (not isinstance=)."""
+        with patch("api.provider.models.router.db_for_write", return_value="default") as mock_router:
+            with tenant_context(self.tenant):
+                self.aws_provider.delete()
+        mock_router.assert_any_call(Provider, instance=self.aws_provider)
+
+    @patch("masu.celery.tasks.delete_archived_data")
+    def test_delete_runs_in_atomic_transaction(self, mock_delete_archived_data):
+        """Assert cascade delete runs inside a transaction.atomic block."""
+        with patch("api.provider.models.transaction.atomic") as mock_atomic:
+            mock_atomic.return_value.__enter__ = lambda s: s
+            mock_atomic.return_value.__exit__ = lambda s, *a: False
+            with tenant_context(self.tenant):
+                self.aws_provider.delete()
+        mock_atomic.assert_called_once_with(using="default")
 
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_all_providers_from_queryset(self, mock_delete_archived_data):

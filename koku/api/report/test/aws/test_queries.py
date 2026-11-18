@@ -37,6 +37,7 @@ from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.queries import strip_prefix
 from api.report.test.aws.test_views import _calculate_accounts_and_subous
+from api.report.test.util.common import collapse_cost_ties
 from api.report.test.util.constants import AWS_CONSTANTS
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
@@ -232,6 +233,27 @@ class AWSReportQueryTest(IamTestCase):
         expected = [{"region": "No-region", "values": {"region": "No-region", "units": "USD"}}]
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
+
+    def test_order_by_others_always_last(self):
+        """Test that 'Others' is always last regardless of order_by direction."""
+        url = "?filter[limit]=1&group_by[account]=*"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+
+        # Others has highest cost but should still be last with DESC ordering
+        data = [
+            {"account": "account-1", "cost_total": 100, "date": "2024-01"},
+            {"account": "Others", "cost_total": 300, "date": "2024-01"},
+            {"account": "account-2", "cost_total": 200, "date": "2024-01"},
+        ]
+        out_data = handler._order_by(data, ["-date", "-cost_total"])
+        self.assertEqual(out_data[-1]["account"], "Others")
+        self.assertEqual(out_data[0]["account"], "account-2")
+
+        # Test with ASC ordering - Others should still be last
+        out_data_asc = handler._order_by(data, ["-date", "cost_total"])
+        self.assertEqual(out_data_asc[-1]["account"], "Others")
+        self.assertEqual(out_data_asc[0]["account"], "account-1")
 
     def test_get_group_by_with_group_by_and_limit_params(self):
         """Test the _get_group_by method with limit and group by params."""
@@ -2484,6 +2506,22 @@ class AWSReportQueryTest(IamTestCase):
             with self.subTest(org=org):
                 check_accounts_subous_totals(org)
 
+    def test_execute_query_with_org_unit_group_by_constant_currency(self):
+        """Org unit queries return the same totals with constant currency on and off."""
+
+        def org_unit_totals(org_unit, flag_enabled):
+            with (
+                patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=flag_enabled),
+                tenant_context(self.tenant),
+            ):
+                url = f"?group_by[org_unit_id]={org_unit}"
+                handler = AWSReportQueryHandler(self.mocked_query_params(url, AWSCostView, "costs"))
+                return handler.execute_query().get("total")
+
+        for org in self.ou_to_account_subou_map.keys():
+            with self.subTest(org=org):
+                self.assertEqual(org_unit_totals(org, True), org_unit_totals(org, False))
+
     @skip("Fix after currency support goes in")
     def test_execute_query_with_multiple_or_org_unit_group_by(self):
         """Test that when data has multiple grouped by org_unit_id, the totals add up correctly."""
@@ -2904,15 +2942,14 @@ class AWSReportQueryTest(IamTestCase):
                         gb = "gb"
                         query = query.annotate(gb=group_by_annotations)
                     expected = list(query.values(gb).annotate(cost=cost_annotations).order_by("-cost", gb))
-                correctlst = [field.get(gb) for field in expected]
-                if correctlst and None in correctlst:
-                    ind = correctlst.index(None)
-                    correctlst[ind] = "No-" + group_by
+                costs = {(field.get(gb) or "No-" + group_by): field.get("cost") for field in expected}
+                correctlst = list(costs)
                 tested = False
                 for element in data:
                     lst = [field.get(group_by) for field in element.get(group_by + "s", [])]
                     if lst and correctlst:
-                        self.assertEqual(correctlst, lst)
+                        self.assertFalse(set(lst) - set(costs), f"{group_by} values missing from {yesterday}")
+                        self.assertEqual(collapse_cost_ties(correctlst, costs), collapse_cost_ties(lst, costs))
                         tested = True
                 self.assertTrue(tested)
 
@@ -2953,7 +2990,9 @@ class AWSReportQueryTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opt = "org_unit_id"
         parent_org_unit = "R_001"
-        child_org_unit = "OU_005"
+        # Use OU_001 which has accounts (9999999999991, 9999999999992) with actual cost data.
+        # OU_005 has no accounts and thus no cost data, causing flaky test failures.
+        child_org_unit = "OU_001"
         for view in [AWSCostView, AWSStorageView, AWSInstanceTypeView]:
             with self.subTest(view=view):
                 # Grab overall value

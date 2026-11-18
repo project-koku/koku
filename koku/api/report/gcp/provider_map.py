@@ -15,6 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
+from api.report.filter_collection import gcp_storage_conditional_filter_collection
 from api.report.provider_map import ProviderMap
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
 from reporting.provider.gcp.models import GCPComputeSummaryP
@@ -167,7 +168,7 @@ class GCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {
@@ -293,7 +294,7 @@ class GCPProviderMap(ProviderMap):
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("hour")),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -427,7 +428,7 @@ class GCPProviderMap(ProviderMap):
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -435,13 +436,7 @@ class GCPProviderMap(ProviderMap):
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "conditionals": {
                             GCPCostEntryLineItemDailySummary: {
-                                "filter": [
-                                    {
-                                        "field": "service_alias",
-                                        "operation": "in",
-                                        "parameter": ["Filestore", "Data Transfer", "Storage", "Cloud Storage"],
-                                    },
-                                ],
+                                "composed_filters": gcp_storage_conditional_filter_collection(),
                             },
                         },
                         "cost_units_key": "currency",
@@ -493,8 +488,4 @@ class GCPProviderMap(ProviderMap):
                 ("account",): GCPNetworkSummaryP,
             },
         }
-        # I needed a way to identify gcp in the parent class in queries.py so that
-        # way we could filter off of invoice month instead of usage dates for
-        # monthly time scope values.
-        self.gcp_filters = True
         super().__init__(provider, report_type, schema_name)

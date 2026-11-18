@@ -11,20 +11,21 @@ from dateutil import parser
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Case
-from django.db.models import DecimalField
-from django.db.models import Value
-from django.db.models import When
+from django.db.models import OuterRef
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 
 from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import build_exchange_rate_case
+from api.currency.utils import build_monthly_rate_annotation
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.report.constants import RESOLUTION_DAILY
 from api.report.constants import TIME_SCOPE_UNITS_DAILY
 from api.report.constants import TIME_SCOPE_VALUES_DAILY
 from api.utils import DateHelper
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 
 LOG = logging.getLogger(__name__)
 WILDCARD = "*"
@@ -130,12 +131,21 @@ class QueryHandler:
 
     @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        """Get the exchange rate annotation.
+
+        When constant currency is enabled, uses per-month Subquery from
+        MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary.
+        """
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
+            exchange_rate_annotation = build_monthly_rate_annotation(
+                OuterRef(self._mapper.cost_units_key), self.currency
+            )
+        else:
+            exchange_rate_annotation = build_exchange_rate_case(
+                self._mapper.cost_units_key, self.currency, self.exchange_rates
+            )
+
+        return {"exchange_rate": exchange_rate_annotation}
 
     @property
     def order(self):
@@ -321,46 +331,6 @@ class QueryHandler:
 
         return filters
 
-    def _get_gcp_filter(self, delta=False):
-        """Create dictionary for filter parameters for GCP.
-
-        GCP filtering is a little different because we need the invoice
-        month filter, and pad the time range to include cross over data.
-
-        Args:
-            delta (Boolean): Construct timeframe for delta
-        Returns:
-            (Dict): query filter dictionary
-        """
-        filters = QueryFilterCollection()
-        if delta:
-            date_delta = self._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-            invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
-            invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
-            # We add a 5 day buffer to the start & end here
-            # to handle cross over data. We may want to change
-            # this to an env in the future
-            if self.parameters.get_filter("time_scope_value") and self.time_scope_value in [-1, -2, -3]:
-                start = self.dh.n_days_ago(start, 5)
-                end = self.dh.n_days_ahead(end, 5)
-
-        invoice_filter = QueryFilter(field="invoice_month", operation="in", parameter=invoice_months)
-        filters.add(invoice_filter)
-        start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
-        end_filter = QueryFilter(field="usage_start", operation="lte", parameter=end.date())
-        filters.add(query_filter=start_filter)
-        filters.add(query_filter=end_filter)
-        # COST-3043
-        filter_list = self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter", [])
-        for conditional_filter in filter_list:
-            filters.add(**conditional_filter)
-        return filters
-
     def filter_to_order_by(self, parameters):  # noqa: C901
         """Remove group_by[NAME]=* and replace it with group_by[NAME]=X.
 
@@ -407,7 +377,9 @@ class QueryHandler:
         returns:
             None
         """
-        for _filt in filt if isinstance(filt, list) else [filt]:
+        if not isinstance(filt, list):
+            filt = [filt]
+        for _filt in filt:
             check_field_type = None
             try:
                 if hasattr(self, "query_table"):

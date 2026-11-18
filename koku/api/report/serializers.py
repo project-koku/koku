@@ -10,7 +10,7 @@ from django.utils.translation import gettext
 from rest_framework import serializers
 from rest_framework.fields import DateField
 
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import CurrencyField
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.queries import ReportQueryHandler
@@ -19,6 +19,10 @@ from api.utils import get_currency
 from api.utils import materialized_view_month_start
 from masu.processor import check_group_by_limit
 from reporting.provider.ocp.models import OpenshiftCostCategory
+
+# URL path fragments for reports that rank with filter[limit]/offset using implicit group_by
+# from the provider map (no group_by query params required). See report_type "group_by".
+_FILTER_LIMIT_IMPLICIT_GROUP_BY_PATH_MARKERS = frozenset(("instance-types", "mig_profiles"))
 
 
 def handle_invalid_fields(this, data):
@@ -247,6 +251,14 @@ class FilterSerializer(BaseSerializer):
             (ValidationError): if filter inputs are invalid
 
         """
+        unsupported_exact_filters = ["org_unit_id", "infrastructure"]
+        for key in data:
+            if key.startswith("exact:"):
+                base_key = key.split(":", 1)[1]
+                if base_key in unsupported_exact_filters:
+                    raise serializers.ValidationError(
+                        {key: f"The 'exact:' operator is not supported for the '{base_key}' filter."}
+                    )
         handle_invalid_fields(self, data)
         resolution = data.get("resolution")
         time_scope_value = data.get("time_scope_value")
@@ -328,6 +340,13 @@ class ParamSerializer(BaseSerializer):
 
     _tagkey_support = True
 
+    @property
+    def _schema_name(self):
+        request = self.context.get("request")
+        if request and hasattr(request, "user") and hasattr(request.user, "customer"):
+            return request.user.customer.schema_name
+        return None
+
     # Adding pagination fields to the serializer because we validate
     # before running reports and paginating
     limit = serializers.IntegerField(required=False)
@@ -337,7 +356,7 @@ class ParamSerializer(BaseSerializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
     category = StringOrListField(child=serializers.CharField(), required=False)
 
     order_by_allowlist = (
@@ -351,6 +370,8 @@ class ParamSerializer(BaseSerializer):
         "capacity",
         "cost_total_distributed",
         "storage_class",
+        "usage_efficiency",
+        "wasted_cost",
     )
 
     def validate(self, data):
@@ -407,11 +428,9 @@ class ParamSerializer(BaseSerializer):
         filter_limit = data.get("filter", {}).get("limit")
         filter_offset = data.get("filter", {}).get("offset")
 
-        if (
-            "instance-types" not in self.context["request"].path
-            and (filter_limit or filter_offset)
-            and not data.get("group_by")
-        ):
+        path = self.context["request"].path
+        implicit_group_by_for_limit = any(m in path for m in _FILTER_LIMIT_IMPLICIT_GROUP_BY_PATH_MARKERS)
+        if not implicit_group_by_for_limit and (filter_limit or filter_offset) and not data.get("group_by"):
             error = {"error": "filter[limit] and filter[offset] requires a valid group_by param."}
             raise serializers.ValidationError(error)
 
@@ -525,18 +544,19 @@ class ParamSerializer(BaseSerializer):
                     "subscription_guid" in group_keys or "subscription_guid" in or_keys
                 ):
                     continue
+                # special case: GPU order by model_name/vendor_name, but group by model/vendor.
+                if key == "model_name" and ("model" in group_keys or "model" in or_keys):
+                    continue
+                if key == "vendor_name" and ("vendor" in group_keys or "vendor" in or_keys):
+                    continue
                 # sepcial case: we order by date, but we group by an allowed param.
                 if key == "date" and group_keys:
                     # Checks to make sure the orderby date is allowed
                     dh = DateHelper()
-                    if (
-                        value.get("date") >= materialized_view_month_start(dh).date()
-                        and value.get("date") <= dh.today.date()
-                    ):
+                    start = materialized_view_month_start(dh, self._schema_name).date()
+                    if value.get("date") >= start and value.get("date") <= dh.today.date():
                         continue
-                    error[key] = gettext(
-                        f"Order-by date must be from {materialized_view_month_start(dh).date()} to {dh.today.date()}"
-                    )
+                    error[key] = gettext(f"Order-by date must be from {start} to {dh.today.date()}")
                     raise serializers.ValidationError(error)
 
             error[key] = gettext(f'Order-by "{key}" requires matching Group-by.')
@@ -547,7 +567,7 @@ class ParamSerializer(BaseSerializer):
     def validate_start_date(self, value):
         """Validate that the start_date is within the expected range."""
         dh = DateHelper()
-        start = materialized_view_month_start(dh).date()
+        start = materialized_view_month_start(dh, self._schema_name).date()
         end = dh.tomorrow.date()
         if value >= start and value <= end:
             return value
@@ -558,7 +578,7 @@ class ParamSerializer(BaseSerializer):
     def validate_end_date(self, value):
         """Validate that the end_date is within the expected range."""
         dh = DateHelper()
-        start = materialized_view_month_start(dh).date()
+        start = materialized_view_month_start(dh, self._schema_name).date()
         end = dh.tomorrow.date()
         if value >= start and value <= end:
             return value
@@ -567,7 +587,6 @@ class ParamSerializer(BaseSerializer):
 
 
 class ReportQueryParamSerializer(ParamSerializer):
-
     EXCLUDE_SERIALIZER = ExcludeSerializer
     FILTER_SERIALIZER = FilterSerializer
     GROUP_BY_SERIALIZER = GroupSerializer

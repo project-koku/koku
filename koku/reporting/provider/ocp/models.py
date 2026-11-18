@@ -17,6 +17,7 @@ TRINO_LINE_ITEM_TABLE_MAP = {
     "node_labels": "openshift_node_labels_line_items",
     "namespace_labels": "openshift_namespace_labels_line_items",
     "vm_usage": "openshift_vm_usage_line_items",
+    "gpu_usage": "openshift_gpu_usage_line_items",
 }
 
 TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
@@ -25,6 +26,7 @@ TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
     "node_labels": "openshift_node_labels_line_items_daily",
     "namespace_labels": "openshift_namespace_labels_line_items_daily",
     "vm_usage": "openshift_vm_usage_line_items_daily",
+    "gpu_usage": "openshift_gpu_usage_line_items_daily",
 }
 
 VIEWS = (
@@ -43,6 +45,12 @@ UI_SUMMARY_TABLES_MARKUP_SUBSET = (
     "reporting_ocp_cost_summary_by_project_p",
 )
 
+# Populated via _populate_virtualization_ui_summary_table(), not the standard UI summary loop.
+VM_UI_SUMMARY_TABLE = "reporting_ocp_vm_summary_p"
+
+# Partition create/cleanup via UI_SUMMARY_TABLES; populated by Phase 4 breakdown SQL (not the standard loop).
+COST_BREAKDOWN_UI_SUMMARY_TABLE = "reporting_ocp_cost_breakdown_p"
+
 UI_SUMMARY_TABLES = (
     *UI_SUMMARY_TABLES_MARKUP_SUBSET,
     "reporting_ocp_pod_summary_p",
@@ -53,10 +61,10 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_p",
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
+    "reporting_ocp_gpu_summary_p",
+    VM_UI_SUMMARY_TABLE,
+    COST_BREAKDOWN_UI_SUMMARY_TABLE,
 )
-
-# Note the reporting_ocp_vm_summary_p is populated separately.
-VM_UI_SUMMARY_TABLE = "reporting_ocp_vm_summary_p"
 
 
 class OCPUsageReportPeriod(models.Model):
@@ -194,6 +202,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
     monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
@@ -287,6 +296,7 @@ class OCPNode(models.Model):
     node_capacity_cpu_cores = models.DecimalField(max_digits=18, decimal_places=2, null=True)
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
     node_role = models.TextField(null=True)
+    architecture = models.TextField(null=True)
 
 
 class OCPNetworkSummaryP(models.Model):
@@ -309,6 +319,7 @@ class OCPNetworkSummaryP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_data_in_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -349,6 +360,7 @@ class OCPNetworkSummaryByNodeP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_data_in_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -390,6 +402,7 @@ class OCPNetworkSummaryByProjectP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_data_in_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -448,6 +461,7 @@ class OCPVirtualMachineSummaryP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -577,6 +591,7 @@ class OCPCostSummaryP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -608,9 +623,7 @@ class OCPCostSummaryByProjectP(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     infrastructure_usage_cost = JSONField(null=True)
-    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_project_monthly_cost = JSONField(null=True)
     supplementary_usage_cost = JSONField(null=True)
@@ -626,6 +639,7 @@ class OCPCostSummaryByProjectP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -672,6 +686,7 @@ class OCPCostSummaryByNodeP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -727,6 +742,7 @@ class OCPPodSummaryP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -786,6 +802,7 @@ class OCPPodSummaryByProjectP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -849,6 +866,7 @@ class OCPPodSummaryByNodeP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -899,6 +917,7 @@ class OCPVolumeSummaryP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -953,4 +972,217 @@ class OCPVolumeSummaryByProjectP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
+
+
+class OCPGpuSummaryP(models.Model):
+    """A summarized partitioned table for GPU cost queries.
+
+    This table gives a daily breakdown of GPU costs aggregated from daily_summary.
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPGpuSummaryP."""
+
+        db_table = "reporting_ocp_gpu_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpgpusumm_usage_start"),
+            models.Index(fields=["cluster_id"], name="ocpgpusumm_cluster_idx"),
+            models.Index(fields=["namespace"], name="ocpgpusumm_namespace_idx"),
+            models.Index(fields=["node"], name="ocpgpusumm_node_idx"),
+            models.Index(fields=["vendor_name"], name="ocpgpusumm_vendor_idx"),
+            models.Index(fields=["model_name"], name="ocpgpusumm_model_idx"),
+            models.Index(fields=["mig_profile"], name="ocpgpusumm_mig_profile_idx"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    node = models.CharField(max_length=253, null=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+
+    # GPU specific fields
+    vendor_name = models.CharField(max_length=128, null=True)
+    model_name = models.CharField(max_length=128, null=True)
+    memory_capacity_gb = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    gpu_count = models.IntegerField(null=True)  # TODO: Remove this field
+    mig_instance_id = models.CharField(max_length=128, null=True)
+    gpu_uuid = models.CharField(max_length=128, null=True)
+
+    # MIG (Multi-Instance GPU) fields
+    gpu_mode = models.CharField(max_length=32, null=True)  # 'dedicated' or 'MIG'
+    mig_profile = models.CharField(max_length=64, null=True)  # e.g., '1g.5gb', '2g.10gb'
+    mig_slice_count = models.IntegerField(null=True)
+    mig_memory_capacity_gb = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    mig_strategy = models.CharField(max_length=10, null=True)
+    gpu_max_slices = models.IntegerField(null=True)
+
+    # Cost fields - aggregated from cost_model_gpu_cost in daily_summary
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    # Metadata
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    raw_currency = models.TextField(null=True)
+
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
+
+
+class RatesToUsage(models.Model):
+    """Per-rate cost rows produced by the Phase 2 SQL pipeline.
+
+    Partitioned by usage_start (same strategy as all OCP reporting tables).
+    See docs/architecture/cost-breakdown/data-model.md § RatesToUsage.
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        db_table = "rates_to_usage"
+        indexes = [
+            models.Index(
+                fields=["usage_start", "source_uuid", "report_period"],
+                name="ratestousage_start_src_rp_idx",
+            ),
+            models.Index(fields=["namespace"], name="ratestousage_namespace_idx"),
+            models.Index(fields=["cluster_id"], name="ratestousage_cluster_idx"),
+            models.Index(fields=["custom_name"], name="ratestousage_custom_name_idx"),
+            models.Index(fields=["monthly_cost_type"], name="ratestousage_monthly_cost_idx"),
+            models.Index(fields=["label_hash"], name="ratestousage_label_hash_idx"),
+            models.Index(
+                fields=["source_uuid", "report_period", "usage_start", "monthly_cost_type"],
+                name="ratestousage_src_rp_mct_idx",
+            ),
+            models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
+            models.Index(fields=["cost_model_id"], name="ratestousage_cost_model_id_idx"),
+        ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    rate = models.ForeignKey("cost_models.Rate", on_delete=models.CASCADE, null=True, db_index=False)
+    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.CASCADE, null=True, db_index=False)
+    report_period = models.ForeignKey(
+        "OCPUsageReportPeriod",
+        on_delete=models.CASCADE,
+        null=True,
+        db_column="report_period_id",
+    )
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider",
+        on_delete=models.CASCADE,
+        unique=False,
+        null=False,
+        db_column="source_uuid",
+    )
+    usage_start = models.DateField()
+    usage_end = models.DateField()
+    node = models.CharField(max_length=253, null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    data_source = models.CharField(max_length=63, null=True)
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    pod_labels = JSONField(null=True)
+    volume_labels = JSONField(null=True)
+    all_labels = JSONField(null=True)
+    custom_name = models.CharField(max_length=50)
+    metric_type = models.CharField(max_length=20)
+    cost_model_rate_type = models.TextField(null=True)
+    monthly_cost_type = models.TextField(null=True)
+    calculated_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    labels = JSONField(null=True)
+    label_hash = models.CharField(max_length=64, null=True)
+    # Capacity + metadata columns denormalized from reporting_ocpusagelineitem_daily_summary
+    # at insert time (see insert_usage_rates_to_usage.sql). Lets the aggregation step read
+    # them directly off RatesToUsage instead of re-JOINing to the daily summary, eliminating
+    # an expensive IS NOT DISTINCT FROM JOIN on nullable columns.
+    node_capacity_cpu_cores = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_memory_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    resource_id = models.CharField(max_length=253, null=True)
+    persistentvolume = models.CharField(max_length=253, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
+
+
+class OCPCostUIBreakDownP(models.Model):
+    """UI summary table for the per-rate cost breakdown API.
+
+    Populated from RatesToUsage. Partitioned by usage_start.
+    See docs/architecture/cost-breakdown/data-model.md § OCPCostUIBreakDownP.
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        db_table = "reporting_ocp_cost_breakdown_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpcostbreakdown_usage_start"),
+            models.Index(fields=["namespace"], name="ocpcostbreakdown_namespace"),
+            models.Index(fields=["cluster_id"], name="ocpcostbreakdown_cluster_id"),
+            models.Index(fields=["custom_name"], name="ocpcostbreakdown_custom_name"),
+            models.Index(fields=["path"], name="ocpcostbreakdown_path"),
+            models.Index(fields=["depth"], name="ocpcostbreakdown_depth"),
+            models.Index(fields=["top_category"], name="ocpcostbreakdown_top_category"),
+            models.Index(fields=["usage_start", "source_uuid"], name="ocpcostbreakdown_start_src_idx"),
+            models.Index(fields=["node"], name="ocpcostbreakdown_node_idx"),
+        ]
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    usage_start = models.DateField()
+    usage_end = models.DateField()
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    node = models.CharField(max_length=253, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    custom_name = models.CharField(max_length=50)
+    metric_type = models.CharField(max_length=30)
+    cost_model_rate_type = models.TextField(null=True)
+    cost_value = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    raw_currency = models.TextField(null=True)
+    path = models.CharField(max_length=512)
+    depth = models.SmallIntegerField()
+    parent_path = models.CharField(max_length=512)
+    top_category = models.CharField(max_length=512)
+    breakdown_category = models.CharField(max_length=50)
+
+
+# Import on-prem line item models so Django can discover them for migrations
+# These models are only used when ONPREM=True, but need to be discoverable for migrations
+from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPNamespaceLabelsLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPNamespaceLabelsLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPNodeLabelsLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPNodeLabelsLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPPodUsageLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPPodUsageLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPStorageUsageLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPStorageUsageLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPVMUsageLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPVMUsageLineItemDaily  # noqa: E402, F401

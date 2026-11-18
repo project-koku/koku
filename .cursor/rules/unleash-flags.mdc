@@ -1,0 +1,11 @@
+---
+description: "Unleash feature-flag policy when editing flag definitions or gates"
+globs:
+  - "koku/masu/processor/__init__.py"
+  - "koku/koku/feature_flags.py"
+  - "koku/hcs/tasks.py"
+  - "koku/subs/tasks.py"
+alwaysApply: false
+---
+
+@docs/agent/unleash-flags.md

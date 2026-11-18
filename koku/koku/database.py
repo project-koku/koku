@@ -33,6 +33,7 @@ from jinjasql import JinjaSql
 from psycopg2 import DatabaseError as p_DBError
 from sqlparse import format as format_sql
 from sqlparse import split as sql_split
+from sqlparse.exceptions import SQLParseError
 
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
@@ -127,7 +128,31 @@ def config():
         db_config["OPTIONS"]["sslmode"] = "verify-full"
         db_config["OPTIONS"]["sslrootcert"] = cert_file
 
+    session_options = _session_options()
+    if session_options:
+        db_config["OPTIONS"]["options"] = session_options
+
     return db_config
+
+
+def _session_options():
+    """PostgreSQL session settings for this process, from optional environment variables.
+
+    DATABASE_STATEMENT_TIMEOUT_MS cancels statements that run longer than the API
+    deadline. DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS lets PostgreSQL notice a
+    dropped client (killed Gunicorn worker, restarted pod) while a query runs and
+    cancel it. Unset leaves the server or role default; 0 is sent and disables the
+    setting even when the server or role default is nonzero.
+    """
+    settings_by_name = {
+        "statement_timeout": ENVIRONMENT.int("DATABASE_STATEMENT_TIMEOUT_MS", default=None),
+        "client_connection_check_interval": ENVIRONMENT.int(
+            "DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS", default=None
+        ),
+    }
+    return " ".join(
+        f"-c {name}={value}" for name, value in settings_by_name.items() if value is not None and value >= 0
+    )
 
 
 def dbfunc_exists(connection, function_schema, function_name, function_signature):
@@ -262,7 +287,12 @@ def execute_compiled_sql(sql, params=None):
     rows_affected = 0
     with transaction.get_connection().cursor() as cur:
         params = params or None
-        LOG.debug(format_sql(cur.mogrify(sql, params).decode("utf-8"), reindent_aligned=True))
+        compiled_sql = cur.mogrify(sql, params).decode("utf-8")
+        try:
+            LOG.debug(format_sql(compiled_sql, reindent_aligned=True))
+        except SQLParseError:
+            # sqlparse>=0.6.1 may refuse oversized statements (MAX_GROUPING_TOKENS).
+            LOG.debug(compiled_sql)
         cur.execute(sql, params)
         rows_affected = cur.rowcount
 

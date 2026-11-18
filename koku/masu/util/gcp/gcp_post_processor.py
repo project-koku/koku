@@ -174,7 +174,7 @@ class GCPPostProcessor:
         daily_df["row_uuid"] = daily_df.apply(lambda _: str(uuid4()), axis=1)
         return daily_df
 
-    def process_dataframe(self, data_frame):
+    def process_dataframe(self, data_frame, filename=None):
         """Guarantee column order for GCP parquet files"""
         columns = list(data_frame)
         column_name_map = {}

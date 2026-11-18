@@ -32,10 +32,16 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project
     source_uuid
 )
 with cte_pg_enabled_keys as (
-    select array['vm_kubevirt_io_name'] || array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
-     where enabled = true
-     and provider_type IN ('Azure', 'OCP')
+    -- Always keep the VM label; array_agg is NULL when no tags are enabled.
+    select array_agg(key order by key) as keys
+      from (
+          select 'vm_kubevirt_io_name' as key
+          union all
+          select key
+            from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+           where enabled = true
+             and provider_type IN ('Azure', 'OCP')
+      ) always_include_vm
 ),
 filtered_data as (
     SELECT cluster_id as cluster_id,
@@ -79,12 +85,6 @@ filtered_data as (
                 (k,v) -> contains(pek.keys, k)
             ) as json
         ) AS enabled_tags,
-        cast(
-            map_filter(
-                cast(json_parse(pod_labels) as map(varchar, varchar)),
-                (k,v) -> contains(pek.keys, k)
-            ) as json
-        ) AS enabled_labels,
         cost_category_id
     FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
     CROSS JOIN cte_pg_enabled_keys AS pek
@@ -105,7 +105,7 @@ SELECT
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    fd.enabled_labels as pod_labels,
+    fd.enabled_tags as pod_labels,
     resource_id,
     fd.usage_start as usage_start,
     fd.usage_start as usage_end,
@@ -136,7 +136,6 @@ GROUP BY
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    fd.enabled_labels,
     fd.enabled_tags,
     resource_id,
     subscription_guid,

@@ -13,6 +13,7 @@ from unittest.mock import patch
 from django.db import connection
 from django.test.utils import override_settings
 from django.urls import reverse
+from sqlparse.exceptions import SQLParseError
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.test.iam_test_case import IamTestCase
@@ -148,6 +149,34 @@ class TestDBPerformance(IamTestCase):
             self.assertTrue("#c7d169;" in html)
             self.assertTrue("#69d172;" in html)
             self.assertTrue("SELECT" in html)
+
+        # sqlparse>=0.6.1 raises SQLParseError past MAX_GROUPING_TOKENS; view must still render.
+        oversized_ret_val = [
+            {
+                "min_exec_time": Decimal("100.003"),
+                "max_exec_time": Decimal("10000.003"),
+                "mean_exec_time": Decimal("4250.8882"),
+                "query": "select oversized_token_limit_query",
+            }
+        ]
+        with patch(
+            "masu.api.db_performance.db_performance.DBPerformanceStats.get_statement_stats",
+            return_value=oversized_ret_val,
+        ), patch(
+            "masu.api.db_performance.dbp_views.format_sql",
+            side_effect=SQLParseError("Maximum number of tokens exceeded (10000)."),
+        ):
+            response = self.client.get(reverse("stmt_stats"), **self._get_headers())
+            self.assertEqual(response.status_code, 200)
+            html = response.content.decode("utf-8")
+            self.assertIn('id="stmt_stats_table"', html)
+            self.assertIn("select oversized_token_limit_query", html)
+
+    def test_safe_format_sql_none(self):
+        """None SQL is returned unchanged (lock/activity rows can have null queries)."""
+        from masu.api.db_performance.dbp_views import _safe_format_sql
+
+        self.assertIsNone(_safe_format_sql(None, keyword_case="upper"))
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_pg_ver(self, mok_middl):

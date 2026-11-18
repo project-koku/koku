@@ -1,0 +1,76 @@
+DELETE FROM {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND source_uuid = {{source_uuid}}
+;
+
+INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
+    id,
+    cluster_id,
+    cluster_alias,
+    namespace,
+    node,
+    usage_start,
+    usage_end,
+    vendor_name,
+    model_name,
+    memory_capacity_gb,
+    -- gpu_count,
+    mig_instance_id,
+    gpu_uuid,
+    gpu_mode,
+    mig_profile,
+    mig_slice_count,
+    gpu_max_slices,
+    mig_strategy,
+    mig_memory_capacity_gb,
+    cost_model_gpu_cost,
+    source_uuid,
+    cost_category_id,
+    raw_currency,
+    cost_model_rate_type
+)
+    SELECT uuid_generate_v4() as id,
+        cluster_id,
+        cluster_alias,
+        namespace,
+        node,
+        usage_start,
+        usage_start as usage_end,
+        all_labels->>'gpu-vendor' as vendor_name,
+        all_labels->>'gpu-model' as model_name,
+        max((all_labels->>'gpu-memory-mib')::numeric * 0.001048576) as memory_capacity_gb,
+        -- count(DISTINCT resource_id) as gpu_count,
+        max(NULLIF(all_labels->>'mig-instance-id', '')) as mig_instance_id,
+        max(COALESCE(resource_id, all_labels->>'gpu-uuid')) as gpu_uuid,
+        COALESCE(max(NULLIF(all_labels->>'gpu-mode', '')), 'dedicated') as gpu_mode,
+        max(NULLIF(all_labels->>'mig-profile', '')) as mig_profile,
+        max((all_labels->>'mig-slice-count')::numeric::integer) as mig_slice_count,
+        max((all_labels->>'gpu-max-slices')::numeric::integer) as gpu_max_slices,
+        max(all_labels->>'mig-strategy') as mig_strategy,
+        max((all_labels->>'mig-memory-mib')::numeric * 0.001048576) as mig_memory_capacity_gb,
+        sum(cost_model_gpu_cost) as cost_model_gpu_cost,
+        source_uuid,
+        cost_category_id,
+        max(raw_currency) as raw_currency,
+        max(cost_model_rate_type) as cost_model_rate_type
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+    WHERE data_source = 'GPU'
+        AND usage_start >= {{start_date}}::date
+        AND usage_start <= {{end_date}}::date
+        AND source_uuid = {{source_uuid}}
+        AND cost_model_rate_type != 'gpu_distributed'
+        AND namespace != 'GPU unallocated'
+    GROUP BY cluster_id,
+        cluster_alias,
+        namespace,
+        all_labels->>'gpu-vendor',
+        all_labels->>'gpu-model',
+        all_labels->>'mig-profile',
+        all_labels->>'mig-instance-id',
+        COALESCE(resource_id, all_labels->>'gpu-uuid'),
+        node,
+        usage_start,
+        source_uuid,
+        cost_category_id
+;

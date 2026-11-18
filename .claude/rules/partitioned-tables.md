@@ -1,0 +1,1 @@
+../../docs/agent/partitioned-tables.md

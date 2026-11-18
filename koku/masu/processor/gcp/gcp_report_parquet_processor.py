@@ -17,7 +17,7 @@ from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
 
 
 class GCPReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, start_date):
         numeric_columns = [
             "cost",
             "currency_conversion_rate",
@@ -44,9 +44,9 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
             column_types=column_types,
             table_name=table_name,
+            start_date=start_date,
         )
 
     @property

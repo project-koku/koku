@@ -41,10 +41,16 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     source_uuid
 )
 with cte_pg_enabled_keys as (
-    select array['vm_kubevirt_io_name'] || array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
-     where enabled = true
-     and provider_type IN ('AWS', 'OCP')
+    -- Always keep the VM label; array_agg is NULL when no tags are enabled.
+    select array_agg(key order by key) as keys
+      from (
+          select 'vm_kubevirt_io_name' as key
+          union all
+          select key
+            from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+           where enabled = true
+             and provider_type IN ('AWS', 'OCP')
+      ) always_include_vm
 ),
 filtered_data as (
     SELECT cluster_id,
@@ -54,12 +60,6 @@ filtered_data as (
             (k,v) -> contains(pek.keys, k)
         ) as json
      ) AS enabled_tags,
-    cast(
-        map_filter(
-            cast(json_parse(pod_labels) as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
-        ) as json
-     ) AS enabled_labels,
     cluster_alias,
     data_source,
     namespace,
@@ -142,7 +142,7 @@ SELECT
     SUM(markup_cost_savingsplan) as markup_cost_savingsplan,
     SUM(calculated_amortized_cost) as calculated_amortized_cost,
     SUM(markup_cost_amortized) as markup_cost_amortized,
-    fd.enabled_labels as pod_labels,
+    fd.enabled_tags as pod_labels,
     fd.enabled_tags as tags,
     fd.aws_cost_category as aws_cost_category,
     cost_category_id,
@@ -167,7 +167,6 @@ GROUP BY
     unit,
     data_transfer_direction,
     currency_code,
-    fd.enabled_labels,
     fd.enabled_tags,
     fd.aws_cost_category,
     cost_category_id;
