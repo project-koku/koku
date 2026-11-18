@@ -5,6 +5,7 @@
 """Test the Provider views."""
 import json
 from datetime import date
+from datetime import timedelta
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -13,6 +14,7 @@ from dateutil import parser
 from django.db import IntegrityError
 from django.http import HttpRequest
 from django.http import QueryDict
+from django.utils import timezone
 from django_tenants.utils import tenant_context
 from model_bakery import baker
 from rest_framework.request import Request
@@ -27,6 +29,7 @@ from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from api.provider.models import ProviderInfrastructureMap
 from api.provider.models import Sources
+from api.provider.provider_manager import DATE_TIME_FORMAT
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.provider_manager import ProviderProcessingError
@@ -35,6 +38,8 @@ from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
 from koku.database import get_model
 from reporting.provider.aws.models import UI_SUMMARY_TABLES as AWS_UI_SUMMARY_TABLES
+from reporting.provider.gcp.models import GCPCostEntryBill
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES as OCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportManifest
 
@@ -658,6 +663,9 @@ class ProviderManagerTest(IamTestCase):
                     self.assertIsInstance(parser.parse(value_data), date)
                 continue
             key_date_obj = parser.parse(key)
+            self.assertIn("derived_cost_datetime", value)
+            self.assertIn("summary_data_updated_datetime", value)
+            self.assertIn("summary_data_creation_datetime", value)
             manifests = value.get("manifests")
             for manifest in manifests:
                 self.assertIsNotNone(manifest.get("assembly_id"))
@@ -713,6 +721,88 @@ class ProviderManagerTest(IamTestCase):
 
         stats = manager.provider_statistics(self.tenant)
         self.assertEqual(stats, {"data_updated_date": None, "ocp_on_cloud_data_updated_date": None})
+
+    def test_provider_statistics_includes_month_cost_model_timestamps(self):
+        """QE can poll per-month derived/summary timestamps on source stats."""
+        month = self.dh.this_month_start
+        with tenant_context(self.tenant):
+            report_period = OCPUsageReportPeriod.objects.filter(report_period_start=month).first()
+        self.assertIsNotNone(report_period)
+        provider = Provider.objects.get(uuid=report_period.provider_id)
+        derived = timezone.now().replace(microsecond=0)
+        summary_updated = derived - timedelta(minutes=5)
+        summary_created = derived - timedelta(minutes=10)
+        with tenant_context(self.tenant):
+            report_period.summary_data_creation_datetime = summary_created
+            report_period.summary_data_updated_datetime = summary_updated
+            report_period.derived_cost_datetime = derived
+            report_period.save(
+                update_fields=[
+                    "summary_data_creation_datetime",
+                    "summary_data_updated_datetime",
+                    "derived_cost_datetime",
+                ]
+            )
+
+        stats = ProviderManager(provider.uuid).provider_statistics(self.tenant)
+        month_key = str(month.date())
+        self.assertIn(month_key, stats)
+        month_stats = stats[month_key]
+        self.assertEqual(month_stats["derived_cost_datetime"], derived.strftime(DATE_TIME_FORMAT))
+        self.assertEqual(month_stats["summary_data_updated_datetime"], summary_updated.strftime(DATE_TIME_FORMAT))
+        self.assertEqual(month_stats["summary_data_creation_datetime"], summary_created.strftime(DATE_TIME_FORMAT))
+        self.assertIn("manifests", month_stats)
+
+    def test_get_tenant_provider_stats_gcp(self):
+        """GCP bills expose the same per-month timestamps as AWS/Azure/OCP."""
+        provider = Provider.objects.filter(type__in=[Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]).first()
+        self.assertIsNotNone(provider)
+        month = self.dh.this_month_start
+        derived = timezone.now().replace(microsecond=0)
+        with tenant_context(self.tenant):
+            bill = GCPCostEntryBill.objects.filter(provider_id=provider.uuid, billing_period_start=month).first()
+            if bill is None:
+                baker.make(
+                    GCPCostEntryBill,
+                    provider_id=provider.uuid,
+                    billing_period_start=month,
+                    billing_period_end=self.dh.this_month_end,
+                    summary_data_creation_datetime=derived,
+                    summary_data_updated_datetime=derived,
+                    derived_cost_datetime=derived,
+                )
+            else:
+                bill.summary_data_creation_datetime = derived
+                bill.summary_data_updated_datetime = derived
+                bill.derived_cost_datetime = derived
+                bill.save(
+                    update_fields=[
+                        "summary_data_creation_datetime",
+                        "summary_data_updated_datetime",
+                        "derived_cost_datetime",
+                    ]
+                )
+
+        stats = ProviderManager(provider.uuid)._get_tenant_provider_stats(provider, self.tenant, month)
+        formatted = derived.strftime(DATE_TIME_FORMAT)
+        self.assertEqual(stats["derived_cost_datetime"], formatted)
+        self.assertEqual(stats["summary_data_updated_datetime"], formatted)
+        self.assertEqual(stats["summary_data_creation_datetime"], formatted)
+
+    def test_get_tenant_provider_stats_missing_period_returns_nulls(self):
+        """Months without a report period/bill still expose stable timestamp keys."""
+        provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
+        self.assertIsNotNone(provider)
+        far_month = self.dh.this_month_start - timedelta(days=400)
+        stats = ProviderManager(provider.uuid)._get_tenant_provider_stats(provider, self.tenant, far_month)
+        self.assertEqual(
+            stats,
+            {
+                "summary_data_creation_datetime": None,
+                "summary_data_updated_datetime": None,
+                "derived_cost_datetime": None,
+            },
+        )
 
     def test_ocp_on_aws_infrastructure_type(self):
         """Test that the provider infrastructure returns AWS when running on AWS."""
