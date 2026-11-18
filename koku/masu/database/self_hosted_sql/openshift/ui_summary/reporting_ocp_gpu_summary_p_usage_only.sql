@@ -51,7 +51,7 @@ SELECT uuid_generate_v4(),
 FROM {{schema | sqlsafe}}.openshift_gpu_usage_line_items AS gpu
 LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
         ON gpu.namespace LIKE cat_ns.namespace
-WHERE gpu.source = {{source_uuid}}
+WHERE gpu.source = {{source_uuid | string}}
     AND gpu.year = {{year}}
     AND lpad(gpu.month, 2, '0') = {{month}}
     AND gpu.usage_start >= date({{start_date}})
