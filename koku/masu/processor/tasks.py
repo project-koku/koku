@@ -893,7 +893,9 @@ def update_summary_tables(  # noqa: C901
         manifest_list = [manifest_id]
 
     # OCP cost distribution of unattributed costs occurs within the `update_cost_model_costs` method.
-    # This method should always be called for OCP providers even when it does not have a cost model
+    # This method should always be called for OCP providers even when it does not have a cost model.
+    # data_updated_timestamp is stamped there (not in mark_manifest_complete) so OCP freshness
+    # waits until rates/distribution finish.
     if provider_type == Provider.PROVIDER_OCP:
         LOG.info(log_json(tracing_id, msg="Queue OCP cost model/manifest complete tasks", context=context))
         linked_tasks = (
@@ -1176,6 +1178,10 @@ def update_cost_model_costs(  # noqa: C901
                 },
             )
         )
+        # OCP ingest no longer stamps freshness in mark_manifest_complete, so a skipped
+        # cost-model step still has to unblock polling / source status.
+        if provider := Provider.objects.filter(uuid=provider_uuid).first():
+            provider.set_data_updated_timestamp()
         return
     task_name = "masu.processor.tasks.update_cost_model_costs"
     # Include start_date/end_date so non-overlapping ranges (e.g. different months) for the
@@ -1276,7 +1282,10 @@ def mark_manifest_complete(
         "manifest_list": manifest_list,
     }
     if provider := Provider.objects.filter(uuid=provider_uuid).first():
-        provider.set_data_updated_timestamp()
+        # OCP ingest chains update_cost_model_costs before this task; that is the
+        # source of data_updated_timestamp so freshness reflects rates/distribution.
+        if provider.type != Provider.PROVIDER_OCP:
+            provider.set_data_updated_timestamp()
     if manifest_list:
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_accessor.mark_manifests_as_completed(manifest_list)

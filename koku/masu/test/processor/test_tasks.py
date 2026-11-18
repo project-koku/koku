@@ -1398,8 +1398,8 @@ class TestMarkManifestCompleteTask(MasuTestCase):
     """Test cases for Processor summary table Celery tasks."""
 
     def test_mark_manifest_complete(self):
-        """Test that we mark a manifest complete."""
-        provider = self.ocp_provider
+        """Test that we mark a cloud manifest complete and stamp provider freshness."""
+        provider = self.aws_provider
         initial_update_time = provider.data_updated_timestamp
         start = self.dh.this_month_start
         manifest = CostUsageReportManifest(
@@ -1415,21 +1415,44 @@ class TestMarkManifestCompleteTask(MasuTestCase):
             self.schema, provider.type, manifest_list=[manifest.id], provider_uuid=str(provider.uuid), tracing_id=1
         )
 
-        provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
+        provider.refresh_from_db()
         manifest = CostUsageReportManifest.objects.filter(id=manifest.id).first()
         self.assertGreater(provider.data_updated_timestamp, initial_update_time)
         self.assertIsNotNone(manifest.completed_datetime)
 
     def test_mark_manifest_complete_no_manifest(self):
-        """Test that we mark a manifest complete."""
-        provider = self.ocp_provider
+        """Test that cloud resummary still stamps provider freshness without a manifest."""
+        provider = self.aws_provider
         initial_update_time = provider.data_updated_timestamp
         mark_manifest_complete(
             self.schema, provider.type, manifest_list=None, provider_uuid=str(provider.uuid), tracing_id=1
         )
 
-        provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
+        provider.refresh_from_db()
         self.assertGreater(provider.data_updated_timestamp, initial_update_time)
+
+    def test_mark_manifest_complete_ocp_does_not_update_data_timestamp(self):
+        """OCP freshness is stamped by update_cost_model_costs, not manifest complete."""
+        provider = self.ocp_provider
+        initial_update_time = provider.data_updated_timestamp
+        start = self.dh.this_month_start
+        manifest = CostUsageReportManifest(
+            **{
+                "assembly_id": "ocp-complete",
+                "provider_id": str(provider.uuid),
+                "billing_period_start_datetime": start,
+                "num_total_files": 1,
+            }
+        )
+        manifest.save()
+        mark_manifest_complete(
+            self.schema, provider.type, manifest_list=[manifest.id], provider_uuid=str(provider.uuid), tracing_id=1
+        )
+
+        provider.refresh_from_db()
+        manifest = CostUsageReportManifest.objects.filter(id=manifest.id).first()
+        self.assertEqual(provider.data_updated_timestamp, initial_update_time)
+        self.assertIsNotNone(manifest.completed_datetime)
 
     def test_mark_ingress_report_complete(self):
         """Test that we mark ingress reports complete."""
@@ -1803,12 +1826,33 @@ class TestWorkerCacheThrottling(MasuTestCase):
         """Test that cost model processing is skipped when the Unleash flag is enabled."""
         start_date = self.dh.last_month_start.strftime("%Y-%m-%d")
         end_date = self.dh.today.strftime("%Y-%m-%d")
+        provider = Provider.objects.get(uuid=self.ocp_provider_uuid)
+        initial_update_time = provider.data_updated_timestamp
 
-        update_cost_model_costs(self.schema, self.aws_provider_uuid, start_date, end_date)
+        update_cost_model_costs(self.schema, self.ocp_provider_uuid, start_date, end_date)
 
         mock_updater.assert_not_called()
         mock_delay.assert_not_called()
         mock_lock.assert_not_called()
+        provider.refresh_from_db()
+        self.assertGreater(provider.data_updated_timestamp, initial_update_time)
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_update_cost_model_costs_sets_data_updated_timestamp(self, mock_updater):
+        """OCP freshness is stamped when cost model work finishes."""
+        provider = Provider.objects.get(uuid=self.ocp_provider_uuid)
+        initial_update_time = provider.data_updated_timestamp
+
+        update_cost_model_costs(
+            self.schema,
+            self.ocp_provider_uuid,
+            "2024-01-01",
+            "2024-01-31",
+            synchronous=True,
+        )
+
+        provider.refresh_from_db()
+        self.assertGreater(provider.data_updated_timestamp, initial_update_time)
 
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     @patch("masu.processor.tasks.update_openshift_on_cloud.s")
