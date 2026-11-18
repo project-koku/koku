@@ -46,9 +46,10 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import COST_BREAKDOWN_RTU_UNLEASH_FLAG
 from masu.processor import is_celery_task_delay_disabled
 from masu.processor import is_cost_model_processing_disabled
-from masu.processor import is_cost_model_single_flight_enabled
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -60,7 +61,7 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor._tasks.remove_expired import _remove_expired_trino_partitions
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
-from masu.processor.cost_model_run_lock import billing_months
+from masu.processor.cost_model_run_lock import cost_model_run_months
 from masu.processor.cost_model_run_lock import provider_month_locks
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
@@ -74,6 +75,8 @@ from masu.processor.worker_cache import WorkerCache
 from masu.util.common import get_latest_openshift_on_cloud_manifest
 from masu.util.common import set_summary_timestamp
 from reporting.ingress.models import IngressReports
+from reporting.provider.ocp.rates_to_usage_deletes import delete_rates_to_usage_for_rates_and_cost_models
+from reporting.provider.ocp.rates_to_usage_deletes import sweep_orphaned_rates_to_usage as sweep_rates_to_usage
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
 from reporting_common.states import ManifestState
@@ -1141,6 +1144,60 @@ def update_all_summary_tables(start_date, end_date=None):
         ).apply_async(queue=queue_name or fallback_queue)
 
 
+@celery_app.task(name="masu.processor.tasks.delete_rates_to_usage_rows", queue=CostModelQueue.DEFAULT)
+def delete_rates_to_usage_rows(schema_name, rate_ids=None, cost_model_ids=None):
+    """Delete the rates_to_usage rows of deleted rates and cost models, in every month.
+
+    rates_to_usage.rate_id and .cost_model_id carry no database cascade (migration 0355),
+    so the API schedules this task after it deletes Rate or CostModel rows. Recalculation
+    rebuilds only the months it processes; this removes the rest. Uses the
+    ratestousage_rate_id_idx / ratestousage_cost_model_id_idx indexes.
+    """
+    rate_ids = [str(rate_id) for rate_id in rate_ids or []]
+    cost_model_ids = [str(cost_model_id) for cost_model_id in cost_model_ids or []]
+    if not rate_ids and not cost_model_ids:
+        return 0
+    with schema_context(schema_name):
+        deleted = delete_rates_to_usage_for_rates_and_cost_models(rate_ids, cost_model_ids)
+    LOG.info(
+        log_json(
+            msg="deleted rates_to_usage rows of deleted rates and cost models",
+            schema=schema_name,
+            rate_ids=rate_ids,
+            cost_model_ids=cost_model_ids,
+            deleted=deleted,
+        )
+    )
+    return deleted
+
+
+@celery_app.task(name="masu.processor.tasks.sweep_orphaned_rates_to_usage", queue=CostModelQueue.DEFAULT)
+def sweep_orphaned_rates_to_usage(schema_name):
+    """Delete one tenant's rates_to_usage rows whose source, report period, rate or cost model is gone."""
+    with schema_context(schema_name):
+        deleted = sweep_rates_to_usage()
+    LOG.info(log_json(msg="rates_to_usage orphan sweep done", schema=schema_name, deleted=deleted))
+    return deleted
+
+
+@celery_app.task(name="masu.processor.tasks.sweep_orphaned_rates_to_usage_all", queue=DEFAULT)
+def sweep_orphaned_rates_to_usage_all():
+    """Queue the rates_to_usage orphan sweep for every tenant with the RTU pipeline enabled."""
+    excluded = {"public", Tenant._TEMPLATE_SCHEMA}
+    schema_names = [
+        schema_name
+        for schema_name in Tenant.objects.values_list("schema_name", flat=True)
+        if schema_name and schema_name not in excluded
+    ]
+    queued = 0
+    for schema_name in schema_names:
+        if is_feature_flag_enabled_by_schema(schema_name, COST_BREAKDOWN_RTU_UNLEASH_FLAG):
+            sweep_orphaned_rates_to_usage.delay(schema_name)
+            queued += 1
+    LOG.info(log_json(msg="queued rates_to_usage orphan sweeps", schemas=queued))
+    return queued
+
+
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT)
 def update_cost_model_costs(  # noqa: C901
     schema_name,
@@ -1221,14 +1278,16 @@ def update_cost_model_costs(  # noqa: C901
     }
     LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
 
-    single_flight = not synchronous and is_cost_model_single_flight_enabled(schema_name)
+    # Synchronous calls (no production caller) keep running without the lock: deferring would leave
+    # the caller without its costs.
+    single_flight = not synchronous
     try:
         if single_flight:
             # Same defaults as CostModelCostUpdater.update_cost_model_costs.
             dh = DateHelper()
             run_start = to_date(start_date) if start_date else dh.this_month_start.date()
             run_end = to_date(end_date) if end_date else dh.today.date()
-            run_lock = provider_month_locks(provider_uuid, billing_months(run_start, run_end))
+            run_lock = provider_month_locks(provider_uuid, cost_model_run_months(run_start, run_end))
         else:
             run_lock = nullcontext(True)
         with run_lock as acquired:

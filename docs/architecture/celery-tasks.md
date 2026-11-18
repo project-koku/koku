@@ -508,7 +508,7 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 
 **Workflow**:
 1. Checks if task is already running or rate-limited (WorkerCache, keyed by schema, provider and the exact date range)
-2. With the `cost-management.backend.cost-model-single-flight` flag on (asynchronous calls only), takes a PostgreSQL session advisory lock per provider and billing month of the range, in month order (`koku/masu/processor/cost_model_run_lock.py`), and holds it for the whole update, distribution and UI summaries included. Different months of a provider still run in parallel.
+2. For asynchronous calls, takes a PostgreSQL session advisory lock per provider and billing month the run writes, in month order (`koku/masu/processor/cost_model_run_lock.py`), and holds it for the whole update, distribution and UI summaries included. The months are the range's own, plus the previous month on the 2nd when the range covers the current month (that run's full-month GPU distribution covers the whole previous month). Different months of a provider still run in parallel. Synchronous calls (no production caller) run without the lock.
 3. Calls `CostModelCostUpdater` to apply cost model rates
 4. Updates provider's `data_updated_timestamp`
 
