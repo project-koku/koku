@@ -135,7 +135,7 @@ There is a complementary script to subsequently load test data for each
 source. The [nise](https://github.com/project-koku/nise) project is used
 to generate this test data. Nise is a dev dependency of koku, so a
 working copy of the nise command line tool should be available after
-running [pipenv install \--dev]{.title-ref}. See
+running [pipenv install --categories=default,develop,saas]{.title-ref}. See
 [.env.example](https://github.com/project-koku/koku/blob/main/.env.example)
 for example values.
 
@@ -235,7 +235,7 @@ above, noting that the name of the external network is
 Next, install the development requirements, enter the pip environment
 and bring up the ingress service:
 
-    pipenv install --dev
+    pipenv install --categories=default,develop,saas
     pipenv shell
     docker compose up --build
 
