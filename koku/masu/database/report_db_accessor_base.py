@@ -17,8 +17,6 @@ from django.db import OperationalError
 from django.db import transaction
 from django.db.utils import ProgrammingError as DjangoProgrammingError
 from jinjasql import JinjaSql
-from trino.exceptions import TrinoExternalError
-from trino.exceptions import TrinoQueryError
 
 import koku.trino_database as trino_db
 from api.common import log_json
@@ -32,6 +30,8 @@ from koku.cache import set_value_in_cache
 from koku.database_exc import ExtendedDeadlockDetected
 from koku.database_exc import get_extended_exception_by_type
 from koku.reportdb_accessor import get_report_db_accessor
+from koku.trino_compat import TrinoExternalError
+from koku.trino_compat import TrinoQueryError
 from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError

@@ -40,7 +40,6 @@ redis = ">=5.0.1"
 requests = ">=2.32.0"
 sentry-sdk = ">=0.13"
 statsmodels = ">=0.12"
-trino = "*"
 whitenoise = ">=5.0"
 pydantic = ">=2"
 sqlparse = ">=0.6.1"  # floor: CVE-2026-112307 (fixed in 0.6.1)
@@ -83,6 +82,7 @@ polyfactory = "*"
 koku-nise = "*"
 
 [saas]
+trino = "*"
 unleashclient = "*"
 
 [requires]
