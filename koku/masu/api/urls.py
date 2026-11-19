@@ -8,7 +8,6 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from masu.api.sources.views import SourcesViewSet
-from masu.api.trino import trino_ui
 from masu.api.views import additional_context
 from masu.api.views import bigquery_cost
 from masu.api.views import celery_queue_lengths
@@ -21,7 +20,6 @@ from masu.api.views import dbsettings
 from masu.api.views import download_report
 from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
-from masu.api.views import expired_trino_partitions
 from masu.api.views import explain_query
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
@@ -34,7 +32,6 @@ from masu.api.views import ManifestStatusViewSet
 from masu.api.views import monthly_exchange_rates
 from masu.api.views import notification
 from masu.api.views import pg_engine_version
-from masu.api.views import purge_trino_files
 from masu.api.views import recheck_infra_map
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
@@ -42,7 +39,6 @@ from masu.api.views import schema_feature_flags
 from masu.api.views import schema_sizes
 from masu.api.views import stat_activity
 from masu.api.views import stat_statements
-from masu.api.views import trino_query
 from masu.api.views import update_azure_storage_capacity
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
@@ -94,12 +90,21 @@ if not settings.ONPREM or settings.IQE_TEST_RUN:
         path("validate_cost_data/", validate_cost_data, name="validate_cost_data"),
         path("invalidate_cache/", invalidate_cache, name="invalidate_cache"),
         path("monthly_exchange_rates/", monthly_exchange_rates, name="monthly_exchange_rates"),
+    ]
+    urlpatterns += ROUTER.urls
+
+if not settings.ONPREM:
+    from masu.api.expired_data import expired_trino_partitions
+    from masu.api.purge_trino_files import purge_trino_files
+    from masu.api.trino import trino_query
+    from masu.api.trino import trino_ui
+
+    urlpatterns += [
         path("trino/query/", trino_query, name="trino_query"),
         path("trino/api/", trino_ui, name="trino_ui"),
         path("expired_trino_partitions/", expired_trino_partitions, name="expired_trino_partitions"),
         path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
     ]
-    urlpatterns += ROUTER.urls
 
 if settings.DEBUG:
     urlpatterns += [
