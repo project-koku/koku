@@ -33,7 +33,7 @@ spec:
       value: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku-onprem:{{ revision }}
 
     - name: dockerfile
-      value: Dockerfile
+      value: Dockerfile.onprem
 
     - name: path-context
       value: .
