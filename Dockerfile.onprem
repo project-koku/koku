@@ -68,10 +68,17 @@ WORKDIR ${APP_ROOT}
 # install dependencies
 COPY Pipfile .
 COPY Pipfile.lock .
+COPY requirements-onprem.txt .
 RUN microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install pkgconf-pkg-config rust-toolset && \
-    # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
-    if [ -f /tmp/hermeto.env ]; then . /tmp/hermeto.env; fi && \
-    PIP_NO_BINARY=confluent-kafka,pydantic-core PKG_CONFIG_PATH=/usr/lib/pkgconfig pipenv sync --categories=default && \
+    # install the app dependencies into ${APP_ROOT}/.venv
+    PIP_NO_BINARY=confluent-kafka PKG_CONFIG_PATH=/usr/lib/pkgconfig pipenv sync --categories=default && \
+    # replace the locked pydantic-core wheel with a wheel built from its sdist
+    if [ -f /tmp/hermeto.env ]; then \
+        . /tmp/hermeto.env && \
+        PIP_NO_BINARY=pydantic-core ${APP_ROOT}/.venv/bin/pip install --no-deps --force-reinstall -r requirements-onprem.txt; \
+    else \
+        PIP_NO_BINARY=pydantic-core ${APP_ROOT}/.venv/bin/pip install --no-deps --force-reinstall -r requirements-onprem.txt; \
+    fi && \
     # delete the pipenv cache
     pipenv --clear && \
     microdnf -y remove pkgconf-pkg-config && \
