@@ -21,7 +21,7 @@ metadata:
 
 spec:
   taskRunTemplate:
-    serviceAccountName: build-pipeline-koku
+    serviceAccountName: build-pipeline-koku-onprem
 
   params:
     - name: git-url
