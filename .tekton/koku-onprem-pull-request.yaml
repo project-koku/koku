@@ -39,6 +39,9 @@ spec:
     - name: dockerfile
       value: Dockerfile.onprem
 
+    - name: hermetic
+      value: "true"
+
     - name: path-context
       value: .
 
