@@ -1,0 +1,127 @@
+FROM registry.access.redhat.com/ubi9/ubi:9.9 AS kafka-build
+
+USER root
+
+# Build librdkafka from the pinned source tree so confluent-kafka can be
+# installed from its source distribution without an EPEL librdkafka-devel RPM.
+RUN INSTALL_PKGS="coreutils gcc gcc-c++ make pkgconf-pkg-config openssl-devel zlib-devel libzstd-devel" && \
+    dnf -y --allowerasing --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
+    dnf -y clean all
+
+WORKDIR /src/librdkafka
+COPY librdkafka/ ./
+RUN INSTALL=/usr/bin/install ./configure --prefix=/usr && \
+    make && \
+    make install
+
+FROM registry.access.redhat.com/ubi9-minimal:9.9-1794467051 AS base
+
+USER root
+
+ENV PYTHON_VERSION=3.12 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8 \
+    LC_ALL=en_US.UTF-8 \
+    LANG=en_US.UTF-8 \
+    PIP_NO_CACHE_DIR=1 \
+    PIPENV_VENV_IN_PROJECT=1 \
+    PIPENV_VERBOSITY=-1 \
+    APP_ROOT=/opt/koku \
+    APP_HOME=/opt/koku/koku \
+    PLATFORM="el9"
+
+ENV SUMMARY="Koku is the Cost Management application" \
+    DESCRIPTION="Koku is the Cost Management application"
+
+# Very minimal set of packages
+# glibc-langpack-en is needed to set locale to en_US and disable warning about it
+# gcc to compile some python packages (e.g. ciso8601)
+# shadow-utils to make useradd available
+RUN INSTALL_PKGS="python3.12 python3.12-devel glibc-langpack-en gcc-c++ shadow-utils openssl-libs zlib libzstd" && \
+    microdnf --nodocs -y upgrade && \
+    microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
+    microdnf -y clean all --enablerepo='*'
+
+# Make the source-built client library and its build metadata available before
+# pipenv builds confluent-kafka from its source distribution.
+COPY --from=kafka-build /usr/lib/librdkafka*.so* /usr/lib/
+COPY --from=kafka-build /usr/lib/pkgconfig/rdkafka*.pc /usr/lib/pkgconfig/
+COPY --from=kafka-build /usr/include/librdkafka /usr/include/librdkafka
+RUN ldconfig
+
+FROM base AS final
+# PIPENV_DEV is set to true in the docker-compose allowing
+# local builds to install the dev dependencies
+ARG PIPENV_DEV=False
+ARG USER_ID=1000
+
+# Create a Python virtual environment for use by any application to avoid
+# potential conflicts with Python packages preinstalled in the main Python
+# installation.
+RUN python3.12 -m venv /pipenv-venv \
+    && /pipenv-venv/bin/python -m pip install --upgrade pip 'setuptools>=78.1.1' \
+    && /pipenv-venv/bin/python -m pip install pipenv
+
+ENV PATH="/pipenv-venv/bin:$PATH"
+WORKDIR ${APP_ROOT}
+
+# install dependencies
+COPY Pipfile .
+COPY Pipfile.lock .
+# Keep pkgconf-pkg-config: the installed libxcrypt-devel package requires it.
+RUN microdnf -y --setopt=install_weak_deps=0 install pkgconf-pkg-config && \
+    # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
+    PIP_NO_BINARY=confluent-kafka PKG_CONFIG_PATH=/usr/lib/pkgconfig pipenv sync && \
+    # delete the pipenv cache
+    pipenv --clear && \
+    microdnf -y clean all --enablerepo='*'
+
+# Runtime env variables:
+ENV VIRTUAL_ENV=${APP_ROOT}/.venv
+ENV \
+    # Add the koku virtual env bin to the front of PATH.
+    # This activates the virtual env for all subsequent python calls.
+    PATH="$VIRTUAL_ENV/bin:$PATH" \
+    PROMETHEUS_MULTIPROC_DIR=/tmp
+
+# Copy only the application inputs. The librdkafka submodule is part of the
+# build context but must not be copied into the runtime image.
+COPY Pipfile Pipfile.lock ${APP_ROOT}/
+COPY koku/ ${APP_ROOT}/koku/
+COPY docs/specs/ ${APP_ROOT}/docs/specs/
+COPY db_functions/ ${APP_ROOT}/db_functions/
+COPY licenses/ ${APP_ROOT}/licenses/
+COPY scripts/ ${APP_ROOT}/scripts/
+RUN mv licenses/ /
+
+# create the koku user
+RUN \
+    adduser koku -u ${USER_ID} -g 0 && \
+    chmod ug+rw ${APP_ROOT} ${APP_HOME} ${APP_HOME}/static /tmp
+USER koku
+
+# create the static files
+RUN python koku/manage.py collectstatic --noinput
+
+EXPOSE 8000
+
+# GIT_COMMIT is added during build in `build_deploy.sh`
+# Set this at the end to leverage build caching
+ARG GIT_COMMIT=undefined
+ENV GIT_COMMIT=${GIT_COMMIT}
+
+ARG IMAGE_NAME=Koku
+LABEL summary="$SUMMARY" \
+    description="$DESCRIPTION" \
+    io.k8s.description="$DESCRIPTION" \
+    io.k8s.display-name="Koku" \
+    io.openshift.expose-services="8000:http" \
+    io.openshift.tags="builder,python,python3.12,rh-python3.12" \
+    com.redhat.component="python3.12-docker" \
+    name="$IMAGE_NAME" \
+    version="1" \
+    maintainer="Red Hat Cost Management Services <cost-mgmt@redhat.com>"
+
+# Set the default CMD.
+CMD ["./scripts/entrypoint.sh"]
