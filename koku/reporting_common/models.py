@@ -152,6 +152,8 @@ class RegionMapping(models.Model):
 
 # DelayedCeleryTasks.metadata key: the row's deadline may only move earlier (see create_or_reset_timeout).
 KEEP_EARLIER_DEADLINE = "keep_earlier_deadline"
+# DelayedCeleryTasks.metadata key: discriminates rows of one provider_uuid that are separate work.
+WORK_KEY = "work_key"
 
 
 class DelayedCeleryTasks(models.Model):
@@ -213,6 +215,22 @@ class DelayedCeleryTasks(models.Model):
 
         return merged
 
+    @staticmethod
+    def _keyed_filters_and_metadata(billing_month, work_key):
+        """Row lookup filters and new-row metadata for the billing_month/work_key keying."""
+        filters = {}
+        metadata = {}
+        if billing_month is not None:
+            billing_month_str = (
+                billing_month.isoformat() if hasattr(billing_month, "isoformat") else str(billing_month)
+            )
+            filters["metadata__billing_month"] = billing_month_str
+            metadata["billing_month"] = billing_month_str
+        if work_key is not None:
+            filters["metadata__work_key"] = str(work_key)
+            metadata[WORK_KEY] = str(work_key)
+        return filters, metadata
+
     @classmethod
     def create_or_reset_timeout(
         cls,
@@ -225,14 +243,19 @@ class DelayedCeleryTasks(models.Model):
         billing_month=None,
         merge_date_range=False,
         keep_earlier_deadline=False,
+        work_key=None,
     ):
         """
-        Saves data regarding to the celery task being delayed.
+        Saves data regarding to the celery task being delaying.
 
         When billing_month is provided, rows are keyed by
         (task_name, provider_uuid, metadata.billing_month) so callers can
         keep one pending task per calendar month. Omitting billing_month
-        preserves the legacy (task_name, provider_uuid) lookup.
+        preserves the legacy (task_name, provider_uuid) lookup. When
+        work_key is provided, rows are additionally keyed by
+        metadata.work_key, for callers whose provider_uuid spans several
+        separate work identities (e.g. one OpenShift source summarized
+        against each of several cloud sources).
 
         Lookup/update runs under ``select_for_update`` so concurrent resets
         for the same key serialize. When ``merge_date_range`` is True, the
@@ -245,12 +268,8 @@ class DelayedCeleryTasks(models.Model):
         ordinary debounce.
         """
         filters = {"task_name": task_name, "provider_uuid": provider_uuid}
-        billing_month_str = None
-        if billing_month is not None:
-            billing_month_str = (
-                billing_month.isoformat() if hasattr(billing_month, "isoformat") else str(billing_month)
-            )
-            filters["metadata__billing_month"] = billing_month_str
+        key_filters, key_metadata = cls._keyed_filters_and_metadata(billing_month, work_key)
+        filters.update(key_filters)
 
         with transaction.atomic():
             existing_task = cls.objects.select_for_update().filter(**filters).first()
@@ -278,7 +297,7 @@ class DelayedCeleryTasks(models.Model):
             if not task_kwargs.get("tracing_id"):
                 task_kwargs["tracing_id"] = str(uuid4())
 
-            metadata = {"billing_month": billing_month_str} if billing_month_str is not None else {}
+            metadata = {**key_metadata}
             if keep_earlier_deadline:
                 metadata[KEEP_EARLIER_DEADLINE] = True
             new_task = cls(
