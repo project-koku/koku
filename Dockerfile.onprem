@@ -1,16 +1,16 @@
-FROM registry.access.redhat.com/ubi9-minimal:9.9-1794467051 AS kafka-build
+FROM registry.access.redhat.com/ubi9/ubi:9.9 AS kafka-build
 
 USER root
 
 # Build librdkafka from the pinned source tree so confluent-kafka can be
 # installed from its source distribution without an EPEL librdkafka-devel RPM.
 RUN INSTALL_PKGS="coreutils gcc gcc-c++ make pkgconf-pkg-config openssl-devel zlib-devel libzstd-devel" && \
-    microdnf -y --allowerasing --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
-    microdnf -y clean all --enablerepo='*'
+    dnf -y --allowerasing --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
+    dnf -y clean all
 
 WORKDIR /src/librdkafka
 COPY librdkafka/ ./
-RUN ./configure --prefix=/usr && \
+RUN INSTALL=/usr/bin/install ./configure --prefix=/usr && \
     make && \
     make install
 
