@@ -39,9 +39,9 @@
             ]
         },
         {
-            "description": "Group Python package upgrades into one PR",
-            "matchCategories": [
-                "python"
+            "description": "Keep routine Python updates in Pipfile.lock; review constraint changes manually",
+            "matchManagers": [
+                "pipenv"
             ],
             "matchUpdateTypes": [
                 "major",
@@ -49,13 +49,7 @@
                 "patch",
                 "pin"
             ],
-            "groupName": "Python dependencies",
-            "groupSlug": "python-dependencies",
-            "separateMajorMinor": false,
-            "addLabels": [
-                "full-run-smoke-tests",
-                "dependencies"
-            ]
+            "enabled": false
         },
         {
             "matchManagers": [
