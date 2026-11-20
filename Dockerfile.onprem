@@ -72,12 +72,13 @@ COPY Pipfile.lock .
 # Keep pkgconf-pkg-config: the installed libxcrypt-devel package requires it.
 RUN microdnf -y --setopt=install_weak_deps=0 install pkgconf-pkg-config && \
     # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
-    PIP_NO_BINARY=confluent-kafka PKG_CONFIG_PATH=/usr/lib/pkgconfig pipenv sync && \
+    PIP_NO_BINARY=confluent-kafka PKG_CONFIG_PATH=/usr/lib/pkgconfig pipenv sync --categories=default && \
     # delete the pipenv cache
     pipenv --clear && \
     microdnf -y clean all --enablerepo='*'
 
 # Runtime env variables:
+ENV ONPREM=True
 ENV VIRTUAL_ENV=${APP_ROOT}/.venv
 ENV \
     # Add the koku virtual env bin to the front of PATH.
