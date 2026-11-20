@@ -49,6 +49,7 @@ from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_celery_task_delay_disabled
 from masu.processor import is_cost_model_processing_disabled
 from masu.processor import is_cost_model_single_flight_enabled
+from masu.processor import is_ocp_on_cloud_single_flight_enabled
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -64,6 +65,7 @@ from masu.processor.cost_model_run_lock import billing_months
 from masu.processor.cost_model_run_lock import provider_month_locks
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
+from masu.processor.ocp_on_cloud_run_lock import ocp_on_cloud_month_locks
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
@@ -87,6 +89,8 @@ UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
 # (every DELAYED_TASK_POLLING_MINUTES) once its deadline has passed, so 0 makes it eligible on the
 # next tick; the two-minute lock wait already covers "the other run is almost done".
 COST_MODEL_BUSY_DEFER_SECONDS = 0
+# Same deferral deadline for OCP-on-cloud summaries (COST-8410).
+OCP_ON_CLOUD_BUSY_DEFER_SECONDS = 0
 APPLY_TAG_MAPPINGS_TASK = "masu.processor.tasks.apply_tag_mappings"
 UPDATE_OPENSHIFT_ON_CLOUD_TASK = "masu.processor.tasks.update_openshift_on_cloud"
 
@@ -343,6 +347,51 @@ def defer_busy_cost_model_update(schema_name, provider_uuid, start_date, end_dat
             billing_month=month_start.replace(day=1),
             merge_date_range=True,
             keep_earlier_deadline=True,
+        )
+
+
+def defer_busy_openshift_on_cloud(
+    schema_name,
+    openshift_provider_uuid,
+    infrastructure_provider_uuid,
+    infrastructure_provider_type,
+    start_date,
+    end_date,
+    manifest_id,
+    queue_name,
+    tracing_id=None,
+):
+    """Hand an OCP-on-cloud summary whose source-pair month lock is busy to the delayed tasks.
+
+    Uses one row per (OpenShift source, cloud source, billing month) — the same identity
+    the run lock uses — so any number of queued copies of one summary become a single
+    successor whose date range covers all of their windows and whose manifest_id is the
+    latest one seen. The deadline never moves later (``keep_earlier_deadline``), so a
+    stream of requeued copies cannot postpone that successor. The row is always stored,
+    also when task delays are disabled: firing it at once would only meet the same busy
+    lock again.
+    """
+    for month_start, month_end in DateHelper().list_month_tuples(to_date(start_date), to_date(end_date)):
+        task_kwargs = {
+            "start_date": str(month_start),
+            "end_date": str(month_end),
+            "infrastructure_provider_type": infrastructure_provider_type,
+            "manifest_id": manifest_id,
+            "queue_name": queue_name,
+        }
+        if tracing_id is not None:
+            task_kwargs["tracing_id"] = str(tracing_id)
+        DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=UPDATE_OPENSHIFT_ON_CLOUD_TASK,
+            task_args=[schema_name, str(openshift_provider_uuid), str(infrastructure_provider_uuid)],
+            task_kwargs=task_kwargs,
+            provider_uuid=openshift_provider_uuid,
+            queue_name=queue_name,
+            timeout_seconds=OCP_ON_CLOUD_BUSY_DEFER_SECONDS,
+            billing_month=month_start.replace(day=1),
+            merge_date_range=True,
+            keep_earlier_deadline=True,
+            work_key=str(infrastructure_provider_uuid),
         )
 
 
@@ -1007,6 +1056,8 @@ def update_openshift_on_cloud(  # noqa: C901
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
     cache_args = [schema_name, infrastructure_provider_uuid, openshift_provider_uuid, cache_arg_date]
+    # Synchronous runs are API-triggered and must return with the work done, so they never defer.
+    single_flight = not synchronous and is_ocp_on_cloud_single_flight_enabled(schema_name)
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
@@ -1017,6 +1068,23 @@ def update_openshift_on_cloud(  # noqa: C901
         if fallback_queue != SummaryQueue.DEFAULT:
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
+            if single_flight:
+                # Republishing a busy summary immediately used to spin copies through the
+                # queue and amplify it (COST-8410); hand the window to the delayed tasks,
+                # which coalesce every waiting copy into one successor, instead.
+                LOG.info(log_json(tracing_id, msg="ocp on cloud summary busy, deferring", context=context))
+                defer_busy_openshift_on_cloud(
+                    schema_name,
+                    openshift_provider_uuid,
+                    infrastructure_provider_uuid,
+                    infrastructure_provider_type,
+                    start_date,
+                    end_date,
+                    manifest_id,
+                    queue_name or fallback_queue,
+                    tracing_id=tracing_id,
+                )
+                return
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
                 msg = f"Schema {schema_name} is currently rate limited. Requeuing."
@@ -1056,32 +1124,57 @@ def update_openshift_on_cloud(  # noqa: C901
     LOG.info(log_json(tracing_id, msg="updating ocp on cloud", context=ctx))
 
     try:
-        updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
-        updater.update_openshift_on_cloud_summary_tables(
-            start_date,
-            end_date,
-            openshift_provider_uuid,
-            infrastructure_provider_uuid,
-            infrastructure_provider_type,
-            tracing_id,
-        )
-        # Regardless of an attached cost model we must run an update for default distribution costs
-        LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
-        cost_model_fallback_queue = get_customer_queue(schema_name, CostModelQueue)
-        priority_queue = get_customer_queue(schema_name, PriorityQueue)
-        update_cost_model_costs.s(
-            schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
-        ).apply_async(queue=queue_name or cost_model_fallback_queue)
-        # Set OpenShift manifest summary end time
-        set_summary_timestamp(ManifestState.END, ocp_manifest_id)
-        validate_daily_data.s(
-            schema_name,
-            start_date,
-            end_date,
-            openshift_provider_uuid,
-            ocp_on_cloud_type=infrastructure_provider_type,
-            context=ctx,
-        ).apply_async(queue=priority_queue)
+        if single_flight:
+            run_lock = ocp_on_cloud_month_locks(
+                openshift_provider_uuid,
+                infrastructure_provider_uuid,
+                billing_months(to_date(start_date), to_date(end_date)),
+            )
+        else:
+            run_lock = nullcontext(True)
+        with run_lock as acquired:
+            if acquired:
+                updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
+                updater.update_openshift_on_cloud_summary_tables(
+                    start_date,
+                    end_date,
+                    openshift_provider_uuid,
+                    infrastructure_provider_uuid,
+                    infrastructure_provider_type,
+                    tracing_id,
+                )
+                # Regardless of an attached cost model we must run an update for default distribution costs
+                LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
+                cost_model_fallback_queue = get_customer_queue(schema_name, CostModelQueue)
+                priority_queue = get_customer_queue(schema_name, PriorityQueue)
+                update_cost_model_costs.s(
+                    schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
+                ).apply_async(queue=queue_name or cost_model_fallback_queue)
+                # Set OpenShift manifest summary end time
+                set_summary_timestamp(ManifestState.END, ocp_manifest_id)
+                validate_daily_data.s(
+                    schema_name,
+                    start_date,
+                    end_date,
+                    openshift_provider_uuid,
+                    ocp_on_cloud_type=infrastructure_provider_type,
+                    context=ctx,
+                ).apply_async(queue=priority_queue)
+            else:
+                LOG.info(
+                    log_json(tracing_id, msg="ocp on cloud summary busy for source pair month, deferring", context=ctx)
+                )
+                defer_busy_openshift_on_cloud(
+                    schema_name,
+                    openshift_provider_uuid,
+                    infrastructure_provider_uuid,
+                    infrastructure_provider_type,
+                    start_date,
+                    end_date,
+                    manifest_id,
+                    queue_name or fallback_queue,
+                    tracing_id=tracing_id,
+                )
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
             log_json(
