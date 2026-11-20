@@ -6,13 +6,13 @@ import logging
 from datetime import datetime
 
 from django.conf import settings
-from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
+from koku.reportdb_accessor import get_report_db_accessor
 from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
-from koku.reportdb_accessor_trino import TrinoReportDBAccessor
+from koku.trino_compat import TrinoExternalError
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import GCP_REPORT_TABLE_MAP
@@ -155,7 +155,7 @@ class DataValidator:
         table, query_filters = self.get_table_filters_for_provider(provider_type, trino)
         if trino:
             source = "source" if not self.ocp_on_cloud_type else "cluster_id"
-            sql_accessor = TrinoReportDBAccessor()
+            sql_accessor = get_report_db_accessor()
         else:
             source = "source_uuid" if not self.ocp_on_cloud_type else "cluster_id"
             sql_accessor = PostgresReportDBAccessor()
