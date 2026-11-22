@@ -6,8 +6,10 @@
 import logging
 from collections import OrderedDict
 from json.decoder import JSONDecodeError
+from threading import Lock
 
 import requests
+from cachetools import TTLCache
 from django.conf import settings
 from prometheus_client import Counter
 from requests.exceptions import ConnectionError
@@ -34,6 +36,9 @@ _RESOURCE_TYPE_LIST = [
 if settings.ONPREM:
     _RESOURCE_TYPE_LIST.append(("sources", ["read", "write"]))
 RESOURCE_TYPES = OrderedDict(_RESOURCE_TYPE_LIST)
+# Only these applications contribute to koku's access map. Other apps may also
+# use `app:*:*`, which must not be treated as a Cost-wide wildcard.
+_COST_APPLICATIONS = ("cost-management",) + (("sources",) if settings.ONPREM else ())
 
 
 def _extract_permission_data(permission):
@@ -264,3 +269,231 @@ class RbacService:
     def get_cache_ttl(self):
         """Return the cache time to live value."""
         return self.cache_ttl
+
+
+# Verbs a v2 role permission may carry. "write" implies read, matching v1.
+_WRITE_VERBS = {"write", "edit", "create", "delete", "move"}
+
+
+def _v2_permission_to_v1(permission):
+    """Normalise a V2 permission (dict or string) to the V1 `app:resource:verb` form."""
+    if isinstance(permission, str):
+        return permission
+    if not isinstance(permission, dict):
+        return None
+    application = permission.get("application")
+    resource_type = permission.get("resource_type")
+    verb = permission.get("operation") or permission.get("verb")
+    if not (application and resource_type and verb):
+        return None
+    return f"{application}:{resource_type}:{verb}"
+
+
+class RbacV2Service:
+    """Read Cost grants from RBAC v2 role bindings.
+
+    Produces the same ``user.access`` structure as the v1 ``/access/`` call so the
+    rest of the API layer (permission classes, ``set_access_filters``) is unchanged.
+
+    In v2 a grant is ``(subject, role, workspace)``; the permissions come from the
+    role and the concrete resource ids from the workspace mapping convention
+    selected by ``RBAC_V2_RESOURCE_ID_FIELD`` (``name`` for the lab, ``id`` with a
+    Cost-side mapping table in production).
+    """
+
+    def __init__(self):
+        self.protocol = ENVIRONMENT.get_value("RBAC_V2_SERVICE_PROTOCOL", default="http")
+        self.host = ENVIRONMENT.get_value("RBAC_V2_SERVICE_HOST", default="localhost")
+        self.port = ENVIRONMENT.int("RBAC_V2_SERVICE_PORT", default=8000)
+        self.path = ENVIRONMENT.get_value("RBAC_V2_SERVICE_PATH", default="/api/rbac/v2")
+        self.timeout = ENVIRONMENT.int("RBAC_V2_TIMEOUT", default=5)
+        self.cache_ttl = ENVIRONMENT.int("RBAC_CACHE_TTL", default=30)
+        self.role_cache_ttl = ENVIRONMENT.int("RBAC_V2_ROLE_CACHE_TTL", default=300)
+        self.service_identity = ENVIRONMENT.get_value("RBAC_V2_SERVICE_IDENTITY", default="")
+        self.resource_id_field = ENVIRONMENT.get_value("RBAC_V2_RESOURCE_ID_FIELD", default="id")
+        self.shadow = ENVIRONMENT.bool("RBAC_V2_SHADOW", default=False)
+        self._role_cache = TTLCache(maxsize=1024, ttl=self.role_cache_ttl)
+        self._role_lock = Lock()
+
+    def _base_url(self):
+        return f"{self.protocol}://{self.host}:{self.port}{self.path}"
+
+    @staticmethod
+    def _principal_id(user):
+        decoded = (getattr(user, "identity_header", None) or {}).get("decoded") or {}
+        user_block = (decoded.get("identity") or {}).get("user") or {}
+        return user_block.get("user_id")
+
+    def _headers(self, user):
+        """Prefer the configured service identity: unscoped binding reads are admin-only in v2."""
+        if self.service_identity:
+            return {"x-rh-identity": self.service_identity}
+        identity = (getattr(user, "identity_header", None) or {}).get("encoded")
+        return {"x-rh-identity": identity} if identity else {}
+
+    def _request_bindings(self, url, headers):
+        """Fetch role bindings, following cursor pagination."""
+        bindings = []
+        while url:
+            try:
+                response = requests.get(url, headers=headers, timeout=self.timeout)
+            except ConnectionError as err:
+                LOG.warning("Error requesting RBAC v2 bindings: %s", err)
+                RBAC_CONNECTION_ERROR_COUNTER.inc()
+                raise RbacConnectionError(err)
+
+            if response.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
+                msg = ">=500 Response from RBAC v2"
+                LOG.warning(msg)
+                RBAC_CONNECTION_ERROR_COUNTER.inc()
+                raise RbacConnectionError(msg)
+
+            if response.status_code != status.HTTP_200_OK:
+                LOG.warning("Error requesting RBAC v2 bindings: %s", response.status_code)
+                return bindings
+
+            try:
+                data = response.json()
+            except (JSONDecodeError, ValueError) as res_error:
+                LOG.error("Error processing RBAC v2 bindings: %s", res_error)
+                return bindings
+
+            bindings.extend(data.get("data", []))
+
+            next_link = (data.get("links") or {}).get("next")
+            if next_link:
+                if next_link.startswith("http"):
+                    url = next_link
+                else:
+                    url = f"{self.protocol}://{self.host}:{self.port}{next_link}"
+            else:
+                url = None
+        return bindings
+
+    def _role_permissions(self, role_id, headers):
+        """Return the V1 permission strings for a role, cached by role id."""
+        if not role_id:
+            return []
+        with self._role_lock:
+            cached = self._role_cache.get(role_id)
+        if cached is not None:
+            return cached
+
+        url = f"{self._base_url()}/roles/{role_id}/"
+        try:
+            response = requests.get(url, headers=headers, timeout=self.timeout)
+        except ConnectionError as err:
+            LOG.warning("Error requesting RBAC v2 role %s: %s", role_id, err)
+            RBAC_CONNECTION_ERROR_COUNTER.inc()
+            raise RbacConnectionError(err)
+
+        if response.status_code != status.HTTP_200_OK:
+            LOG.warning("Error requesting RBAC v2 role %s: %s", role_id, response.status_code)
+            return []
+
+        payload = response.json()
+        role = payload.get("data", payload)
+        permissions = [p for p in (_v2_permission_to_v1(x) for x in role.get("permissions") or []) if p]
+
+        with self._role_lock:
+            self._role_cache[role_id] = permissions
+        return permissions
+
+    @staticmethod
+    def _target_operations(verb, operations):
+        """Return the koku operations a v1-style verb grants for a resource type."""
+        if verb == WILDCARD:
+            return list(operations)
+        if verb in _WRITE_VERBS:
+            # v1 semantics: write implies read.
+            return [op for op in ("write", "read") if op in operations]
+        if verb == "read":
+            return ["read"] if "read" in operations else []
+        return []
+
+    @staticmethod
+    def _add_permission(access, permission, resource_ids):
+        try:
+            application, resource_type, verb = permission.split(":")
+        except ValueError:
+            LOG.warning("Skipping malformed RBAC v2 permission: %s", permission)
+            return
+
+        if application not in _COST_APPLICATIONS:
+            return
+
+        if resource_type == WILDCARD:
+            resource_types = list(RESOURCE_TYPES)
+        elif resource_type in RESOURCE_TYPES:
+            resource_types = [resource_type]
+        else:
+            LOG.warning("Skipping RBAC v2 permission for unknown resource type: %s", permission)
+            return
+
+        for res_type in resource_types:
+            operations = RESOURCE_TYPES[res_type]
+            targets = RbacV2Service._target_operations(verb, operations)
+            if not targets:
+                continue
+            bucket = access.setdefault(res_type, {op: [] for op in operations})
+            for operation in targets:
+                bucket.setdefault(operation, []).extend(resource_ids)
+
+    @staticmethod
+    def _compact(access):
+        for operations in access.values():
+            for operation, ids in operations.items():
+                if WILDCARD in ids:
+                    operations[operation] = [WILDCARD]
+                else:
+                    operations[operation] = list(dict.fromkeys(ids))
+        return access
+
+    def _get_v2_access(self, user, headers):
+        params = {
+            "granted_subject_type": "principal",
+            "granted_subject.principal.user_id": self._principal_id(user),
+            "exclude_sources": "none",
+            "fields": "role(id,name),resource(id,name)",
+            "limit": 100,
+        }
+        url = f"{self._base_url()}/role-bindings/?" + "&".join(f"{k}={v}" for k, v in params.items())
+        bindings = self._request_bindings(url, headers)
+
+        access = _apply_access(None)
+        for binding in bindings:
+            role = binding.get("role") or {}
+            resource = binding.get("resource") or {}
+            resource_id = resource.get(self.resource_id_field) or resource.get("id")
+            if not resource_id:
+                continue
+            for permission in self._role_permissions(role.get("id"), headers):
+                self._add_permission(access, permission, [str(resource_id)])
+        return self._compact(access)
+
+    def get_access_for_user(self, user):
+        """Return the user's access in the same shape as the V1 `/access/` response."""
+        if not self._principal_id(user):
+            LOG.warning("RBAC v2: identity header has no user.user_id; denying access")
+            return _apply_access(None)
+
+        headers = self._headers(user)
+        if self.shadow:
+            v1_access = RbacService().get_access_for_user(user)
+            v2_access = self._get_v2_access(user, headers)
+            if v1_access != v2_access:
+                LOG.warning(
+                    "RBAC v2 shadow mismatch: user_id=%s v1=%s v2=%s",
+                    self._principal_id(user),
+                    v1_access,
+                    v2_access,
+                )
+            return v1_access
+        return self._get_v2_access(user, headers)
+
+
+def get_rbac_service():
+    """Return the configured RBAC backend (v1 `/access/`, or v2 role bindings)."""
+    if settings.RBAC_BACKEND == "v2":
+        return RbacV2Service()
+    return RbacService()

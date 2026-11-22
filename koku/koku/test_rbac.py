@@ -22,6 +22,7 @@ from koku.rbac import _normalize_sources_acls
 from koku.rbac import _process_acls
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
+from koku.rbac import RbacV2Service
 
 
 def create_expected_access(access_dict=None, default_write=None, default_read=None):
@@ -496,3 +497,194 @@ class RbacServiceTest(TestCase):
         """Test to get the cache ttl value."""
         rbac = RbacService()
         self.assertEqual(rbac.get_cache_ttl(), 5)
+
+
+V2_BINDINGS = {
+    "links": {"next": None},
+    "data": [
+        {"role": {"id": "role-aws"}, "resource": {"type": "workspace", "id": "ws-1", "name": "123456789012"}},
+        {"role": {"id": "role-ocp"}, "resource": {"type": "workspace", "id": "ws-2", "name": "abc-123"}},
+    ],
+}
+V2_ROLES = {
+    "role-aws": {
+        "id": "role-aws",
+        "permissions": [{"application": "cost-management", "resource_type": "aws.account", "operation": "read"}],
+    },
+    "role-ocp": {
+        "id": "role-ocp",
+        "permissions": [{"application": "cost-management", "resource_type": "openshift.cluster", "operation": "read"}],
+    },
+}
+
+
+def v2_mock_user(user_id="u-1"):
+    """Return a user mock carrying a v2-shaped identity header."""
+    user = Mock()
+    user.identity_header = {
+        "encoded": "dGVzdC1oZWFkZXI=",
+        "decoded": {"identity": {"user": {"user_id": user_id}}},
+    }
+    return user
+
+
+def v2_requests_get(roles=None, bindings=None):
+    """Dispatch requests.get by URL for the v2 role-binding and role calls."""
+    roles = V2_ROLES if roles is None else roles
+
+    def _get(url, headers=None, timeout=None, **kwargs):
+        for role_id, role in roles.items():
+            if f"/roles/{role_id}/" in url:
+                return MockResponse(role, status.HTTP_200_OK)
+        if "/role-bindings/" in url:
+            return MockResponse(bindings or V2_BINDINGS, status.HTTP_200_OK)
+        return MockResponse({"detail": "not found"}, status.HTTP_404_NOT_FOUND)
+
+    return _get
+
+
+class RbacV2ServiceTest(TestCase):
+    """Test the RBAC v2 grant-store backend."""
+
+    def _service(self):
+        svc = RbacV2Service()
+        svc.host = "rbac-v2"
+        svc.port = 8080
+        svc.resource_id_field = "name"
+        svc.service_identity = ""
+        return svc
+
+    @patch("koku.rbac.requests.get")
+    def test_bindings_become_access(self, mock_get):
+        """Group-derived bindings map to the v1 access shape."""
+        mock_get.side_effect = v2_requests_get()
+        access = self._service().get_access_for_user(v2_mock_user())
+
+        self.assertEqual(access["aws.account"]["read"], ["123456789012"])
+        self.assertEqual(access["openshift.cluster"]["read"], ["abc-123"])
+        self.assertEqual(access["cost_model"]["read"], [])
+        self.assertEqual(access["cost_model"]["write"], [])
+
+    @patch("koku.rbac.requests.get")
+    def test_write_implies_read(self, mock_get):
+        """A write permission also grants read, matching v1."""
+        roles = {
+            "role-cm": {
+                "id": "role-cm",
+                "permissions": [
+                    {"application": "cost-management", "resource_type": "cost_model", "operation": "write"}
+                ],
+            }
+        }
+        bindings = {
+            "links": {"next": None},
+            "data": [
+                {"role": {"id": "role-cm"}, "resource": {"id": "ws-cm", "name": "cm-1"}},
+            ],
+        }
+        mock_get.side_effect = v2_requests_get(roles=roles, bindings=bindings)
+
+        access = self._service().get_access_for_user(v2_mock_user())
+        self.assertEqual(access["cost_model"]["write"], ["cm-1"])
+        self.assertEqual(access["cost_model"]["read"], ["cm-1"])
+
+    @patch("koku.rbac.requests.get")
+    def test_wildcard_permission(self, mock_get):
+        """`app:*:*` applies to every resource type, scoped to the bound workspace."""
+        roles = {"role-all": {"id": "role-all", "permissions": ["cost-management:*:*"]}}
+        bindings = {
+            "links": {"next": None},
+            "data": [
+                {"role": {"id": "role-all"}, "resource": {"id": "ws", "name": "ws"}},
+            ],
+        }
+        mock_get.side_effect = v2_requests_get(roles=roles, bindings=bindings)
+
+        access = self._service().get_access_for_user(v2_mock_user())
+        for resource_type in ("aws.account", "openshift.cluster", "gcp.project"):
+            self.assertEqual(access[resource_type]["read"], ["ws"])
+        self.assertEqual(access["cost_model"]["write"], ["ws"])
+        self.assertEqual(access["settings"]["read"], ["ws"])
+
+    @patch("koku.rbac.requests.get")
+    def test_other_application_wildcard_ignored(self, mock_get):
+        """`other-app:*:*` must not become a Cost-wide wildcard."""
+        roles = {"role-x": {"id": "role-x", "permissions": ["ocp-advisor:*:*", "inventory:*:*"]}}
+        bindings = {
+            "links": {"next": None},
+            "data": [
+                {"role": {"id": "role-x"}, "resource": {"id": "ws", "name": "Default Workspace"}},
+            ],
+        }
+        mock_get.side_effect = v2_requests_get(roles=roles, bindings=bindings)
+
+        access = self._service().get_access_for_user(v2_mock_user())
+        self.assertEqual(access["aws.account"]["read"], [])
+        self.assertEqual(access["cost_model"]["write"], [])
+
+    @patch("koku.rbac.requests.get")
+    def test_missing_user_id_denies(self, mock_get):
+        """An identity without user.user_id is denied without calling RBAC."""
+        access = self._service().get_access_for_user(v2_mock_user(user_id=None))
+        self.assertEqual(access["aws.account"]["read"], [])
+        mock_get.assert_not_called()
+
+    @patch("koku.rbac.requests.get")
+    def test_unknown_role_grants_nothing(self, mock_get):
+        """A role that cannot be read contributes no ids."""
+        mock_get.side_effect = v2_requests_get(roles={})
+        access = self._service().get_access_for_user(v2_mock_user())
+        self.assertEqual(access["aws.account"]["read"], [])
+
+    @patch("koku.rbac.requests.get")
+    def test_pagination_followed(self, mock_get):
+        """A links.next cursor is followed."""
+        page_one = {
+            "links": {"next": "/api/rbac/v2/role-bindings/?page=2"},
+            "data": [
+                {"role": {"id": "role-aws"}, "resource": {"id": "ws-1", "name": "123456789012"}},
+            ],
+        }
+        page_two = {
+            "links": {"next": None},
+            "data": [
+                {"role": {"id": "role-ocp"}, "resource": {"id": "ws-2", "name": "abc-123"}},
+            ],
+        }
+        calls = {"n": 0}
+
+        def _get(url, headers=None, timeout=None, **kwargs):
+            if "/role-bindings/" in url:
+                calls["n"] += 1
+                return MockResponse(page_one if calls["n"] == 1 else page_two, status.HTTP_200_OK)
+            for role_id, role in V2_ROLES.items():
+                if f"/roles/{role_id}/" in url:
+                    return MockResponse(role, status.HTTP_200_OK)
+            return MockResponse({"detail": "not found"}, status.HTTP_404_NOT_FOUND)
+
+        mock_get.side_effect = _get
+        access = self._service().get_access_for_user(v2_mock_user())
+
+        self.assertEqual(calls["n"], 2)
+        self.assertEqual(access["aws.account"]["read"], ["123456789012"])
+        self.assertEqual(access["openshift.cluster"]["read"], ["abc-123"])
+
+    @patch("koku.rbac.RbacService.get_access_for_user")
+    @patch("koku.rbac.requests.get")
+    def test_shadow_returns_v1(self, mock_get, mock_v1):
+        """Shadow mode returns the v1 answer and never changes enforcement."""
+        svc = self._service()
+        svc.shadow = True
+        mock_get.side_effect = v2_requests_get()
+        mock_v1.return_value = {"aws.account": {"read": ["v1-id"]}}
+
+        access = svc.get_access_for_user(v2_mock_user())
+        self.assertEqual(access, {"aws.account": {"read": ["v1-id"]}})
+        mock_v1.assert_called_once()
+
+    @patch("koku.rbac.requests.get")
+    def test_server_error_raises(self, mock_get):
+        """A 5xx from RBAC v2 surfaces as RbacConnectionError (HTTP 424 upstream)."""
+        mock_get.return_value = MockResponse({"detail": "boom"}, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        with self.assertRaises(RbacConnectionError):
+            self._service().get_access_for_user(v2_mock_user())
