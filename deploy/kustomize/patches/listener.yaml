@@ -23,6 +23,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDIS_SSL
+          value: ${REDIS_SSL}
         - name: REDEPLOY_HASH
           value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_LISTENER}
         - name: SCHEMA_SUFFIX
