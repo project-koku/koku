@@ -8,6 +8,7 @@ import datetime
 import logging
 import os
 import uuid
+from collections import defaultdict
 from functools import cached_property
 from itertools import islice
 
@@ -35,9 +36,13 @@ from masu.util.common import get_path_prefix
 from masu.util.gcp.common import add_label_columns
 from masu.util.gcp.common import GCP_COLUMN_LIST
 from providers.gcp.provider import GCPProvider
+from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
+# Range manifests store per-day export times so the daily path can resume after initial ingest.
+PARTITION_EXPORT_TIMES_KEY = "partition_export_times"
+INITIAL_INGEST_RANGE_MARKER = "range"
 
 
 def batch(iterable, n):
@@ -199,6 +204,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """The end partition date we check for data in BigQuery."""
         return DateHelper().today.date()
 
+    @cached_property
+    def _is_initial_ingest(self):
+        """True until the first successful download marks the provider setup_complete."""
+        provider = Provider.objects.filter(uuid=self._provider_uuid).first()
+        return not bool(provider and provider.setup_complete)
+
     def _get_dataset_name(self):
         """Helper to get dataset ID when format is project:datasetName."""
         if ":" in self.data_source.get("dataset"):
@@ -217,8 +228,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     {"2022-05-19": "2022-05-19 19:40:16.385000 UTC"}
         """
         manifests_dict = {}
-        manifests = []
-        # Check to see if we have any manifests within the date range.
         try:
             with ReportManifestDBAccessor() as manifest_accessor:
                 manifests = manifest_accessor.get_manifest_list_for_provider_and_date_range(
@@ -226,9 +235,30 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 )
 
             for manifest in manifests:
+                if self._is_range_assembly_id(manifest.assembly_id):
+                    # Range manifests encode min(partition_date)|max(export_time) and would
+                    # overstate how fresh that first day is. Per-day times live in report_tracker.
+                    continue
                 last_export_time = manifests_dict.get(manifest.partition_date)
                 if not last_export_time or manifest.previous_export_time > last_export_time:
                     manifests_dict[manifest.partition_date] = manifest.previous_export_time
+
+            month_start = self.scan_start.replace(day=1)
+            month_end = self.scan_end.replace(day=1)
+            range_manifests = CostUsageReportManifest.objects.filter(
+                provider_id=self._provider_uuid,
+                billing_period_start_datetime__date__gte=month_start,
+                billing_period_start_datetime__date__lte=month_end,
+            )
+            for manifest in range_manifests:
+                tracker_times = (manifest.report_tracker or {}).get(PARTITION_EXPORT_TIMES_KEY) or {}
+                for day_str, export_time in tracker_times.items():
+                    try:
+                        partition_date = datetime.date.fromisoformat(day_str)
+                        parsed_export_time = self._parse_export_time(export_time)
+                    except (TypeError, ValueError):
+                        continue
+                    self._keep_latest_export(manifests_dict, partition_date, parsed_export_time)
         except DataError as err:
             raise GCPReportDownloaderError(err) from err
 
@@ -253,14 +283,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             client = bigquery.Client()
             export_partition_date_query = f"""
-                SELECT min(DATE(_PARTITIONTIME)), DATETIME(max(export_time)), invoice.month
+                SELECT DATE(_PARTITIONTIME) AS partition_date, DATETIME(max(export_time))
                 FROM `{self.table_name}`
                 WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
-                AND '{self.scan_end}' GROUP BY invoice.month
+                AND '{self.scan_end}' GROUP BY partition_date ORDER BY partition_date
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
-                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC), row[2]
+                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
         except GoogleCloudError as err:
             msg = "could not query table for partition date information"
             extra_context = {"schema": self.customer_name, "response": err.message}
@@ -271,30 +301,18 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def collect_new_manifests(self, current_manifests, bigquery_mappings):
         """
         Generate a dict representing an analog to other providers' "manifest" files.
+
+        Initial ingest groups new partition days by calendar month so we issue one
+        BigQuery range query per month instead of one query per day. After
+        setup_complete, each changed partition day is still its own manifest.
         """
-        new_manifests = []
-        dh = DateHelper()
-        today = dh.today
-        for bigquery_pd, et_invoice in bigquery_mappings.items():
-            new_partition_data = set()
-            bigquery_et = et_invoice[0]
-            invoice_month = et_invoice[1]
-            for partition_day in dh.list_days(bigquery_pd, today):
-                manifest_export_time = current_manifests.get(partition_day)
-                if (manifest_export_time and manifest_export_time != bigquery_et) or not manifest_export_time:
-                    # if the manifest export time does not match bigquery we have new data
-                    # for that partition time and new manifest should be created.
-                    new_partition_data.add(partition_day)
-            min_partition = sorted(new_partition_data)[0]
-            bill_date = dh.get_bill_month_from_invoice(invoice_month)
-            file_name = f"{invoice_month}_{min_partition}"
-            manifest_metadata = {
-                "assembly_id": f"{min_partition}|{bigquery_et}",
-                "bill_date": bill_date,
-                "files": [file_name],
-            }
-            new_manifests.append(manifest_metadata)
-        if not new_manifests:
+        new_days = {}
+        for partition_date, export_time in bigquery_mappings.items():
+            stored_export_time = current_manifests.get(partition_date)
+            if stored_export_time != export_time:
+                new_days[partition_date] = export_time
+
+        if not new_days:
             msg = "no new manifests created"
             extra_context = {
                 "scan_start": self.scan_start,
@@ -303,7 +321,67 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 "current_manifest_count": len(current_manifests),
             }
             LOG.info(log_json(self.tracing_id, msg=msg, context=self.context, **extra_context))
-        return new_manifests
+            return []
+
+        if self._is_initial_ingest:
+            return self._collect_initial_ingest_manifests(new_days)
+        return [
+            self._build_daily_manifest(partition_date, export_time)
+            for partition_date, export_time in new_days.items()
+        ]
+
+    def _collect_initial_ingest_manifests(self, new_days):
+        """Build one manifest per invoice month for the first fill."""
+        days_by_month = defaultdict(dict)
+        for partition_date, export_time in new_days.items():
+            days_by_month[partition_date.replace(day=1)][partition_date] = export_time
+
+        manifests = []
+        for bill_date in sorted(days_by_month):
+            days = days_by_month[bill_date]
+            min_partition = min(days)
+            max_partition = max(days)
+            if min_partition == max_partition:
+                manifests.append(self._build_daily_manifest(min_partition, days[min_partition]))
+                continue
+            manifests.append(self._build_range_manifest(bill_date, days))
+            LOG.info(
+                log_json(
+                    self.tracing_id,
+                    msg="grouping initial ingest partitions into a monthly manifest",
+                    context=self.context,
+                    bill_date=str(bill_date),
+                    partition_count=len(days),
+                    scan_start=str(min_partition),
+                    scan_end=str(max_partition),
+                )
+            )
+        return manifests
+
+    def _build_daily_manifest(self, partition_date, export_time):
+        """Return a per-partition-day pseudo-manifest."""
+        bill_date = partition_date.replace(day=1)
+        invoice_month = bill_date.strftime("%Y%m")
+        return {
+            "assembly_id": f"{partition_date}|{export_time}",
+            "bill_date": bill_date,
+            "files": [f"{invoice_month}_{partition_date}"],
+        }
+
+    def _build_range_manifest(self, bill_date, days):
+        """Return a monthly range pseudo-manifest with per-day export times."""
+        min_partition = min(days)
+        max_partition = max(days)
+        max_export_time = max(days.values())
+        invoice_month = bill_date.strftime("%Y%m")
+        return {
+            "assembly_id": f"{min_partition}|{max_export_time}|{INITIAL_INGEST_RANGE_MARKER}|{max_partition}",
+            "bill_date": bill_date,
+            "files": [f"{invoice_month}_{min_partition}:{max_partition}"],
+            "partition_export_times": {
+                partition_date.isoformat(): export_time.isoformat() for partition_date, export_time in days.items()
+            },
+        }
 
     def collect_pseudo_manifests(self, date):
         """
@@ -378,8 +456,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             bigquery_mapping = self.bigquery_export_to_partition_mapping()
             new_manifest_list = self.collect_new_manifests(current_manifests, bigquery_mapping)
             for manifest in new_manifest_list:
+                log_manifest = {key: value for key, value in manifest.items() if key != "partition_export_times"}
                 LOG.info(
-                    log_json(self.tracing_id, msg="creating new manifest", context=self.context, **ctx, **manifest)
+                    log_json(self.tracing_id, msg="creating new manifest", context=self.context, **ctx, **log_manifest)
                 )
                 reports_list.append(self.get_report_from_manifest(manifest, dh.now, ctx))
 
@@ -394,13 +473,16 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             len(manifest["files"]),
             date,
         )
+        if partition_export_times := manifest.get("partition_export_times"):
+            self._store_partition_export_times(manifest_id, partition_export_times)
+        log_manifest = {key: value for key, value in manifest.items() if key != "partition_export_times"}
         LOG.info(
             log_json(
                 msg="created manifest",
                 context=self.context,
                 manifest_id=manifest_id,
                 **context,
-                **manifest,
+                **log_manifest,
             )
         )
         return {
@@ -469,55 +551,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 raise GCPReportDownloaderError(msg) from err
             paths_list.append(full_local_path)
         else:
-            try:
-                filename = os.path.splitext(key)[0]
-                fn_split = filename.split("_")
-                partition_date = fn_split[-1]
-                invoice_month = fn_split[0]
-                # # Capture crossover data, we could adjust the partition end dates based on crossover ranges
-                # instead of grabbing upto current time. That said this is only really an issue on initial ingest.
-                # dh = DateHelper()
-                # partition_end = dh.n_days_ahead(dh.month_end(partition_date), 2).date()
-                # query = f"""
-                #     SELECT {self.build_query_select_statement()}
-                #     FROM `{self.table_name}`
-                #     WHERE DATE(_PARTITIONTIME) BETWEEN '{partition_date}' AND '{partition_end}' AND invoice.month = '{invoice_month}'
-                #     """
-                query = f"""
-                    SELECT {self.build_query_select_statement()}
-                    FROM `{self.table_name}`
-                    WHERE DATE(_PARTITIONTIME) >= '{partition_date}' AND invoice.month = '{invoice_month}'
-                    """
-                client = bigquery.Client()
-                query_job = client.query(query).result()
-            except GoogleCloudError as err:
-                msg = "Could not query table for billing information."
-                extra_context = {"schema": self.customer_name, "response": err.message}
-                LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context, **extra_context), exc_info=err)
-                raise GCPReportDownloaderError(msg) from err
-            except UnboundLocalError as e:
-                msg = f"Error recovering start and end date from csv key ({key})."
-                raise GCPReportDownloaderError(msg) from e
-            try:
-                column_list = GCP_COLUMN_LIST.copy()
-                column_list.append("partition_date")
-                for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
-                    full_local_path = self._get_local_file_path(directory_path, partition_date, i)
-                    msg = f"downloading subset of {partition_date} to {full_local_path}"
-                    LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-                    with open(full_local_path, "w") as f:
-                        writer = csv.writer(f)
-                        writer.writerow(column_list)
-                        writer.writerows(rows)
-                    paths_list.append(full_local_path)
-            except OSError as exc:
-                msg = (
-                    "Could not create GCP billing data csv file."
-                    f"\n  Provider: {self._provider_uuid}"
-                    f"\n  Customer: {self.customer_name}"
-                    f"\n  Response: {exc}"
-                )
-                raise GCPReportDownloaderError(msg) from exc
+            paths_list.extend(self._download_bigquery_csv_files(key, directory_path))
 
         file_names, date_range = create_daily_archives(
             self.tracing_id,
@@ -531,6 +565,165 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
 
         return key, None, DateHelper().today, file_names, date_range
+
+    def _download_bigquery_csv_files(self, key, directory_path):
+        """Query BigQuery for a daily or monthly range key and write CSV batches."""
+        try:
+            start_date, end_date = self._partition_range_from_key(key)
+            is_range_query = start_date != end_date
+            if is_range_query:
+                partition_filter = f"DATE(_PARTITIONTIME) BETWEEN '{start_date}' AND '{end_date}'"
+                order_by = " ORDER BY partition_date"
+            else:
+                partition_filter = f"DATE(_PARTITIONTIME) = '{start_date}'"
+                order_by = ""
+            query = f"""
+                SELECT {self.build_query_select_statement()}
+                FROM `{self.table_name}`
+                WHERE {partition_filter}{order_by}
+                """
+            client = bigquery.Client()
+            query_job = client.query(query).result()
+        except GoogleCloudError as err:
+            msg = "Could not query table for billing information."
+            extra_context = {"schema": self.customer_name, "response": err.message}
+            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context, **extra_context), exc_info=err)
+            raise GCPReportDownloaderError(msg) from err
+        except UnboundLocalError as e:
+            msg = f"Error recovering start and end date from csv key ({key})."
+            raise GCPReportDownloaderError(msg) from e
+        try:
+            if is_range_query:
+                return self._write_ordered_partition_csvs(query_job, directory_path)
+            column_list = GCP_COLUMN_LIST.copy()
+            column_list.append("partition_date")
+            paths_list = []
+            for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
+                full_local_path = self._get_local_file_path(directory_path, start_date, i)
+                msg = f"downloading subset of {start_date} to {full_local_path}"
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
+                with open(full_local_path, "w") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(column_list)
+                    writer.writerows(rows)
+                paths_list.append(full_local_path)
+            return paths_list
+        except OSError as exc:
+            msg = (
+                "Could not create GCP billing data csv file."
+                f"\n  Provider: {self._provider_uuid}"
+                f"\n  Customer: {self.customer_name}"
+                f"\n  Response: {exc}"
+            )
+            raise GCPReportDownloaderError(msg) from exc
+
+    def _is_range_assembly_id(self, assembly_id):
+        """Return True when assembly_id is an initial-ingest monthly range manifest."""
+        parts = (assembly_id or "").split("|")
+        return len(parts) >= 3 and parts[2] == INITIAL_INGEST_RANGE_MARKER
+
+    def _parse_export_time(self, export_time):
+        """Normalize stored export times to timezone-aware datetimes."""
+        if isinstance(export_time, datetime.datetime):
+            if export_time.tzinfo is None:
+                return export_time.replace(tzinfo=settings.UTC)
+            return export_time
+        parsed = datetime.datetime.fromisoformat(str(export_time))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=settings.UTC)
+        return parsed
+
+    def _keep_latest_export(self, mapping, partition_date, export_time):
+        """Keep the newest export_time seen for a partition date."""
+        current = mapping.get(partition_date)
+        if not current or export_time > current:
+            mapping[partition_date] = export_time
+
+    def _store_partition_export_times(self, manifest_id, partition_export_times):
+        """Persist per-day export times on a range manifest for later daily polls."""
+        manifest_entry = CostUsageReportManifest.objects.filter(id=manifest_id).first()
+        if not manifest_entry:
+            return
+        tracker = dict(manifest_entry.report_tracker or {})
+        existing = dict(tracker.get(PARTITION_EXPORT_TIMES_KEY) or {})
+        existing.update(partition_export_times)
+        tracker[PARTITION_EXPORT_TIMES_KEY] = existing
+        manifest_entry.report_tracker = tracker
+        manifest_entry.save(update_fields=["report_tracker"])
+
+    def _is_iso_date(self, value):
+        """Return True if value is an ISO calendar date string."""
+        try:
+            datetime.date.fromisoformat(value)
+        except (TypeError, ValueError):
+            return False
+        return True
+
+    def _partition_range_from_key(self, key):
+        """Parse a daily or monthly range download key into inclusive partition dates."""
+        filename = os.path.splitext(os.path.basename(key))[0]
+        parts = filename.split("_")
+        for part in parts[1:]:
+            if ":" not in part:
+                continue
+            start_str, end_str = part.split(":", 1)
+            if self._is_iso_date(start_str) and self._is_iso_date(end_str):
+                return start_str, end_str
+        for part in parts[1:]:
+            if self._is_iso_date(part):
+                return part, part
+        last_part = parts[-1]
+        return last_part, last_part
+
+    def _partition_date_from_row(self, row):
+        """Read partition_date from a BigQuery row or mocked sequence."""
+        try:
+            value = row["partition_date"]
+        except (KeyError, TypeError, IndexError):
+            value = row[-1]
+        if hasattr(value, "isoformat"):
+            return value.isoformat()
+        return str(value)
+
+    def _write_ordered_partition_csvs(self, query_job, directory_path):
+        """Write range-query rows to the same daily CSV names the ongoing path uses."""
+        column_list = GCP_COLUMN_LIST.copy()
+        column_list.append("partition_date")
+        paths_list = []
+        batch_size = settings.PARQUET_PROCESSING_BATCH_SIZE
+        current_day = None
+        buffer = []
+        day_index = {}
+
+        def flush(day, rows):
+            if not day or not rows:
+                return
+            for chunk in batch(rows, batch_size):
+                idx = day_index.get(day, 0)
+                full_local_path = self._get_local_file_path(directory_path, day, idx)
+                msg = f"downloading subset of {day} to {full_local_path}"
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
+                with open(full_local_path, "w") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(column_list)
+                    writer.writerows(chunk)
+                paths_list.append(full_local_path)
+                day_index[day] = idx + 1
+
+        for row in query_job:
+            day = self._partition_date_from_row(row)
+            if current_day is None:
+                current_day = day
+            elif day != current_day:
+                flush(current_day, buffer)
+                buffer = []
+                current_day = day
+            buffer.append(row)
+            if len(buffer) >= batch_size:
+                flush(current_day, buffer)
+                buffer = []
+        flush(current_day, buffer)
+        return paths_list
 
     def _get_local_directory_path(self):
         """

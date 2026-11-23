@@ -19,6 +19,8 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
+from masu.external.downloader.gcp.gcp_report_downloader import INITIAL_INGEST_RANGE_MARKER
+from masu.external.downloader.gcp.gcp_report_downloader import PARTITION_EXPORT_TIMES_KEY
 from masu.test import MasuTestCase
 from masu.util.common import CreateDailyArchivesError
 from masu.util.common import date_range_pair
@@ -462,3 +464,157 @@ class GCPReportDownloaderTest(MasuTestCase):
                 self.assertTrue(os.path.exists(daily_file))
                 os.remove(daily_file)
             os.remove(temp_path)
+
+    def _build_downloader(self):
+        """Return a new downloader against the test GCP provider."""
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"):
+            return GCPReportDownloader(
+                self.fake_customer_name,
+                data_source=self.billing_source,
+                provider_uuid=self.gcp_provider_uuid,
+                credentials=self.credentials,
+            )
+
+    def test_collect_new_manifests_initial_ingest_groups_by_month(self):
+        """Initial ingest should emit one range manifest per calendar month."""
+        self.gcp_provider.setup_complete = False
+        self.gcp_provider.save()
+        downloader = self._build_downloader()
+        jan_one = datetime.date(2025, 1, 1)
+        jan_two = datetime.date(2025, 1, 2)
+        feb_one = datetime.date(2025, 2, 1)
+        jan_export = datetime.datetime(2025, 1, 3, tzinfo=settings.UTC)
+        jan_export_two = datetime.datetime(2025, 1, 4, tzinfo=settings.UTC)
+        feb_export = datetime.datetime(2025, 2, 2, tzinfo=settings.UTC)
+        mapping = {jan_one: jan_export, jan_two: jan_export_two, feb_one: feb_export}
+
+        manifests = downloader.collect_new_manifests({}, mapping)
+
+        self.assertEqual(len(manifests), 2)
+        january = manifests[0]
+        self.assertEqual(january["bill_date"], jan_one)
+        self.assertEqual(january["files"], ["202501_2025-01-01:2025-01-02"])
+        self.assertIn(INITIAL_INGEST_RANGE_MARKER, january["assembly_id"])
+        self.assertEqual(
+            january["partition_export_times"],
+            {jan_one.isoformat(): jan_export.isoformat(), jan_two.isoformat(): jan_export_two.isoformat()},
+        )
+        february = manifests[1]
+        self.assertEqual(february["bill_date"], feb_one)
+        self.assertEqual(february["files"], ["202502_2025-02-01"])
+        self.assertNotIn(INITIAL_INGEST_RANGE_MARKER, february["assembly_id"])
+
+    def test_collect_new_manifests_ongoing_stays_daily(self):
+        """After setup_complete, each partition day is still its own manifest."""
+        self.gcp_provider.setup_complete = True
+        self.gcp_provider.save()
+        downloader = self._build_downloader()
+        day_one = datetime.date.today()
+        day_two = day_one - datetime.timedelta(days=1)
+        export_one = datetime.datetime.now(tz=settings.UTC)
+        export_two = export_one + datetime.timedelta(hours=1)
+        mapping = {day_one: export_one, day_two: export_two}
+
+        manifests = downloader.collect_new_manifests({}, mapping)
+
+        self.assertEqual(len(manifests), 2)
+        for manifest in manifests:
+            self.assertNotIn(INITIAL_INGEST_RANGE_MARKER, manifest["assembly_id"])
+            self.assertNotIn("partition_export_times", manifest)
+            self.assertEqual(len(manifest["files"]), 1)
+            self.assertNotIn(":", manifest["files"][0].split("_", 1)[1])
+
+    def test_retrieve_current_manifests_mapping_includes_range_tracker(self):
+        """Range manifests contribute per-day export times from report_tracker."""
+        for manifest in CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid):
+            manifest.assembly_id = f"{manifest.billing_period_start_datetime.date()}|{self.today}"
+            manifest.save()
+        partition_date = datetime.date.today()
+        export_time = datetime.datetime.now(tz=settings.UTC).replace(microsecond=0)
+        bill_date = partition_date.replace(day=1)
+        CostUsageReportManifest.objects.create(
+            assembly_id=f"{bill_date}|{export_time}|{INITIAL_INGEST_RANGE_MARKER}|{partition_date}",
+            billing_period_start_datetime=datetime.datetime(
+                bill_date.year, bill_date.month, bill_date.day, tzinfo=settings.UTC
+            ),
+            num_total_files=1,
+            provider_id=self.gcp_provider_uuid,
+            report_tracker={PARTITION_EXPORT_TIMES_KEY: {partition_date.isoformat(): export_time.isoformat()}},
+        )
+
+        mapping = self.downloader.retrieve_current_manifests_mapping()
+
+        self.assertEqual(mapping.get(partition_date), export_time)
+
+    def test_get_report_from_manifest_stores_partition_export_times(self):
+        """Range manifest creation should persist per-day export times."""
+        bill_date = datetime.date.today().replace(day=1)
+        partition_date = datetime.date.today()
+        export_time = datetime.datetime.now(tz=settings.UTC).replace(microsecond=0)
+        manifest = {
+            "assembly_id": f"{bill_date}|{export_time}|{INITIAL_INGEST_RANGE_MARKER}|{partition_date}|{uuid4()}",
+            "bill_date": bill_date,
+            "files": [f"{bill_date.strftime('%Y%m')}_{bill_date}:{partition_date}"],
+            "partition_export_times": {partition_date.isoformat(): export_time.isoformat()},
+        }
+
+        result = self.downloader.get_report_from_manifest(manifest, datetime.date.today(), {})
+        db_manifest = CostUsageReportManifest.objects.get(id=result["manifest_id"])
+
+        self.assertEqual(
+            db_manifest.report_tracker[PARTITION_EXPORT_TIMES_KEY][partition_date.isoformat()],
+            export_time.isoformat(),
+        )
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
+    def test_download_file_uses_between_for_range_key(self, mock_bigquery, mock_makedirs):
+        """Monthly range keys should query a partition date BETWEEN clause."""
+        mock_bigquery.Client.return_value.query.return_value.result.return_value = []
+        key = "202501_2025-01-01:2025-01-31"
+        with (
+            patch("masu.external.downloader.gcp.gcp_report_downloader.open"),
+            patch(
+                "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
+                return_value=[[], {}],
+            ),
+        ):
+            self.downloader.download_file(key)
+        query = mock_bigquery.Client.return_value.query.call_args[0][0]
+        self.assertIn("BETWEEN '2025-01-01' AND '2025-01-31'", query)
+        self.assertIn("ORDER BY partition_date", query)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
+    def test_download_file_uses_equality_for_daily_key(self, mock_bigquery, mock_makedirs):
+        """Daily keys should keep a single-partition equality filter."""
+        mock_bigquery.Client.return_value.query.return_value.result.return_value = []
+        key = "202501_2025-01-15"
+        with (
+            patch("masu.external.downloader.gcp.gcp_report_downloader.open"),
+            patch(
+                "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
+                return_value=[[], {}],
+            ),
+        ):
+            self.downloader.download_file(key)
+        query = mock_bigquery.Client.return_value.query.call_args[0][0]
+        self.assertIn("DATE(_PARTITIONTIME) = '2025-01-15'", query)
+        self.assertNotIn("BETWEEN", query)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
+    def test_write_ordered_partition_csvs_splits_by_day(self, mock_makedirs):
+        """Range query results should land in per-day CSV files."""
+        rows = [
+            ["row-a", datetime.date(2025, 1, 1)],
+            ["row-b", datetime.date(2025, 1, 1)],
+            ["row-c", datetime.date(2025, 1, 2)],
+        ]
+        temp_dir = tempfile.mkdtemp()
+        try:
+            paths = self.downloader._write_ordered_partition_csvs(rows, temp_dir)
+            self.assertEqual(len(paths), 2)
+            self.assertTrue(any("2025-01-01" in path for path in paths))
+            self.assertTrue(any("2025-01-02" in path for path in paths))
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
