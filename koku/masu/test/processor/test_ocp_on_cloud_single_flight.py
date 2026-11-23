@@ -8,10 +8,12 @@ from datetime import date
 from datetime import timedelta
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from api.provider.models import Provider
-from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
-from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
+from api.utils import DateHelper
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
+from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.tasks import apply_openshift_on_cloud_window_deletes
 from masu.processor.tasks import defer_busy_openshift_on_cloud
 from masu.processor.tasks import update_openshift_on_cloud
@@ -82,7 +84,9 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
             calls, [(self.ocpaws_provider_uuid, self.aws_provider_uuid, [date(2026, 6, 1), date(2026, 7, 1)])]
         )
         self.window_deletes.assert_called_once()
-        self.assertEqual(self.window_deletes.call_args[0][1:], (date(2026, 6, 20), date(2026, 7, 3)))
+        self.assertEqual(
+            self.window_deletes.call_args[0][1:], (self.ocpaws_provider_uuid, date(2026, 6, 20), date(2026, 7, 3))
+        )
         mock_update.assert_called_once_with(
             date(2026, 6, 20), date(2026, 7, 3), self.ocpaws_provider_uuid, self.aws_provider_uuid, "AWS", None
         )
@@ -163,21 +167,63 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
 
 
 class ApplyOpenshiftOnCloudWindowDeletesTest(MasuTestCase):
-    """apply_openshift_on_cloud_window_deletes applies every operation of the window."""
+    """apply_openshift_on_cloud_window_deletes clears the rebuilt cluster's window."""
 
-    def test_applies_every_operation_of_the_window(self):
+    def test_clears_through_the_cluster_scoped_window_delete(self):
         updater = MagicMock()
-        updater._ocp_cloud_updater.determine_truncates_and_deletes.return_value = {
-            "summary_table": DELETE_TABLE,
-            "ui_table": TRUNCATE_TABLE,
-        }
-        apply_openshift_on_cloud_window_deletes(updater, date(2026, 6, 1), date(2026, 6, 30))
-        cloud_updater = updater._ocp_cloud_updater
-        cloud_updater.determine_truncates_and_deletes.assert_called_once_with(date(2026, 6, 1), date(2026, 6, 30))
-        cloud_updater.delete_summary_table_data.assert_called_once_with(
-            date(2026, 6, 1), date(2026, 6, 30), "summary_table"
+        apply_openshift_on_cloud_window_deletes(updater, "ocp-uuid", date(2026, 6, 1), date(2026, 6, 30))
+        updater._ocp_cloud_updater.delete_cluster_scoped_window_data.assert_called_once_with(
+            "ocp-uuid", date(2026, 6, 1), date(2026, 6, 30)
         )
-        cloud_updater.truncate_summary_table_data.assert_called_once_with("ui_table")
+
+    def test_failures_follow_the_task_retry_path(self):
+        updater = MagicMock()
+        updater._ocp_cloud_updater.delete_cluster_scoped_window_data.side_effect = RuntimeError("delete failed")
+        with self.assertRaises(ReportSummaryUpdaterCloudError) as raised:
+            apply_openshift_on_cloud_window_deletes(updater, "ocp-uuid", date(2026, 6, 1), date(2026, 6, 30))
+        self.assertIsInstance(raised.exception.__cause__, RuntimeError)
+
+
+class DeleteClusterScopedWindowDataTest(MasuTestCase):
+    """delete_cluster_scoped_window_data derives the cluster's bill and report period."""
+
+    def setUp(self):
+        super().setUp()
+        self.updater = OCPCloudParquetReportSummaryUpdater(self.schema, self.aws_provider, None)
+
+    def _run(self, report_period, bills):
+        scoped_delete = MagicMock()
+        with (
+            patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor") as ocp_acc_cls,
+            patch.object(OCPCloudParquetReportSummaryUpdater, "db_accessor", new_callable=PropertyMock) as db_acc,
+            patch.object(self.updater, "_delete_cluster_scoped_ocp_on_cloud_pg_data", scoped_delete),
+            patch(
+                "masu.processor.ocp.ocp_cloud_parquet_summary_updater.get_cluster_id_from_provider",
+                return_value="cluster-a",
+            ),
+        ):
+            ocp_acc = ocp_acc_cls.return_value.__enter__.return_value
+            ocp_acc.report_periods_for_provider_uuid.return_value = report_period
+            infra_acc = db_acc.return_value.return_value.__enter__.return_value
+            infra_acc.bills_for_provider_uuid.return_value = bills
+            self.updater.delete_cluster_scoped_window_data(
+                self.ocpaws_provider_uuid, date(2026, 6, 1), date(2026, 6, 30)
+            )
+        return scoped_delete, ocp_acc, infra_acc
+
+    def test_deletes_with_the_cluster_bill_and_report_period(self):
+        bills = MagicMock()
+        bills.first.return_value = MagicMock(id=42)
+        scoped_delete, ocp_acc, infra_acc = self._run(MagicMock(id=17), bills)
+        ocp_acc.report_periods_for_provider_uuid.assert_called_once_with(self.ocpaws_provider_uuid, date(2026, 6, 1))
+        infra_acc.bills_for_provider_uuid.assert_called_once_with(
+            self.aws_provider.uuid, start_date=DateHelper().month_start(date(2026, 6, 1))
+        )
+        scoped_delete.assert_called_once_with(infra_acc, date(2026, 6, 1), date(2026, 6, 30), 42, 17, "cluster-a")
+
+    def test_skips_the_clear_when_the_cluster_has_no_bill_or_period(self):
+        scoped_delete, _, _ = self._run(None, [])
+        scoped_delete.assert_not_called()
 
 
 class DeferBusyOpenshiftOnCloudTest(MasuTestCase):

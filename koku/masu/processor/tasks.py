@@ -1020,18 +1020,21 @@ def _apply_summary_table_operation(updater, table_name, operation, start_date, e
         updater._ocp_cloud_updater.delete_summary_table_data(start_date, end_date, table_name)
 
 
-def apply_openshift_on_cloud_window_deletes(updater, start_date, end_date):
-    """Clear the summary tables of one window, like the delete chain does for original runs.
+def apply_openshift_on_cloud_window_deletes(updater, openshift_provider_uuid, start_date, end_date):
+    """Clear the rebuilt cluster's rows of one window's summary tables.
 
     A delayed successor of several merged windows covers days whose rows no delete chain
-    cleared, and an autoretry re-populates a partially inserted window; running each
-    window's own clears here, inside the run lock, keeps the populate that follows from
-    doubling rows. This does not depend on OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG and
-    never deletes beyond what an original run of the same window deletes.
+    cleared, and an autoretry re-populates a partially inserted window: clearing the
+    run's own window here, inside the run lock, keeps the populate that follows from
+    doubling rows. The clear is scoped to the OpenShift cluster being rebuilt, so
+    another cluster sharing the cloud source keeps its rows, and it never truncates a
+    shared partition. Failures raise ReportSummaryUpdaterCloudError so they follow the
+    task's existing retry and failed-state path.
     """
-    trunc_delete_map = updater._ocp_cloud_updater.determine_truncates_and_deletes(start_date, end_date)
-    for table_name, operation in trunc_delete_map.items():
-        _apply_summary_table_operation(updater, table_name, operation, start_date, end_date)
+    try:
+        updater._ocp_cloud_updater.delete_cluster_scoped_window_data(openshift_provider_uuid, start_date, end_date)
+    except Exception as ex:
+        raise ReportSummaryUpdaterCloudError(str(ex)) from ex
 
 
 @celery_app.task(
@@ -1159,7 +1162,9 @@ def update_openshift_on_cloud(  # noqa: C901
                     # chain cleared, and an autoretry re-populates a partially inserted
                     # window: clear this run's window here, inside the lock, so the populate
                     # below cannot double rows.
-                    apply_openshift_on_cloud_window_deletes(updater, to_date(start_date), to_date(end_date))
+                    apply_openshift_on_cloud_window_deletes(
+                        updater, openshift_provider_uuid, to_date(start_date), to_date(end_date)
+                    )
                 updater.update_openshift_on_cloud_summary_tables(
                     start_date,
                     end_date,
