@@ -1837,6 +1837,23 @@ class TestWorkerCacheThrottling(MasuTestCase):
         provider.refresh_from_db()
         self.assertGreater(provider.data_updated_timestamp, initial_update_time)
 
+    @patch(
+        "masu.processor.tasks.is_cost_model_processing_disabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_update_cost_model_costs_unleash_disabled_missing_provider(self, mock_updater, mock_unleash):
+        """A skipped cost-model run is a no-op when the provider is already gone."""
+        missing_uuid = str(uuid4())
+        update_cost_model_costs(
+            self.schema,
+            missing_uuid,
+            self.dh.last_month_start.strftime("%Y-%m-%d"),
+            self.dh.today.strftime("%Y-%m-%d"),
+        )
+        mock_updater.assert_not_called()
+        self.assertFalse(Provider.objects.filter(uuid=missing_uuid).exists())
+
     @patch("masu.processor.tasks.CostModelCostUpdater")
     def test_update_cost_model_costs_sets_data_updated_timestamp(self, mock_updater):
         """OCP freshness is stamped when cost model work finishes."""

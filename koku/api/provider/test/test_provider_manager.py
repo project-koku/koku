@@ -804,6 +804,23 @@ class ProviderManagerTest(IamTestCase):
             },
         )
 
+    def test_get_tenant_provider_stats_unknown_type_returns_nulls(self):
+        """Unsupported provider types still return the month timestamp keys."""
+        provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
+        self.assertIsNotNone(provider)
+        provider.type = "not-a-supported-provider"
+        stats = ProviderManager(provider.uuid)._get_tenant_provider_stats(
+            provider, self.tenant, self.dh.this_month_start
+        )
+        self.assertEqual(
+            stats,
+            {
+                "summary_data_creation_datetime": None,
+                "summary_data_updated_datetime": None,
+                "derived_cost_datetime": None,
+            },
+        )
+
     def test_ocp_on_aws_infrastructure_type(self):
         """Test that the provider infrastructure returns AWS when running on AWS."""
         credentials = {"cluster_id": "cluster_id_1001"}
