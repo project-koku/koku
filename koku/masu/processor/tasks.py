@@ -1009,10 +1009,29 @@ def delete_openshift_on_cloud_data(
         )
         return
 
+    _apply_summary_table_operation(updater, table_name, operation, start_date, end_date)
+
+
+def _apply_summary_table_operation(updater, table_name, operation, start_date, end_date):
+    """Apply one summary-table clear operation the way the delete chain does."""
     if operation == TRUNCATE_TABLE:
         updater._ocp_cloud_updater.truncate_summary_table_data(table_name)
     elif operation == DELETE_TABLE:
         updater._ocp_cloud_updater.delete_summary_table_data(start_date, end_date, table_name)
+
+
+def apply_openshift_on_cloud_window_deletes(updater, start_date, end_date):
+    """Clear the summary tables of one window, like the delete chain does for original runs.
+
+    A delayed successor of several merged windows covers days whose rows no delete chain
+    cleared, and an autoretry re-populates a partially inserted window; running each
+    window's own clears here, inside the run lock, keeps the populate that follows from
+    doubling rows. This does not depend on OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG and
+    never deletes beyond what an original run of the same window deletes.
+    """
+    trunc_delete_map = updater._ocp_cloud_updater.determine_truncates_and_deletes(start_date, end_date)
+    for table_name, operation in trunc_delete_map.items():
+        _apply_summary_table_operation(updater, table_name, operation, start_date, end_date)
 
 
 @celery_app.task(
@@ -1135,6 +1154,12 @@ def update_openshift_on_cloud(  # noqa: C901
         with run_lock as acquired:
             if acquired:
                 updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
+                if single_flight:
+                    # A delayed successor of merged windows covers days whose rows no delete
+                    # chain cleared, and an autoretry re-populates a partially inserted
+                    # window: clear this run's window here, inside the lock, so the populate
+                    # below cannot double rows.
+                    apply_openshift_on_cloud_window_deletes(updater, to_date(start_date), to_date(end_date))
                 updater.update_openshift_on_cloud_summary_tables(
                     start_date,
                     end_date,

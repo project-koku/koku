@@ -6,9 +6,13 @@
 from contextlib import contextmanager
 from datetime import date
 from datetime import timedelta
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from api.provider.models import Provider
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
+from masu.processor.tasks import apply_openshift_on_cloud_window_deletes
 from masu.processor.tasks import defer_busy_openshift_on_cloud
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import UPDATE_OPENSHIFT_ON_CLOUD_TASK
@@ -37,6 +41,7 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
         super().setUp()
         self.worker_cache = patch("masu.processor.tasks.WorkerCache").start()
         self.worker_cache.return_value.single_task_is_running.return_value = False
+        self.window_deletes = patch("masu.processor.tasks.apply_openshift_on_cloud_window_deletes").start()
         self.addCleanup(patch.stopall)
 
     def _rows(self):
@@ -62,6 +67,7 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
         with patch("masu.processor.tasks.ocp_on_cloud_month_locks", fake):
             self._run()
         self.assertEqual(calls, [])
+        self.window_deletes.assert_not_called()
         mock_update.assert_called_once_with(
             date(2026, 6, 20), date(2026, 6, 30), self.ocpaws_provider_uuid, self.aws_provider_uuid, "AWS", None
         )
@@ -75,6 +81,8 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
         self.assertEqual(
             calls, [(self.ocpaws_provider_uuid, self.aws_provider_uuid, [date(2026, 6, 1), date(2026, 7, 1)])]
         )
+        self.window_deletes.assert_called_once()
+        self.assertEqual(self.window_deletes.call_args[0][1:], (date(2026, 6, 20), date(2026, 7, 3)))
         mock_update.assert_called_once_with(
             date(2026, 6, 20), date(2026, 7, 3), self.ocpaws_provider_uuid, self.aws_provider_uuid, "AWS", None
         )
@@ -134,7 +142,42 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
         with patch("masu.processor.tasks.ocp_on_cloud_month_locks", fake):
             self._run(synchronous=True)
         self.assertEqual(calls, [])
+        self.window_deletes.assert_not_called()
         mock_update.assert_called_once()
+
+    @patch("masu.processor.tasks.is_ocp_on_cloud_single_flight_enabled", return_value=True)
+    def test_window_deletes_run_inside_the_lock(self, _flag, mock_update, mock_validate, mock_cost_model):
+        """The run's own window clears happen while the run lock is held."""
+        events = []
+
+        @contextmanager
+        def recording_lock(openshift_provider_uuid, infrastructure_provider_uuid, months):
+            events.append("enter")
+            yield True
+            events.append("exit")
+
+        self.window_deletes.side_effect = lambda *args: events.append("deletes")
+        with patch("masu.processor.tasks.ocp_on_cloud_month_locks", recording_lock):
+            self._run()
+        self.assertEqual(events, ["enter", "deletes", "exit"])
+
+
+class ApplyOpenshiftOnCloudWindowDeletesTest(MasuTestCase):
+    """apply_openshift_on_cloud_window_deletes applies every operation of the window."""
+
+    def test_applies_every_operation_of_the_window(self):
+        updater = MagicMock()
+        updater._ocp_cloud_updater.determine_truncates_and_deletes.return_value = {
+            "summary_table": DELETE_TABLE,
+            "ui_table": TRUNCATE_TABLE,
+        }
+        apply_openshift_on_cloud_window_deletes(updater, date(2026, 6, 1), date(2026, 6, 30))
+        cloud_updater = updater._ocp_cloud_updater
+        cloud_updater.determine_truncates_and_deletes.assert_called_once_with(date(2026, 6, 1), date(2026, 6, 30))
+        cloud_updater.delete_summary_table_data.assert_called_once_with(
+            date(2026, 6, 1), date(2026, 6, 30), "summary_table"
+        )
+        cloud_updater.truncate_summary_table_data.assert_called_once_with("ui_table")
 
 
 class DeferBusyOpenshiftOnCloudTest(MasuTestCase):
