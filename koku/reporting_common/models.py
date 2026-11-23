@@ -7,6 +7,7 @@ import logging
 from uuid import uuid4
 
 from django.conf import settings
+from django.db import connection
 from django.db import models
 from django.db import transaction
 from django.db.models.signals import pre_delete
@@ -154,6 +155,10 @@ class RegionMapping(models.Model):
 KEEP_EARLIER_DEADLINE = "keep_earlier_deadline"
 # DelayedCeleryTasks.metadata key: discriminates rows of one provider_uuid that are separate work.
 WORK_KEY = "work_key"
+# Two-integer advisory lock namespace serializing the first creation of a delayed-task row:
+# SELECT ... FOR UPDATE locks nothing when the lookup is empty, so without it two concurrent
+# first-time calls with the same key would both insert a row for the same work.
+DELAYED_TASK_CREATION_LOCK_NAMESPACE = "delayed_celery_tasks_creation"
 
 
 class DelayedCeleryTasks(models.Model):
@@ -272,6 +277,9 @@ class DelayedCeleryTasks(models.Model):
         filters.update(key_filters)
 
         with transaction.atomic():
+            # select_for_update cannot serialize the first creation (an empty lookup locks
+            # nothing), so serialize on the key itself before looking for a row.
+            _lock_delayed_task_creation(filters)
             existing_task = cls.objects.select_for_update().filter(**filters).first()
 
             if existing_task:
@@ -311,6 +319,20 @@ class DelayedCeleryTasks(models.Model):
             new_task.set_timeout(timeout_seconds)
             new_task.save()
             return new_task
+
+
+def _lock_delayed_task_creation(filters):
+    """Serialize the creation of the delayed-task row matching these filters.
+
+    The lock is transaction-scoped, so PostgreSQL releases it when the surrounding
+    ``create_or_reset_timeout`` transaction commits or rolls back.
+    """
+    key = ":".join(f"{field}={value}" for field, value in sorted(filters.items()))
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+            [DELAYED_TASK_CREATION_LOCK_NAMESPACE, key],
+        )
 
 
 @receiver(pre_delete, sender=DelayedCeleryTasks)

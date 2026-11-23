@@ -11,6 +11,7 @@ exactly one of them writes and the other hands its window to the delayed tasks
 instead of republishing itself, which is what used to amplify the queue.
 """
 import threading
+import uuid
 from datetime import date
 from unittest.mock import patch
 
@@ -130,3 +131,54 @@ class OcpOnCloudSingleFlightRaceTest(django.test.TransactionTestCase):
                 ).count(),
                 1,
             )
+
+
+class DelayedTaskFirstCreationRaceTest(django.test.TransactionTestCase):
+    """Two concurrent first-time create_or_reset_timeout calls with one key make one row."""
+
+    CREATION_RACE_TASK = "masu.test.delayed-creation-race"
+
+    def _fixture_teardown(self):
+        """Skip the TRUNCATE flush: the django-tenants FK graph breaks it. tearDown cleans up."""
+
+    def tearDown(self):
+        # Deleting fires pre_delete (trigger_celery_task); keep it from sending a real task.
+        with patch("reporting_common.models.celery_app"):
+            DelayedCeleryTasks.objects.filter(task_name=self.CREATION_RACE_TASK).delete()
+
+    def test_concurrent_first_creations_coalesce_into_one_row(self):
+        """Without the creation lock an empty SELECT ... FOR UPDATE locks nothing and both insert."""
+        provider_uuid = uuid.uuid4()
+        barrier = threading.Barrier(2)
+        errors, row_ids = [], []
+
+        def create():
+            try:
+                barrier.wait(15)
+                row = DelayedCeleryTasks.create_or_reset_timeout(
+                    task_name=self.CREATION_RACE_TASK,
+                    task_args=["org1234567", str(provider_uuid)],
+                    task_kwargs={"start_date": "2026-06-01", "end_date": "2026-06-10"},
+                    provider_uuid=provider_uuid,
+                    queue_name="q",
+                    billing_month=date(2026, 6, 1),
+                    merge_date_range=True,
+                    keep_earlier_deadline=True,
+                    work_key="infra-uuid",
+                )
+                row_ids.append(row.id)
+            except Exception as error:  # surfaced through `errors` below
+                errors.append(error)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=create) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(30)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(row_ids), 2)
+        self.assertEqual(len(set(row_ids)), 1, "both calls must return the same row")
+        self.assertEqual(DelayedCeleryTasks.objects.filter(task_name=self.CREATION_RACE_TASK).count(), 1)

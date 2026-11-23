@@ -908,6 +908,10 @@ instead of immediately enqueueing `update_cost_model_costs` on the PriorityQueue
   when `disable-celery-task-delay` is ON (firing at once would meet the same busy lock).
   OCP-on-cloud rows carry `metadata.work_key` (the cloud source UUID) so one OpenShift
   source summarized against several cloud sources keeps one successor per cloud source.
+  `create_or_reset_timeout` serializes a key's first creation with a transaction-scoped
+  advisory lock (`_lock_delayed_task_creation`): `SELECT ... FOR UPDATE` locks nothing
+  when the lookup is empty, so without it two busy copies deferring at the same moment
+  would both insert a row for the same work.
 - **Bypass**: when Unleash flag
   `cost-management.backend.disable-celery-task-delay` is ON for the schema, the
   delayed row is deleted immediately so `pre_delete` fires the real task promptly.
