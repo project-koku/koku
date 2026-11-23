@@ -1,15 +1,15 @@
 # RBAC v2 design — minimal Cost integration
 
-**Status:** experimental; disabled by default (`RBAC_BACKEND=v1`). Draft implementation: [#6477](https://github.com/project-koku/koku/pull/6477).
+**Status:** experimental; disabled by default (`RBAC_BACKEND=v1`). Draft implementation: [#6477](https://github.com/project-koku/koku/pull/6477). Companion docs: [v1 → v2 mapping](v1-to-v2-mapping.md) · [alternatives and cross-project evidence](alternatives.md).
 
 The smallest SaaS migration away from RBAC v1 that still uses the platform for identity: **RBAC v2 owns users, groups, and the grant store; Cost owns the permission semantics, the objects, and the evaluation.** Kessel is a replication target, not a decision point on the Cost request path.
 
-This design supersedes the "Cost → Kessel outbox" plan for the immediate migration. The outbox approach is not wrong, it is simply not needed for this shape; it remains the deferred resource-reporting path.
+This design supersedes the "Cost → Kessel outbox" plan for the immediate migration. The outbox approach is not wrong, it is simply not needed for this shape; it remains the deferred resource-reporting path ([alternatives](alternatives.md)).
 
 > [!tip] One sentence
 > Bind groups to a small set of Cost permission-roles **on an opaque workspace ID**, keep `object → workspace_id` in Cost, and evaluate reports locally. No outbox, no tuples, no `ReportResource`, no `cost-management.ksl`.
 
-The concrete v1 → v2 conversion rules (role preservation, resource definitions, edge cases, acceptance tests) are in the v1 → v2 mapping spec (follow-up).
+The concrete v1 → v2 conversion rules (role preservation, resource definitions, edge cases, acceptance tests) are in [the v1 → v2 mapping spec](v1-to-v2-mapping.md).
 
 ## Constraints that force this shape
 
