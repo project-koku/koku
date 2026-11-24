@@ -251,7 +251,7 @@ class DelayedCeleryTasks(models.Model):
         work_key=None,
     ):
         """
-        Saves data regarding to the celery task being delaying.
+        Saves data regarding to the celery task being delayed.
 
         When billing_month is provided, rows are keyed by
         (task_name, provider_uuid, metadata.billing_month) so callers can

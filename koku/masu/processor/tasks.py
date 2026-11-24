@@ -1126,12 +1126,6 @@ def update_openshift_on_cloud(  # noqa: C901
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
-    delete_cached_ocp_on_cloud_matched_tags(
-        schema_name, str(openshift_provider_uuid), str(infrastructure_provider_uuid), cache_arg_date
-    )
-
-    # Set OpenShift summary started time
-    set_summary_timestamp(ManifestState.START, ocp_manifest_id)
     ctx = {
         "schema": schema_name,
         "ocp_provider_uuid": openshift_provider_uuid,
@@ -1156,6 +1150,14 @@ def update_openshift_on_cloud(  # noqa: C901
             run_lock = nullcontext(True)
         with run_lock as acquired:
             if acquired:
+                # Only now that the run actually holds the lock: a busy-lock deferral must
+                # not record the manifest as started, nor drop the matched-tags cache,
+                # with no run scheduled to finish that state.
+                delete_cached_ocp_on_cloud_matched_tags(
+                    schema_name, str(openshift_provider_uuid), str(infrastructure_provider_uuid), cache_arg_date
+                )
+                # Set OpenShift summary started time
+                set_summary_timestamp(ManifestState.START, ocp_manifest_id)
                 updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
                 if single_flight:
                     # A delayed successor of merged windows covers days whose rows no delete

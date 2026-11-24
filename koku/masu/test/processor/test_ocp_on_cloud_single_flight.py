@@ -6,6 +6,7 @@
 from contextlib import contextmanager
 from datetime import date
 from datetime import timedelta
+from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
@@ -20,6 +21,7 @@ from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import UPDATE_OPENSHIFT_ON_CLOUD_TASK
 from masu.test import MasuTestCase
 from reporting_common.models import DelayedCeleryTasks
+from reporting_common.states import ManifestState
 
 
 def _locks(acquired):
@@ -44,6 +46,8 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
         self.worker_cache = patch("masu.processor.tasks.WorkerCache").start()
         self.worker_cache.return_value.single_task_is_running.return_value = False
         self.window_deletes = patch("masu.processor.tasks.apply_openshift_on_cloud_window_deletes").start()
+        self.summary_start = patch("masu.processor.tasks.set_summary_timestamp").start()
+        self.matched_tags_clear = patch("masu.processor.tasks.delete_cached_ocp_on_cloud_matched_tags").start()
         self.addCleanup(patch.stopall)
 
     def _rows(self):
@@ -87,6 +91,10 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
         self.assertEqual(
             self.window_deletes.call_args[0][1:], (self.ocpaws_provider_uuid, date(2026, 6, 20), date(2026, 7, 3))
         )
+        self.assertEqual(
+            self.summary_start.call_args_list, [call(ManifestState.START, None), call(ManifestState.END, None)]
+        )
+        self.matched_tags_clear.assert_called_once()
         mock_update.assert_called_once_with(
             date(2026, 6, 20), date(2026, 7, 3), self.ocpaws_provider_uuid, self.aws_provider_uuid, "AWS", None
         )
@@ -101,6 +109,8 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
         mock_update.assert_not_called()
         mock_cost_model.assert_not_called()
         mock_validate.assert_not_called()
+        self.summary_start.assert_not_called()
+        self.matched_tags_clear.assert_not_called()
         self.worker_cache.return_value.release_single_task.assert_called_once()
         row = self._rows().get()
         self.assertEqual(row.task_args, [self.schema, str(self.ocpaws_provider_uuid), str(self.aws_provider_uuid)])
@@ -151,7 +161,7 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
 
     @patch("masu.processor.tasks.is_ocp_on_cloud_single_flight_enabled", return_value=True)
     def test_window_deletes_run_inside_the_lock(self, _flag, mock_update, mock_validate, mock_cost_model):
-        """The run's own window clears happen while the run lock is held."""
+        """The run's own window clears and manifest start happen while the run lock is held."""
         events = []
 
         @contextmanager
@@ -160,10 +170,16 @@ class OcpOnCloudSingleFlightTaskTest(MasuTestCase):
             yield True
             events.append("exit")
 
+        self.matched_tags_clear.side_effect = lambda *args: events.append("matched_tags")
+
+        def record_summary_start(state, manifest_id):
+            events.append(f"summary:{state.value}")
+
+        self.summary_start.side_effect = record_summary_start
         self.window_deletes.side_effect = lambda *args: events.append("deletes")
         with patch("masu.processor.tasks.ocp_on_cloud_month_locks", recording_lock):
             self._run()
-        self.assertEqual(events, ["enter", "deletes", "exit"])
+        self.assertEqual(events, ["enter", "matched_tags", "summary:start", "deletes", "summary:end", "exit"])
 
 
 class ApplyOpenshiftOnCloudWindowDeletesTest(MasuTestCase):
