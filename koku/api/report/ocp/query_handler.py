@@ -306,7 +306,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def request_source_to_currency_map(self):
         """Use metadata on the aggregate path and scoped mappings on the legacy path."""
         if self.aggregate_currency_coverage_enabled:
-            self._conversion_rate_snapshot
+            # Eagerly load the cached request snapshot before using metadata.
+            _ = self._conversion_rate_snapshot
             return self._candidate_source_currency_map
         mapping = CostModelMap.objects.filter(provider_uuid__in=self.source_uuids_for_conversion).values(
             "provider_uuid", "cost_model__currency"
@@ -314,14 +315,17 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return {row["provider_uuid"]: row["cost_model__currency"] for row in mapping if row["cost_model__currency"]}
 
     def _monthly_source_exchange_rate_case(self):
-        """Build a bounded Case expression for source UUID to cost-model currency rates."""
-        whens = []
+        """Share monthly rate branches among sources with the same currency."""
+        sources_by_currency = defaultdict(list)
         for source_uuid, base_currency in self.request_source_to_currency_map.items():
+            sources_by_currency[base_currency].append(source_uuid)
+        whens = []
+        for base_currency, source_uuids in sources_by_currency.items():
             for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
                 whens.append(
                     When(
                         **{
-                            "source_uuid": source_uuid,
+                            "source_uuid__in": source_uuids,
                             "usage_start__gte": month_start,
                             "usage_start__lt": month_start + relativedelta(months=1),
                             "then": Value(rate),

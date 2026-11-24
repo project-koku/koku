@@ -294,8 +294,8 @@ class CurrencyDiscoveryReports(fixtures.CurrencySnapshotTestCase):
                     self.assertEqual(self.ocp_handler().raw_currencies_for_conversion, {"USD"})
 
 
-class CurrencyMetadataDiscovery(fixtures.CurrencySnapshotTestCase):
-    """V3 contracts exercise actual metadata, discovery and complete reports."""
+class CurrencyMetadataFixtures:
+    """Shared tenant mappings and rates, without inheriting test methods."""
 
     ocp_row = fixtures.CurrencyDiscoveryTest.ocp_row
     rate = fixtures.CurrencyDiscoveryTest.rate
@@ -348,6 +348,10 @@ class CurrencyMetadataDiscovery(fixtures.CurrencySnapshotTestCase):
         }
         values.update(extra)
         return self.ocp_row(**values)
+
+
+class CurrencyMetadataDiscovery(CurrencyMetadataFixtures, fixtures.CurrencySnapshotTestCase):
+    """Metadata-first discovery preserves complete report behavior."""
 
     def source_reads(self, captured):
         reads = []
@@ -630,38 +634,8 @@ class CurrencyMetadataDiscovery(fixtures.CurrencySnapshotTestCase):
             self.assertEqual(response["total"]["cost"]["total"]["value"], Decimal("110"))
 
 
-class CurrencyAggregateCoverageTest(fixtures.CurrencySnapshotTestCase):
+class CurrencyAggregateCoverageTest(CurrencyMetadataFixtures, fixtures.CurrencySnapshotTestCase):
     """C01-C07: aggregate coverage executes real report SQL."""
-
-    def setUp(self):
-        super().setUp()
-        self.enterContext(patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True))
-        self.enterContext(patch("api.report.queries.is_currency_discovery_optimization_enabled", return_value=True))
-        self.enterContext(patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True))
-        self.enterContext(patch("api.utils.timezone.now", return_value=datetime(2026, 11, 10, tzinfo=timezone.utc)))
-        with tenant_context(self.tenant):
-            EnabledTagKeys.objects.get_or_create(key="product", provider_type=Provider.PROVIDER_OCP)
-            CostModelMap.objects.all().delete()
-            MonthlyExchangeRate.objects.all().delete()
-            self.sources = []
-            for currency in ["EUR", "EUR", "EUR", "SGD", "SGD", "USD", "USD"]:
-                from cost_models.models import CostModel
-
-                model = baker.make(CostModel, source_type=Provider.PROVIDER_OCP, currency=currency)
-                source = uuid4()
-                baker.make(CostModelMap, provider_uuid=source, cost_model=model)
-                self.sources.append(source)
-            for month, eur in [(date(2026, 10, 1), "1.10"), (date(2026, 11, 1), "1.20")]:
-                self.rate("EUR", eur, month)
-                self.rate("SGD", "0.75", month)
-                self.rate("GBP", "1.25", month)
-            # The default report covers October; use 1.20 for its exact 245 case.
-            self.rate("EUR", "1.20")
-
-    ocp_row = CurrencyMetadataDiscovery.ocp_row
-    rate = CurrencyMetadataDiscovery.rate
-    handler = CurrencyMetadataDiscovery.handler
-    dual_row = CurrencyMetadataDiscovery.dual_row
 
     def discovery_reads(self, captured):
         return [
@@ -922,6 +896,80 @@ class CurrencyAggregateCoverageTest(fixtures.CurrencySnapshotTestCase):
             with self.assertRaisesRegex(RuntimeError, "Coverage aggregate disagrees with scoped currency validation"):
                 self.handler()._validate_currency_coverage(totals)
             self.assertEqual(totals, {})
+
+    def test_source_rate_branches_scale_with_currencies_not_sources(self):
+        """Extra mappings in existing currencies must not multiply CASE branches."""
+        with tenant_context(self.tenant):
+            self.dual_row()
+            model = CostModelMap.objects.get(provider_uuid=self.sources[0]).cost_model
+            for extra_sources in (0, 1000):
+                with self.subTest(extra_sources=extra_sources):
+                    if extra_sources:
+                        baker.make(CostModelMap, cost_model=model, _quantity=extra_sources, _bulk_create=True)
+                    handler = self.handler()
+                    self.assertTrue(handler.aggregate_currency_coverage_enabled)
+                    self.assertEqual(len(handler._monthly_source_exchange_rate_case().cases), 4)
+                    with CaptureQueriesContext(connection) as captured:
+                        response = handler.execute_query()
+                    self.assertEqual(response, LegacyOCP(handler.parameters).execute_query())
+                    self.assertEqual(response["total"]["cost"]["total"]["value"], Decimal("245"))
+                    self.assertEqual(self.discovery_reads(captured), [])
+
+    def test_grouped_source_rates_preserve_month_boundaries_and_defaults(self):
+        """Evaluate rates in SQL for every group, NULL/unmapped UUID, and a gap."""
+        from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+
+        with tenant_context(self.tenant):
+            self.rate("EUR", "1.10", date(2026, 10, 1))
+            MonthlyExchangeRate.objects.filter(base_currency="EUR", effective_date=date(2026, 11, 1)).delete()
+            expected = {}
+            for day in (
+                date(2026, 9, 30),
+                date(2026, 10, 1),
+                date(2026, 10, 31),
+                date(2026, 11, 1),
+                date(2026, 12, 1),
+            ):
+                for source, currency in zip(
+                    self.sources + [None, uuid4()], ["EUR"] * 3 + ["SGD"] * 2 + ["USD"] * 2 + [None] * 2
+                ):
+                    row = self.ocp_row(source_uuid=source, usage_start=day, usage_end=day)
+                    if currency is None:
+                        rate = Decimal("1")
+                    elif day.month not in (10, 11) or (currency == "EUR" and day.month == 11):
+                        rate = None
+                    else:
+                        rate = {"EUR": Decimal("1.10"), "SGD": Decimal("0.75"), "USD": Decimal("1")}[currency]
+                    expected[row.uuid] = rate
+            handler = self.handler("&delta=cost", relative=True)
+            actual = dict(
+                OCPUsageLineItemDailySummary.objects.filter(uuid__in=expected)
+                .annotate(model_rate=handler._monthly_source_exchange_rate_case())
+                .values_list("uuid", "model_rate")
+            )
+            self.assertEqual(actual, expected)
+
+    def test_grouped_source_rates_preserve_exact_monthly_report(self):
+        """Sources sharing a currency retain their own group's monthly amounts."""
+        with tenant_context(self.tenant):
+            self.rate("EUR", "1.10", date(2026, 10, 1))
+            self.rate("SGD", "0.80", date(2026, 11, 1))
+            for source in self.sources:
+                for day in (date(2026, 10, 5), date(2026, 11, 5)):
+                    self.dual_row(
+                        source_uuid=source,
+                        usage_start=day,
+                        usage_end=day,
+                        raw_currency="USD",
+                        infrastructure_raw_cost=Decimal("0"),
+                    )
+            handler = self.handler("&delta=cost", relative=True)
+            with CaptureQueriesContext(connection) as captured:
+                response = handler.execute_query()
+            self.assertEqual(response, LegacyOCP(handler.parameters).execute_query())
+            self.assertEqual(response["total"]["cost"]["total"]["value"], Decimal("720"))
+            self.assertEqual(response["delta"]["value"], Decimal("40"))
+            self.assertEqual(self.discovery_reads(captured), [])
 
     def test_large_snapshot_bounds_conversion_expression(self):
         """Use metadata lookup instead of an unbounded per-currency CASE."""
