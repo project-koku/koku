@@ -1842,6 +1842,31 @@ class TestWorkerCacheThrottling(MasuTestCase):
         return_value=True,
     )
     @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_unleash_disabled_cloud_does_not_stamp(
+        self, mock_inspect, mock_lock, mock_delay, mock_updater, mock_unleash
+    ):
+        """Cloud skip path does not stamp freshness; mark_manifest_complete still does."""
+        start_date = self.dh.last_month_start.strftime("%Y-%m-%d")
+        end_date = self.dh.today.strftime("%Y-%m-%d")
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        initial_update_time = provider.data_updated_timestamp
+
+        update_cost_model_costs(self.schema, self.aws_provider_uuid, start_date, end_date)
+
+        mock_updater.assert_not_called()
+        mock_delay.assert_not_called()
+        mock_lock.assert_not_called()
+        provider.refresh_from_db()
+        self.assertEqual(provider.data_updated_timestamp, initial_update_time)
+
+    @patch(
+        "masu.processor.tasks.is_cost_model_processing_disabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.CostModelCostUpdater")
     def test_update_cost_model_costs_unleash_disabled_missing_provider(self, mock_updater, mock_unleash):
         """A skipped cost-model run is a no-op when the provider is already gone."""
         missing_uuid = str(uuid4())

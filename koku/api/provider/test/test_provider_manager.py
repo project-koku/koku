@@ -724,19 +724,45 @@ class ProviderManagerTest(IamTestCase):
 
     def test_provider_statistics_includes_month_cost_model_timestamps(self):
         """QE can poll per-month derived/summary timestamps on source stats."""
-        month = self.dh.this_month_start
+        current_month = self.dh.this_month_start
+        previous_month = self.dh.last_month_start
+        manifest = CostUsageReportManifest.objects.filter(
+            provider__type=Provider.PROVIDER_OCP,
+            billing_period_start_datetime=current_month,
+        ).first()
+        self.assertIsNotNone(manifest)
+        provider = manifest.provider
+
+        current_derived = timezone.now().replace(microsecond=0)
+        current_updated = current_derived - timedelta(minutes=5)
+        current_created = current_derived - timedelta(minutes=10)
+        previous_derived = current_derived - timedelta(days=2)
+        previous_updated = previous_derived - timedelta(minutes=5)
+        previous_created = previous_derived - timedelta(minutes=10)
+
         with tenant_context(self.tenant):
-            report_period = OCPUsageReportPeriod.objects.filter(report_period_start=month).first()
-        self.assertIsNotNone(report_period)
-        provider = Provider.objects.get(uuid=report_period.provider_id)
-        derived = timezone.now().replace(microsecond=0)
-        summary_updated = derived - timedelta(minutes=5)
-        summary_created = derived - timedelta(minutes=10)
-        with tenant_context(self.tenant):
-            report_period.summary_data_creation_datetime = summary_created
-            report_period.summary_data_updated_datetime = summary_updated
-            report_period.derived_cost_datetime = derived
-            report_period.save(
+            current_period = OCPUsageReportPeriod.objects.filter(
+                provider_id=provider.uuid, report_period_start=current_month
+            ).first()
+            previous_period = OCPUsageReportPeriod.objects.filter(
+                provider_id=provider.uuid, report_period_start=previous_month
+            ).first()
+            self.assertIsNotNone(current_period)
+            self.assertIsNotNone(previous_period)
+            current_period.summary_data_creation_datetime = current_created
+            current_period.summary_data_updated_datetime = current_updated
+            current_period.derived_cost_datetime = current_derived
+            previous_period.summary_data_creation_datetime = previous_created
+            previous_period.summary_data_updated_datetime = previous_updated
+            previous_period.derived_cost_datetime = previous_derived
+            current_period.save(
+                update_fields=[
+                    "summary_data_creation_datetime",
+                    "summary_data_updated_datetime",
+                    "derived_cost_datetime",
+                ]
+            )
+            previous_period.save(
                 update_fields=[
                     "summary_data_creation_datetime",
                     "summary_data_updated_datetime",
@@ -745,13 +771,25 @@ class ProviderManagerTest(IamTestCase):
             )
 
         stats = ProviderManager(provider.uuid).provider_statistics(self.tenant)
-        month_key = str(month.date())
-        self.assertIn(month_key, stats)
-        month_stats = stats[month_key]
-        self.assertEqual(month_stats["derived_cost_datetime"], derived.strftime(DATE_TIME_FORMAT))
-        self.assertEqual(month_stats["summary_data_updated_datetime"], summary_updated.strftime(DATE_TIME_FORMAT))
-        self.assertEqual(month_stats["summary_data_creation_datetime"], summary_created.strftime(DATE_TIME_FORMAT))
-        self.assertIn("manifests", month_stats)
+        current_key = str(current_month.date())
+        previous_key = str(previous_month.date())
+        self.assertIn(current_key, stats)
+        self.assertIn(previous_key, stats)
+        self.assertEqual(stats[current_key]["derived_cost_datetime"], current_derived.strftime(DATE_TIME_FORMAT))
+        self.assertEqual(
+            stats[current_key]["summary_data_updated_datetime"], current_updated.strftime(DATE_TIME_FORMAT)
+        )
+        self.assertEqual(
+            stats[current_key]["summary_data_creation_datetime"], current_created.strftime(DATE_TIME_FORMAT)
+        )
+        self.assertEqual(stats[previous_key]["derived_cost_datetime"], previous_derived.strftime(DATE_TIME_FORMAT))
+        self.assertEqual(
+            stats[previous_key]["summary_data_updated_datetime"], previous_updated.strftime(DATE_TIME_FORMAT)
+        )
+        self.assertEqual(
+            stats[previous_key]["summary_data_creation_datetime"], previous_created.strftime(DATE_TIME_FORMAT)
+        )
+        self.assertIn("manifests", stats[current_key])
 
     def test_get_tenant_provider_stats_gcp(self):
         """GCP bills expose the same per-month timestamps as AWS/Azure/OCP."""

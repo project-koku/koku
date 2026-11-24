@@ -1179,8 +1179,9 @@ def update_cost_model_costs(  # noqa: C901
             )
         )
         # OCP ingest no longer stamps freshness in mark_manifest_complete, so a skipped
-        # cost-model step still has to unblock polling / source status.
-        if provider := Provider.objects.filter(uuid=provider_uuid).first():
+        # cost-model step still has to unblock polling / source status. Cloud ingest
+        # still stamps in mark_manifest_complete.
+        if provider := Provider.objects.filter(uuid=provider_uuid, type=Provider.PROVIDER_OCP).first():
             provider.set_data_updated_timestamp()
         return
     task_name = "masu.processor.tasks.update_cost_model_costs"
