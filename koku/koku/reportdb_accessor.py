@@ -59,13 +59,22 @@ class ReportDBAccessor(ABC):
         month: str,
         start_date: str,
         reportnumhours: int,
+        manifestid: str | None = None,
     ):
         """Return the SQL to delete a day's data where reportnumhours is less than specified value"""
         pass
 
     @abstractmethod
     def get_check_day_exists_sql(
-        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str
+        self,
+        schema_name: str,
+        table_name: str,
+        source: str,
+        year: str,
+        month: str,
+        start_date: str,
+        manifestid: str | None = None,
+        reportnumhours: int | None = None,
     ):
         """Return the SQL to check if data exists for a specific day"""
         pass

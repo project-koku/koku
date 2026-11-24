@@ -72,6 +72,22 @@ class TestPostgresReportDBAccessor(TestCase):
         )
         self.assertIn("DELETE FROM", sql)
         self.assertIn("reportnumhours < 24", sql)
+        self.assertNotIn("manifestid IS DISTINCT FROM", sql)
+
+    def test_get_delete_day_by_reportnumhours_sql_excludes_same_manifest(self):
+        """Delete by hours must leave same-manifest size-split siblings alone."""
+        sql = self.accessor.get_delete_day_by_reportnumhours_sql(
+            self.schema_name,
+            self.table_name,
+            self.source_uuid,
+            "2024",
+            "01",
+            "2024-01-15",
+            24,
+            manifestid="42",
+        )
+        self.assertIn("reportnumhours < 24", sql)
+        self.assertIn("manifestid IS DISTINCT FROM '42'", sql)
 
     def test_get_check_day_exists_sql(self):
         """Test check day exists SQL generation."""
@@ -85,6 +101,21 @@ class TestPostgresReportDBAccessor(TestCase):
         )
         self.assertIn("SELECT 1", sql)
         self.assertIn("LIMIT 1", sql)
+
+    def test_get_check_day_exists_sql_other_manifest_equal_or_greater_hours(self):
+        """Exists check for skip must ignore same-manifest siblings."""
+        sql = self.accessor.get_check_day_exists_sql(
+            self.schema_name,
+            self.table_name,
+            self.source_uuid,
+            "2024",
+            "01",
+            "2024-01-15",
+            manifestid="42",
+            reportnumhours=24,
+        )
+        self.assertIn("manifestid IS DISTINCT FROM '42'", sql)
+        self.assertIn("reportnumhours >= 24", sql)
 
     def test_get_delete_by_month_sql(self):
         """Test delete by month SQL generation."""

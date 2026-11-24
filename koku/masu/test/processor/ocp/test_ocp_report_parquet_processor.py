@@ -204,6 +204,8 @@ class OCPReportProcessorParquetTest(MasuTestCase):
 
             # Verify columns were added
             self.assertIn("reportnumhours", data_frame.columns)
+            self.assertIn("manifestid", data_frame.columns)
+            self.assertEqual(data_frame["manifestid"].iloc[0], str(self.manifest_id))
             self.assertIn("year", data_frame.columns)
             self.assertIn("month", data_frame.columns)
             self.assertIn("source", data_frame.columns)

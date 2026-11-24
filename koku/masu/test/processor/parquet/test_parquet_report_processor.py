@@ -637,15 +637,15 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ParquetReportProcessor, "parquet_ocp_on_cloud_path_s3", return_value="")
     @patch.object(ParquetReportProcessor, "parquet_daily_path_s3", return_value="")
     @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
-    @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
+    @patch("masu.processor.parquet.parquet_report_processor.select_ocp_s3_parquet_keys_to_clear")
     @patch.object(ParquetReportProcessor, "parquet_file_getter")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     def test__delete_old_data_ocp_files_reports_already_processed(
-        self, mock_stats, mock_s3_getter, mock_s3_filter, *_
+        self, mock_stats, mock_s3_getter, mock_s3_select, *_
     ):
         """Test raising ReportsAlreadyProcessed."""
         mock_s3_getter.return_value = ["file1"]
-        mock_s3_filter.return_value = []
+        mock_s3_select.return_value = None
 
         filename = Path("pod_usage.count.csv")
         CostUsageReportManifest.objects.filter(id=self.ocp_manifest_id).update(operator_daily_reports=True)
@@ -674,13 +674,13 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ParquetReportProcessor, "parquet_ocp_on_cloud_path_s3", return_value="")
     @patch.object(ParquetReportProcessor, "parquet_daily_path_s3", return_value="")
     @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
-    @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
+    @patch("masu.processor.parquet.parquet_report_processor.select_ocp_s3_parquet_keys_to_clear")
     @patch.object(ParquetReportProcessor, "parquet_file_getter")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
-    def test__delete_old_data_ocp_files_reports_to_delete(self, mock_stats, mock_s3_getter, mock_s3_filter, *_):
+    def test__delete_old_data_ocp_files_reports_to_delete(self, mock_stats, mock_s3_getter, mock_s3_select, *_):
         """Test that s3-parquet-tracker is updated when a we delete s3 files."""
         mock_s3_getter.return_value = ["file1"]
-        mock_s3_filter.return_value = ["file1"]
+        mock_s3_select.return_value = ["file1"]
 
         filename = Path("pod_usage.count.csv")
         CostUsageReportManifest.objects.filter(id=self.ocp_manifest_id).update(operator_daily_reports=True)
@@ -706,6 +706,61 @@ class TestParquetReportProcessor(MasuTestCase):
 
         manifest = CostUsageReportManifest.objects.get(id=self.ocp_manifest_id)
         self.assertTrue(manifest.s3_parquet_cleared_tracker["pod_usage"])
+
+    @patch("masu.processor.parquet.parquet_report_processor.delete_s3_objects")
+    @patch.object(ParquetReportProcessor, "parquet_ocp_on_cloud_path_s3", return_value="")
+    @patch.object(ParquetReportProcessor, "parquet_daily_path_s3", return_value="")
+    @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
+    @patch("masu.processor.parquet.parquet_report_processor.select_ocp_s3_parquet_keys_to_clear")
+    @patch.object(ParquetReportProcessor, "parquet_file_getter")
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test__delete_old_data_ocp_split_payload_sibling_not_skipped(
+        self,
+        mock_stats,
+        mock_s3_getter,
+        mock_s3_select,
+        _mock_path,
+        _mock_daily,
+        _mock_ocp_cloud,
+        mock_delete,
+    ):
+        """Same-manifest size-split siblings with equal hours must not raise ReportsAlreadyProcessed.
+
+        Reproduces the customer failure mode: part .0 already written; part .1
+        re-enters delete (cleared tracker not set) and previously treated the
+        sibling as an equal-hours duplicate day.
+        """
+        mock_s3_getter.return_value = [f"pod_usage.2023-01-01.{self.ocp_manifest_id}.0.parquet"]
+        # Helper returns empty list (siblings ignored) rather than None (skip).
+        mock_s3_select.return_value = []
+
+        filename = Path(f"pod_usage.2023-01-01.{self.ocp_manifest_id}.1.csv")
+        CostUsageReportManifest.objects.filter(id=self.ocp_manifest_id).update(
+            operator_daily_reports=True,
+            s3_parquet_cleared_tracker={},
+        )
+
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.ocp_manifest_id,
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": self.today,
+                "ocp_files_to_process": {
+                    filename.stem: {
+                        "meta_reportdatestart": "2023-01-01",
+                        "meta_reportnumhours": "24",
+                    }
+                },
+            },
+        )
+        # Must not raise — sibling data should be written alongside part .0.
+        report_processor._delete_old_data(filename)
+        mock_s3_select.assert_called_once()
+        mock_delete.assert_called_once_with(self.tracing_id, [], report_processor.error_context)
 
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     def test_get_metadata_ocp(self, mock_stats):

@@ -687,6 +687,70 @@ def filter_s3_objects_less_than(
     return filtered
 
 
+def select_ocp_s3_parquet_keys_to_clear(
+    request_id: str,
+    keys: list[str],
+    *,
+    current_manifest_id: str,
+    current_reportnumhours: str,
+    context: dict | None = None,
+) -> list[str] | None:
+    """Select OCP parquet S3 keys to delete before writing a daily file.
+
+    Operator size-split payloads produce multiple parquet files for the same
+    (source, day) under one manifest, all with the same reportnumhours. Those
+    siblings must coexist. Only files from *other* manifests participate in the
+    hour-based replacement check.
+
+    Returns:
+        list[str]: Keys from other manifests with fewer hours (safe to delete).
+            May be empty when only same-manifest siblings exist.
+        None: Another manifest already has equal or greater hour coverage and
+            there is nothing lesser to replace — caller should skip processing.
+    """
+    int_current_hours = safe_str_int_conversion(current_reportnumhours)
+    if int_current_hours is None:
+        return []
+
+    if context is None:
+        context = {}
+
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
+    current_manifest_id = str(current_manifest_id)
+    other_lesser: list[str] = []
+    other_equal_or_greater = False
+
+    for key in keys:
+        try:
+            obj = s3_resource.Object(settings.S3_BUCKET_NAME, key)
+            metadata = obj.metadata
+            if metadata.get("manifestid") == current_manifest_id:
+                # Same-manifest split sibling — never delete or treat as duplicate.
+                continue
+            other_hours = safe_str_int_conversion(metadata.get("reportnumhours"))
+            if other_hours is None:
+                continue
+            if other_hours < int_current_hours:
+                other_lesser.append(key)
+            else:
+                other_equal_or_greater = True
+        except (EndpointConnectionError, ClientError) as err:
+            LOG.warning(
+                log_json(
+                    request_id,
+                    msg="unable to get matching data in bucket",
+                    context=context,
+                    bucket=settings.S3_BUCKET_NAME,
+                ),
+                exc_info=err,
+            )
+            return []
+
+    if not other_lesser and other_equal_or_greater:
+        return None
+    return other_lesser
+
+
 def get_s3_objects_matching_metadata(
     request_id, s3_path, *, metadata_key, metadata_value_check, context=None
 ) -> list[str]:
