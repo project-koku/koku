@@ -650,6 +650,10 @@ parameters:
 - displayName: Rbac cache ttl
   name: RBAC_CACHE_TTL
   value: "30"
+- description: OIDC issuer for the service-account token used on authenticated Clowder v2 dependency endpoints
+  displayName: Kessel auth OIDC issuer
+  name: KESSEL_AUTH_OIDC_ISSUER
+  value: ""
 
 - displayName: Trino host
   name: TRINO_HOST

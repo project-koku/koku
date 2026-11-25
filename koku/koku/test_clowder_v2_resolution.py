@@ -2,170 +2,187 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tests for Clowder V2 dependency endpoint resolution."""
-import importlib
+"""Tests for Clowder V2 dependency endpoint resolution and service auth."""
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import requests_mock
 from django.test import SimpleTestCase
 
-import sources.config
+from koku import service_auth
 from koku.configurator import ClowderConfigurator
-from koku.configurator import Configurator
+from koku.configurator import DependencyEndpoint
 from koku.configurator import EnvConfigurator
 from koku.rbac import RbacService
+from sources.config import Config as SourcesConfig
+from sources.sources_http_client import SourcesHTTPClient
+
+GATEWAY = "https://ewgw.example.com:443"
+IN_CLUSTER = "http://rbac-service.ns.svc:8000"
 
 
-class TestClowderV2EndpointUrl(SimpleTestCase):
-    """Test ClowderConfigurator.get_endpoint_url V2/V1/fallback resolution."""
+def v2(uri, authenticated=False, ca_certificate=None):
+    return SimpleNamespace(uri=uri, authenticated=authenticated, ca_certificate=ca_certificate)
 
-    def _make_v2_endpoint(self, uri, ca_certificate=None, authenticated=False):
-        """Create a mock V2 endpoint object."""
-        return SimpleNamespace(uri=uri, ca_certificate=ca_certificate, authenticated=authenticated)
 
-    def _make_v1_endpoint(self, hostname, port):
-        """Create a mock V1 endpoint object."""
-        return SimpleNamespace(hostname=hostname, port=port)
+class FakeCredentials:
+    def get_token(self):
+        return SimpleNamespace(access_token="tok")
 
-    @patch.dict("os.environ", {"CLOWDER_ENABLED": "True"})
+
+class TestClowderDependencyEndpoint(SimpleTestCase):
+    """Test ClowderConfigurator.get_dependency_endpoint."""
+
     @patch("koku.configurator.get_v2_dependency_endpoint", create=True)
-    @patch("koku.configurator.DependencyEndpoints", new_callable=dict, create=True)
-    def test_v2_endpoint_with_uri(self, mock_deps, mock_get_v2):
-        """V2 endpoint with URI is used directly."""
-
-        mock_get_v2.return_value = self._make_v2_endpoint("https://rbac.svc:8443")
-        result = ClowderConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
-        self.assertEqual(result, "https://rbac.svc:8443")
+    def test_v2_endpoint(self, mock_get_v2):
+        """uri, authenticated and ca_certificate come from the v2 endpoint."""
+        mock_get_v2.return_value = v2(GATEWAY + "/", True, "/tmp/ca.crt")
+        endpoint = ClowderConfigurator.get_dependency_endpoint("rbac", "service", "http://localhost:8111")
+        self.assertEqual(endpoint, DependencyEndpoint(GATEWAY, True, "/tmp/ca.crt"))
         mock_get_v2.assert_called_once_with("rbac", "service")
 
-    @patch.dict("os.environ", {"CLOWDER_ENABLED": "True"})
     @patch("koku.configurator.get_v2_dependency_endpoint", create=True)
-    @patch("koku.configurator.DependencyEndpoints", new_callable=dict, create=True)
-    def test_v2_endpoint_with_ca_certificate(self, mock_deps, mock_get_v2):
-        """V2 endpoint with CA certificate returns URI."""
+    def test_authenticated_defaults_to_false(self, mock_get_v2):
+        """A v2 endpoint without an authenticated field is unauthenticated."""
+        mock_get_v2.return_value = v2(IN_CLUSTER, authenticated=None)
+        endpoint = ClowderConfigurator.get_dependency_endpoint("rbac", "service", "http://localhost:8111")
+        self.assertFalse(endpoint.authenticated)
 
-        mock_get_v2.return_value = self._make_v2_endpoint(
-            "https://rbac.svc:8443", ca_certificate="/tmp/ca.crt", authenticated=True
-        )
-        result = ClowderConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
-        self.assertEqual(result, "https://rbac.svc:8443")
-
-    @patch.dict("os.environ", {"CLOWDER_ENABLED": "True"})
     @patch("koku.configurator.get_v2_dependency_endpoint", create=True)
-    @patch("koku.configurator.DependencyEndpoints", {"rbac": {}}, create=True)
-    def test_v2_endpoint_empty_uri_falls_to_v1(self, mock_get_v2):
-        """V2 endpoint with empty URI falls back to V1."""
+    def test_missing_endpoint_raises(self, mock_get_v2):
+        """No v2 endpoint raises instead of falling back to v1 or defaults."""
+        for missing in (None, v2("")):
+            mock_get_v2.return_value = missing
+            with self.assertRaises(ValueError):
+                ClowderConfigurator.get_dependency_endpoint("rbac", "service", "http://localhost:8111")
 
-        mock_get_v2.return_value = self._make_v2_endpoint("")
-        v1 = self._make_v1_endpoint("rbac-host", 8111)
-        with patch.dict("koku.configurator.DependencyEndpoints", {"rbac": {"service": v1}}):
-            result = ClowderConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
-        self.assertEqual(result, "http://rbac-host:8111")
-
-    @patch.dict("os.environ", {"CLOWDER_ENABLED": "True"})
     @patch("koku.configurator.get_v2_dependency_endpoint", create=True)
-    @patch("koku.configurator.DependencyEndpoints", {"rbac": {}}, create=True)
-    def test_v2_none_falls_to_v1(self, mock_get_v2):
-        """V2 returns None, falls back to V1 flat endpoint."""
+    def test_authenticated_requires_https(self, mock_get_v2):
+        """An authenticated endpoint must use https."""
+        mock_get_v2.return_value = v2("http://ewgw.example.com:443", True)
+        with self.assertRaises(ValueError):
+            ClowderConfigurator.get_dependency_endpoint("rbac", "service", "http://localhost:8111")
 
-        mock_get_v2.return_value = None
-        v1 = self._make_v1_endpoint("sources-host", 3000)
-        with patch.dict("koku.configurator.DependencyEndpoints", {"sources-api": {"svc": v1}}):
-            result = ClowderConfigurator.get_endpoint_url("sources-api", "svc", "http://localhost:3000")
-        self.assertEqual(result, "http://sources-host:3000")
 
-    @patch.dict("os.environ", {"CLOWDER_ENABLED": "True"})
-    @patch("koku.configurator.get_v2_dependency_endpoint", create=True)
-    @patch("koku.configurator.DependencyEndpoints", new_callable=dict, create=True)
-    def test_no_v2_no_v1_falls_to_default(self, mock_deps, mock_get_v2):
-        """No V2 and no V1 endpoint falls back to default."""
+class TestEnvDependencyEndpoint(SimpleTestCase):
+    """Test EnvConfigurator.get_dependency_endpoint."""
 
-        mock_get_v2.return_value = None
-        result = ClowderConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
-        self.assertEqual(result, "http://localhost:8111")
-
-    @patch.dict("os.environ", {"CLOWDER_ENABLED": "True", "RBAC_SERVICE_URL": "http://custom-rbac:9999"})
-    @patch("koku.configurator.get_v2_dependency_endpoint", create=True)
-    @patch("koku.configurator.DependencyEndpoints", new_callable=dict, create=True)
-    def test_no_v2_no_v1_falls_to_env_var(self, mock_deps, mock_get_v2):
-        """No V2 and no V1 uses env var when available."""
-
-        mock_get_v2.return_value = None
-        result = ClowderConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
-        self.assertEqual(result, "http://custom-rbac:9999")
+    def test_default(self):
+        endpoint = EnvConfigurator.get_dependency_endpoint("sources-api", "svc", "http://localhost:3000")
+        self.assertEqual(endpoint, DependencyEndpoint("http://localhost:3000"))
 
     @patch.dict(
         "os.environ",
         {"RBAC_SERVICE_HOST": "rbac-env-host", "RBAC_SERVICE_PORT": "9090", "RBAC_SERVICE_PROTOCOL": "https"},
     )
-    @patch("koku.configurator.get_v2_dependency_endpoint", create=True)
-    @patch("koku.configurator.DependencyEndpoints", new_callable=dict, create=True)
-    def test_no_v2_no_v1_no_url_falls_to_component_vars(self, mock_deps, mock_get_v2):
-        """No V2, no V1, no URL env var falls back to component HOST/PORT/PROTOCOL vars."""
-
-        mock_get_v2.return_value = None
-        result = ClowderConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
-        self.assertEqual(result, "https://rbac-env-host:9090")
-
-    def test_base_configurator_returns_default(self):
-        """Base Configurator.get_endpoint_url returns default directly."""
-
-        result = Configurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
-        self.assertEqual(result, "http://localhost:8111")
-
-    def test_env_configurator_returns_default(self):
-        """EnvConfigurator reconstructs URL from default when no env overrides."""
-
-        result = EnvConfigurator.get_endpoint_url("sources-api", "svc", "http://localhost:3000")
-        self.assertEqual(result, "http://localhost:3000")
-
-    @patch.dict("os.environ", {"SOURCES_API_SVC_HOST": "custom-host", "SOURCES_API_SVC_PORT": "9999"})
-    def test_env_configurator_uses_env_vars(self):
-        """EnvConfigurator picks up host/port from environment variables."""
-
-        result = EnvConfigurator.get_endpoint_url("sources-api", "svc", "http://localhost:3000")
-        self.assertEqual(result, "http://custom-host:9999")
-
-    @patch.dict("os.environ", {"RBAC_SERVICE_PROTOCOL": "https"})
-    def test_env_configurator_uses_protocol_env(self):
-        """EnvConfigurator picks up protocol from environment variable."""
-
-        result = EnvConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
-        self.assertEqual(result, "https://localhost:8111")
+    def test_env_vars(self):
+        endpoint = EnvConfigurator.get_dependency_endpoint("rbac", "service", "http://localhost:8111")
+        self.assertEqual(endpoint, DependencyEndpoint("https://rbac-env-host:9090"))
 
 
-class TestRbacServiceV2Integration(SimpleTestCase):
-    """Test that RbacService uses base_url correctly."""
+class TestRequestOptions(SimpleTestCase):
+    """Test koku.service_auth.request_options."""
 
-    @patch("koku.rbac.CONFIGURATOR")
-    def test_rbac_service_uses_base_url(self, mock_configurator):
-        """RbacService stores base_url from get_endpoint_url."""
-        mock_configurator.get_endpoint_url.return_value = "https://rbac.svc:8443"
+    def setUp(self):
+        service_auth._credentials = None
+        self.addCleanup(setattr, service_auth, "_credentials", None)
 
-        svc = RbacService()
-        self.assertEqual(svc.base_url, "https://rbac.svc:8443")
-        self.assertFalse(hasattr(svc, "protocol"))
-        self.assertFalse(hasattr(svc, "host"))
-        self.assertFalse(hasattr(svc, "port"))
+    @patch("koku.service_auth.fetch_oidc_discovery")
+    def test_unauthenticated_fetches_no_token(self, mock_discovery):
+        """Unauthenticated endpoints get no auth and never touch the credentials."""
+        self.assertEqual(service_auth.request_options(DependencyEndpoint(IN_CLUSTER)), {"verify": True})
+        mock_discovery.assert_not_called()
 
-    @patch("koku.rbac.CONFIGURATOR")
-    def test_rbac_url_construction(self, mock_configurator):
-        """RbacService constructs correct full URL from base_url + path."""
-        mock_configurator.get_endpoint_url.return_value = "http://rbac-host:8111"
+    def test_ca_certificate(self):
+        endpoint = DependencyEndpoint(IN_CLUSTER, ca_certificate="/tmp/ca.crt")
+        self.assertEqual(service_auth.request_options(endpoint), {"verify": "/tmp/ca.crt"})
 
-        svc = RbacService()
-        full_url = f"{svc.base_url}{svc.path}"
-        self.assertEqual(full_url, "http://rbac-host:8111/r/insights/platform/rbac/v1/access/")
+    @patch.dict("os.environ", {"KESSEL_AUTH_CLIENT_ID": "", "KESSEL_AUTH_CLIENT_SECRET": ""})
+    def test_authenticated_without_credentials_raises(self):
+        with self.assertRaises(RuntimeError):
+            service_auth.request_options(DependencyEndpoint(GATEWAY, True))
+
+    @patch("koku.service_auth.OAuth2ClientCredentials")
+    @patch("koku.service_auth.fetch_oidc_discovery")
+    @patch.dict(
+        "os.environ",
+        {
+            "KESSEL_AUTH_OIDC_ISSUER": "https://sso.example.com",
+            "KESSEL_AUTH_CLIENT_ID": "id",
+            "KESSEL_AUTH_CLIENT_SECRET": "secret",
+        },
+    )
+    def test_credentials_built_once(self, mock_discovery, mock_creds):
+        mock_discovery.return_value.token_endpoint = "https://sso.example.com/token"
+        endpoint = DependencyEndpoint(GATEWAY, True)
+        service_auth.request_options(endpoint)
+        service_auth.request_options(endpoint)
+        mock_creds.assert_called_once_with("id", "secret", "https://sso.example.com/token")
+        mock_discovery.assert_called_once_with("https://sso.example.com")
 
 
-class TestSourcesConfigV2Integration(SimpleTestCase):
-    """Test that Sources Config uses get_endpoint_url."""
+class TestRbacAuth(SimpleTestCase):
+    """RBAC calls carry the bearer only when the endpoint is authenticated."""
 
-    @patch("koku.configurator.CONFIGURATOR")
-    def test_sources_api_url(self, mock_configurator):
-        """Sources Config.SOURCES_API_URL comes from get_endpoint_url."""
-        mock_configurator.get_endpoint_url.return_value = "https://sources.svc:8443"
+    def _rbac(self, endpoint):
+        with patch("koku.rbac.CONFIGURATOR") as configurator:
+            configurator.get_dependency_endpoint.return_value = endpoint
+            return RbacService()
 
-        self.addCleanup(importlib.reload, sources.config)
-        importlib.reload(sources.config)
-        self.assertEqual(sources.config.Config.SOURCES_API_URL, "https://sources.svc:8443")
+    @patch("koku.service_auth._get_credentials", return_value=FakeCredentials())
+    def test_authenticated_sends_bearer_and_identity(self, _):
+        rbac = self._rbac(DependencyEndpoint(GATEWAY, True))
+        with requests_mock.mock() as m:
+            m.get(f"{GATEWAY}/path", json={"data": []})
+            rbac._request_user_access(f"{rbac.base_url}/path", {"x-rh-identity": "ident"})
+        headers = m.last_request.headers
+        self.assertEqual(headers["Authorization"], "Bearer tok")
+        self.assertEqual(headers["x-rh-identity"], "ident")
+
+    @patch("koku.service_auth._get_credentials")
+    def test_in_cluster_sends_no_bearer(self, mock_creds):
+        rbac = self._rbac(DependencyEndpoint(IN_CLUSTER))
+        with requests_mock.mock() as m:
+            m.get(f"{IN_CLUSTER}/path", json={"data": []})
+            rbac._request_user_access(f"{rbac.base_url}/path", {"x-rh-identity": "ident"})
+        self.assertNotIn("Authorization", m.last_request.headers)
+        mock_creds.assert_not_called()
+
+    @patch("koku.service_auth._get_credentials", side_effect=RuntimeError("no credentials"))
+    def test_token_failure_fails_closed(self, _):
+        rbac = self._rbac(DependencyEndpoint(GATEWAY, True))
+        with requests_mock.mock() as m:
+            with self.assertRaises(RuntimeError):
+                rbac._request_user_access(f"{rbac.base_url}/path", {})
+        self.assertFalse(m.called)
+
+
+class TestSourcesAuth(SimpleTestCase):
+    """Sources calls use the bearer instead of the PSK when the endpoint is authenticated."""
+
+    def _get(self, endpoint):
+        url = f"{endpoint.uri}/probe"
+        with patch.object(SourcesConfig, "SOURCES_API_ENDPOINT", endpoint):
+            client = SourcesHTTPClient("ident")
+            with requests_mock.mock() as m:
+                m.get(url, json={})
+                client._get_network_response(url, "error")
+        return m.last_request.headers
+
+    @patch("koku.service_auth._get_credentials", return_value=FakeCredentials())
+    def test_authenticated_bearer_replaces_psk(self, _):
+        headers = self._get(DependencyEndpoint(GATEWAY, True))
+        self.assertEqual(headers["Authorization"], "Bearer tok")
+        self.assertNotIn("x-rh-sources-psk", headers)
+        self.assertEqual(headers["x-rh-identity"], "ident")
+
+    def test_in_cluster_uses_psk(self):
+        headers = self._get(DependencyEndpoint("http://sources.ns.svc:8000"))
+        self.assertEqual(headers["x-rh-sources-psk"], SourcesConfig.SOURCES_PSK)
+        self.assertNotIn("Authorization", headers)
+
+    def test_token_failure_fails_closed(self):
+        endpoint = DependencyEndpoint(GATEWAY, True)
+        with patch("koku.service_auth._get_credentials", side_effect=RuntimeError("no credentials")):
+            with self.assertRaises(RuntimeError):
+                self._get(endpoint)

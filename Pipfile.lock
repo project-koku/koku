@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "7636f961fd71b10ca5b2d594893d00b59df934d8f2097772576d82c4e3096bc6"
+            "sha256": "220265d992a65bfb99b2ca8bf2de3c96c0e2775f1870dc078c5a53da6d7128f0"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -1080,6 +1080,17 @@
             "markers": "python_version >= '3.9'",
             "version": "==1.1.0"
         },
+        "kessel-sdk": {
+            "extras": [
+                "auth"
+            ],
+            "hashes": [
+                "sha256:c1c1b8ff9ca31c8179f768ab797ad9f59b599c31aec9115ef8a4395a9b173693",
+                "sha256:f38b4cf2259768367cb1e939b3df1730beb95aa04b14a27785dc6ba77f5ea6b6"
+            ],
+            "markers": "python_version >= '3.11'",
+            "version": "==2.11.1"
+        },
         "kombu": {
             "hashes": [
                 "sha256:31e62fdfd2381caa3422f8e02b84a491d9a2180ddda74507b57f4cb1e1c2c2c9",
@@ -1592,6 +1603,14 @@
             ],
             "markers": "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'x86_64'",
             "version": "==2.4.6"
+        },
+        "oauthlib": {
+            "hashes": [
+                "sha256:3d73febdb6faa00f277c81fb04be7b7586fb96fc3b7f0b9c772dada69a25ede7",
+                "sha256:498a298876e996301950a5b053d12c31628bb7b895db03666430c69ce182eb61"
+            ],
+            "markers": "python_version >= '3.9'",
+            "version": "==4.0.1"
         },
         "opentelemetry-api": {
             "hashes": [
@@ -2194,6 +2213,14 @@
             "markers": "python_version >= '3.10'",
             "version": "==2.34.2"
         },
+        "requests-oauthlib": {
+            "hashes": [
+                "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36",
+                "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9"
+            ],
+            "markers": "python_version >= '3.4'",
+            "version": "==2.0.0"
+        },
         "s3transfer": {
             "hashes": [
                 "sha256:24eb7535804306355e31c952a90022bf5b2f9d760f9a11062c7493a217c08553",
@@ -2461,6 +2488,14 @@
             "index": "pypi",
             "markers": "python_version >= '3.9'",
             "version": "==0.340.0"
+        },
+        "types-protobuf": {
+            "hashes": [
+                "sha256:6d5fb060a616bfb076cbb61b4b3c3969f5fc8bec5810f9a2f7e648ee5cbcbf6e",
+                "sha256:da7cdd947975964a93c30bfbcc2c6841ee646b318d3816b033adc2c4eb6448e4"
+            ],
+            "markers": "python_version >= '3.10'",
+            "version": "==6.32.1.20260221"
         },
         "typing-extensions": {
             "hashes": [

@@ -22,6 +22,15 @@ class KafkaSASLConfig:
     password: str
 
 
+@dataclass
+class DependencyEndpoint:
+    """Resolved location and transport/auth settings of a dependency service."""
+
+    uri: str
+    authenticated: bool = False
+    ca_certificate: str = None
+
+
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
     from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, KafkaServers, DependencyEndpoints
@@ -187,17 +196,17 @@ class Configurator:
         pass
 
     @staticmethod
-    def get_endpoint_url(app, name, default):
-        """Obtain endpoint URL (scheme://host:port)."""
-        return default
+    def get_dependency_endpoint(app, name, default):
+        """Obtain a DependencyEndpoint for a dependency service."""
+        pass
 
 
 class EnvConfigurator(Configurator):
     """Returns information based on the environment data"""
 
     @staticmethod
-    def get_endpoint_url(app, name, default):
-        """Obtain endpoint URL (scheme://host:port) from environment."""
+    def get_dependency_endpoint(app, name, default):
+        """Obtain a DependencyEndpoint from environment (never authenticated)."""
         parsed = urlsplit(default)
         protocol = ENVIRONMENT.get_value(
             "_".join((app, name, "PROTOCOL")).replace("-", "_").upper(),
@@ -205,7 +214,7 @@ class EnvConfigurator(Configurator):
         )
         host = EnvConfigurator.get_endpoint_host(app, name, default=parsed.hostname or "localhost")
         port = EnvConfigurator.get_endpoint_port(app, name, default=parsed.port)
-        return f"{protocol}://{host}:{port}"
+        return DependencyEndpoint(f"{protocol}://{host}:{port}")
 
     @staticmethod
     def get_feature_flag_host():
@@ -642,29 +651,15 @@ class ClowderConfigurator(Configurator):
         return ENVIRONMENT.get_value(svc, default=default)
 
     @staticmethod
-    def get_endpoint_url(app, name, default):
-        """Obtain endpoint URL (scheme://host:port).
-
-        Tries Clowder V2 dependency endpoint first, falls back to V1,
-        then to environment variable or default.
-        """
-        # V2: use the full URI from the V2 dependency endpoint
+    def get_dependency_endpoint(app, name, default):
+        """Obtain a DependencyEndpoint from the Clowder v2 dependency endpoints."""
         v2 = get_v2_dependency_endpoint(app, name)
-        if v2 and v2.uri:
-            return v2.uri
-
-        # V1: build from host/port in DependencyEndpoints
-        v1_endpoint = DependencyEndpoints.get(app, {}).get(name)
-        if v1_endpoint:
-            return f"http://{v1_endpoint.hostname}:{v1_endpoint.port}"
-
-        # Fallback to explicit URL environment variable
-        svc = "_".join((app, name, "URL")).replace("-", "_").upper()
-        configured_url = ENVIRONMENT.get_value(svc, default="")
-        if configured_url:
-            return configured_url
-        # Fallback to component variables (PROTOCOL/HOST/PORT)
-        return EnvConfigurator.get_endpoint_url(app, name, default)
+        if not (v2 and v2.uri):
+            raise ValueError(f"Clowder v2 dependency endpoint missing for {app}/{name}")
+        authenticated = bool(v2.authenticated)
+        if authenticated and not v2.uri.startswith("https://"):
+            raise ValueError(f"Authenticated Clowder v2 endpoint for {app}/{name} must use https: {v2.uri}")
+        return DependencyEndpoint(v2.uri.rstrip("/"), authenticated, v2.ca_certificate)
 
 
 class ConfigFactory:
