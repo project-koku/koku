@@ -29,7 +29,7 @@ Two things below:
      ("pyformat") that ReportDBAccessorBase.prepare_query uses for the self_hosted_sql path.
      This generalizes to every one of the 24 fixed files, since they all share these same
      two columns and the same binding mechanism.
-  2. A static guard scanning every self_hosted_sql/ and trino_sql/ template for a
+  2. A static guard scanning every OpenShift template in self_hosted_sql/, trino_sql/ and sql/ for a
      reintroduced bare `<col>.source = {{source_uuid}}` (or `source = {{source_uuid}}`)
      comparison, to catch regressions or new call sites mechanically instead of relying on
      manual review.
@@ -62,6 +62,7 @@ _VARCHAR_SOURCE_TABLES = [
 _SQL_TEMPLATE_DIRS = [
     "database/self_hosted_sql/openshift",
     "database/trino_sql/openshift",
+    "database/sql/openshift",
 ]
 
 # Matches a bare `<optional table alias.>source = {{source_uuid}}` with no `| string` filter
@@ -124,7 +125,7 @@ class SourceUUIDVarcharTypeCastTest(django.test.TransactionTestCase):
 
 
 class SourceUUIDVarcharTypeCastStaticGuardTest(django.test.SimpleTestCase):
-    """Static guard: no self_hosted_sql/trino_sql template may reintroduce the unsafe pattern.
+    """Static guard: no OpenShift template in any of the three SQL directories may reintroduce the unsafe pattern.
 
     Scans every .sql file under the affected directories for a bare
     `<alias.>source = {{source_uuid}}` comparison with no `| string` filter or `::` cast.
