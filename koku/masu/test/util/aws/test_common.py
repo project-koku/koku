@@ -558,6 +558,52 @@ class TestAWSUtils(MasuTestCase):
             )
         self.assertEqual(result, ["other_18.parquet"])
 
+    def test_select_ocp_s3_parquet_keys_to_clear_invalid_hours(self):
+        """Invalid current reportnumhours skips clearance entirely."""
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                ["any.parquet"],
+                current_manifest_id="42",
+                current_reportnumhours="not-a-number",
+                context={},
+            )
+        self.assertEqual(result, [])
+        mock_s3.assert_not_called()
+
+    def test_select_ocp_s3_parquet_keys_to_clear_skips_missing_other_hours(self):
+        """Other-manifest objects without reportnumhours are ignored."""
+        keys = ["other_no_hours.parquet", "other_18.parquet"]
+        metadata = PropertyMock(
+            side_effect=[
+                {"manifestid": "99", "reportnumhours": None},
+                {"manifestid": "99", "reportnumhours": "18"},
+            ]
+        )
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            type(mock_s3.return_value.Object.return_value).metadata = metadata
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                keys,
+                current_manifest_id="42",
+                current_reportnumhours="24",
+                context=None,
+            )
+        self.assertEqual(result, ["other_18.parquet"])
+
+    def test_select_ocp_s3_parquet_keys_to_clear_s3_error(self):
+        """S3 client errors return an empty delete list (do not skip processing)."""
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Object.side_effect = ClientError({}, "HeadObject")
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                ["other.parquet"],
+                current_manifest_id="42",
+                current_reportnumhours="24",
+                context={"provider_uuid": "abc"},
+            )
+        self.assertEqual(result, [])
+
     @patch("masu.util.aws.common.get_s3_resource")
     def test_batch_delete_s3_objects(self, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""
