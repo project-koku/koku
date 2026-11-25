@@ -4,7 +4,7 @@
 
 An AI agent that **once per week** polls unresolved GlitchTip issues for `insights-hccm-stage`, classifies them, and (when safe) opens a **draft PR** on `project-koku/koku`.
 
-Unlike the CI Triager, this agent **may push branches and open PRs**.
+This agent **may push branches and open PRs**.
 
 ## Source of truth
 
@@ -97,7 +97,6 @@ Do **not** commit live processed state to `main`. If persistence is broken, fix 
 | Agent | Role |
 |-------|------|
 | **GlitchTip Triager** (this) | Polls GlitchTip and opens draft PRs for safe fixes |
-| **CI Triager** | Diagnoses failing CI checks and posts fix suggestions |
 | **Agentic PR Labeler** | Proactively applies smoke test labels based on diff analysis |
 
 ## Guardrails (summary)

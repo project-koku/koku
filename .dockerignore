@@ -4,6 +4,8 @@
 # ... except for dependencies and source
 !Pipfile
 !Pipfile.lock
+!librdkafka/
+!librdkafka/**
 !koku/
 !docs/specs/
 !db_functions/
