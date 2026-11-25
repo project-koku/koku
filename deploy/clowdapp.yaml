@@ -90,6 +90,20 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
+        - name: KESSEL_AUTH_OIDC_ISSUER
+          value: ${KESSEL_AUTH_OIDC_ISSUER}
+        - name: KESSEL_AUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: client-id
+              name: kessel-auth-secret
+              optional: true
+        - name: KESSEL_AUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: client-secret
+              name: kessel-auth-secret
+              optional: true
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -297,6 +311,20 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
+        - name: KESSEL_AUTH_OIDC_ISSUER
+          value: ${KESSEL_AUTH_OIDC_ISSUER}
+        - name: KESSEL_AUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: client-id
+              name: kessel-auth-secret
+              optional: true
+        - name: KESSEL_AUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: client-secret
+              name: kessel-auth-secret
+              optional: true
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -690,6 +718,20 @@ objects:
               fieldPath: metadata.name
         - name: API_PATH_PREFIX
           value: ${API_PATH_PREFIX}
+        - name: KESSEL_AUTH_OIDC_ISSUER
+          value: ${KESSEL_AUTH_OIDC_ISSUER}
+        - name: KESSEL_AUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: client-id
+              name: kessel-auth-secret
+              optional: true
+        - name: KESSEL_AUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: client-secret
+              name: kessel-auth-secret
+              optional: true
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: SOURCES_PSK
@@ -1092,6 +1134,20 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
+        - name: KESSEL_AUTH_OIDC_ISSUER
+          value: ${KESSEL_AUTH_OIDC_ISSUER}
+        - name: KESSEL_AUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: client-id
+              name: kessel-auth-secret
+              optional: true
+        - name: KESSEL_AUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: client-secret
+              name: kessel-auth-secret
+              optional: true
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: RBAC_SERVICE_PATH
@@ -1255,6 +1311,20 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
+        - name: KESSEL_AUTH_OIDC_ISSUER
+          value: ${KESSEL_AUTH_OIDC_ISSUER}
+        - name: KESSEL_AUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: client-id
+              name: kessel-auth-secret
+              optional: true
+        - name: KESSEL_AUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: client-secret
+              name: kessel-auth-secret
+              optional: true
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: RBAC_SERVICE_PATH
@@ -6379,6 +6449,11 @@ parameters:
 - displayName: Rbac cache ttl
   name: RBAC_CACHE_TTL
   value: "30"
+- description: OIDC issuer for the service-account token used on authenticated Clowder
+    v2 dependency endpoints
+  displayName: Kessel auth OIDC issuer
+  name: KESSEL_AUTH_OIDC_ISSUER
+  value: ""
 - displayName: Trino host
   name: TRINO_HOST
   value: trino-coordinator

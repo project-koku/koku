@@ -57,6 +57,20 @@
               fieldPath: metadata.name
         - name: API_PATH_PREFIX
           value: ${API_PATH_PREFIX}
+        - name: KESSEL_AUTH_OIDC_ISSUER
+          value: ${KESSEL_AUTH_OIDC_ISSUER}
+        - name: KESSEL_AUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: client-id
+              name: kessel-auth-secret
+              optional: true
+        - name: KESSEL_AUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: client-secret
+              name: kessel-auth-secret
+              optional: true
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: SOURCES_PSK

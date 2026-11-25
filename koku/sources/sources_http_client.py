@@ -12,6 +12,7 @@ import requests
 from requests.exceptions import RequestException
 
 from api.provider.models import Provider
+from koku.service_auth import request_options
 from sources import storage
 from sources.config import Config
 from sources.sources_error_message import SourcesErrorMessage
@@ -92,11 +93,13 @@ class SourcesHTTPClient:
         self._internal_url = f"{self._sources_host}{Config.SOURCES_INTERNAL_API_PREFIX}"
 
         self._identity_header = {
-            "x-rh-sources-psk": Config.SOURCES_PSK,
             "x-rh-identity": auth_header,
             "x-rh-sources-account-number": account_id,
             "x-rh-sources-org-id": org_id,
         }
+        # The bearer replaces the PSK on the authenticated (gateway) endpoint.
+        if not Config.SOURCES_API_ENDPOINT.authenticated:
+            self._identity_header["x-rh-sources-psk"] = Config.SOURCES_PSK
 
         self.credential_map = {
             Provider.PROVIDER_OCP: self._get_ocp_credentials,
@@ -112,7 +115,7 @@ class SourcesHTTPClient:
         """Helper to get network response or raise exception."""
         try:
             LOG.debug(f"[_get_network_response] url: {url} | headers: {self._identity_header}")
-            resp = requests.get(url, headers=self._identity_header)
+            resp = requests.get(url, headers=self._identity_header, **request_options(Config.SOURCES_API_ENDPOINT))
             LOG.debug(f"[_get_network_response] status_code: {resp.status_code} | data: {resp.text}")
         except RequestException as error:
             raise SourcesHTTPClientError(f"{error_msg}. Reason: {error}")
@@ -333,7 +336,12 @@ class SourcesHTTPClient:
             json_data = self.build_source_status(error_msg)
             if storage.save_status(self._source_id, json_data):
                 LOG.info(f"[set_source_status] source_id: {self._source_id}: {json_data}")
-                application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
+                application_response = requests.patch(
+                    application_url,
+                    json=json_data,
+                    headers=self._identity_header,
+                    **request_options(Config.SOURCES_API_ENDPOINT),
+                )
                 error_message = (
                     f"[set_source_status] error: Status code: "
                     f"{application_response.status_code}. Response: {application_response.text}."

@@ -16,6 +16,7 @@ from rest_framework import status
 from api.query_handler import WILDCARD
 from koku.configurator import CONFIGURATOR
 from koku.env import ENVIRONMENT
+from koku.service_auth import request_options
 
 LOG = logging.getLogger(__name__)
 RBAC_CONNECTION_ERROR_COUNTER = Counter("rbac_connection_errors", "Number of RBAC ConnectionErros.")
@@ -191,7 +192,8 @@ class RbacService:
 
     def __init__(self):
         """Establish RBAC connection information."""
-        self.base_url = CONFIGURATOR.get_endpoint_url("rbac", "service", "http://localhost:8111")
+        self.endpoint = CONFIGURATOR.get_dependency_endpoint("rbac", "service", "http://localhost:8111")
+        self.base_url = self.endpoint.uri
         self.path = ENVIRONMENT.get_value("RBAC_SERVICE_PATH", default="/r/insights/platform/rbac/v1/access/")
         self.cache_ttl = ENVIRONMENT.int("RBAC_CACHE_TTL", default=30)
 
@@ -199,7 +201,7 @@ class RbacService:
         """Send request to RBAC service and handle pagination case."""
         access = []
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, **request_options(self.endpoint))
         except ConnectionError as err:
             LOG.warning("Error requesting user access: %s", err)
             RBAC_CONNECTION_ERROR_COUNTER.inc()
