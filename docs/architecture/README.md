@@ -188,6 +188,7 @@ Output: proposed new/changed markdown files only (no application code unless ask
 | [`data-retention/`](data-retention/README.md) | Configurable retention (tenant settings, API, purge pipeline, phased delivery) |
 | [`cost-breakdown/`](cost-breakdown/README.md) | OCP cost breakdown / price list technical design and PoC artifacts |
 | [`efficiency-scores/`](efficiency-scores/README.md) | OCP compute/memory reports: `total_score` / `score` (usage efficiency %, wasted cost), ORM-only |
+| [`rbac-v2-kessel/`](rbac-v2-kessel/README.md) | Cost ↔ Kessel / RBAC v2 two-tier auth (local PDP, workspace bindings, no ReportResource) |
 
 ### Standalone feature architecture
 
