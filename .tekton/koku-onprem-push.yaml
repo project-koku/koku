@@ -20,7 +20,7 @@ metadata:
 
 spec:
   taskRunTemplate:
-    serviceAccountName: build-pipeline-koku
+    serviceAccountName: build-pipeline-koku-onprem
 
   params:
     - name: git-url
@@ -33,7 +33,7 @@ spec:
       value: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku-onprem:{{ revision }}
 
     - name: dockerfile
-      value: Dockerfile
+      value: Dockerfile.onprem
 
     - name: path-context
       value: .
