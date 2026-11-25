@@ -7,6 +7,7 @@ import logging
 import time
 from decimal import Decimal
 
+from django.db.utils import IntegrityError
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
@@ -955,7 +956,18 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     self._provider_uuid, month_range.summary_start
                 ):
                     report_period.derived_cost_datetime = timezone.now()
-                    report_period.save()
+                    try:
+                        with schema_context(self._schema):
+                            report_period.save()
+                    except IntegrityError:
+                        LOG.warning(
+                            log_json(
+                                msg="provider deleted during cost model processing, skipping report period update",
+                                schema=self._schema,
+                                provider_uuid=str(self._provider_uuid),
+                            )
+                        )
+                        return
 
     def _get_markup_percentage(self):
         """Return the markup percentage as a Decimal, or None if no markup configured."""
