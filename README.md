@@ -68,7 +68,7 @@ do the following:
 
 6.  Then project dependencies and a virtual environment can be created using:
 
-        pipenv install --dev
+        pipenv install --categories=default,develop,saas
 
 7.  To activate the virtual environment run:
 
