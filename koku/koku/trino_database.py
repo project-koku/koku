@@ -8,13 +8,12 @@ import typing as t
 
 import sqlparse
 from django.db.utils import ProgrammingError as DjangoProgrammingError
-from trino.exceptions import TrinoExternalError
-from trino.exceptions import TrinoQueryError
-from trino.transaction import IsolationLevel
 
 from api.common import log_json
 from koku import settings
 from koku.reportdb_accessor import get_report_db_accessor
+from koku.trino_compat import TrinoExternalError
+from koku.trino_compat import TrinoQueryError
 
 LOG = logging.getLogger(__name__)
 
@@ -216,17 +215,19 @@ def connect(**connect_args):
     Returns:
         Python DB-API 2.0 compatible connection object
     """
+    isolation_level = connect_args.get("isolation_level") or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
+    if isolation_level is None and not settings.ONPREM:
+        from trino.transaction import IsolationLevel
+
+        isolation_level = IsolationLevel.AUTOCOMMIT
+
     trino_connect_args = {
         "host": (connect_args.get("host") or os.environ.get("TRINO_HOST") or "trino"),
         "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or 8080),
         "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or "admin"),
         "catalog": (connect_args.get("catalog") or os.environ.get("TRINO_DEFAULT_CATALOG") or "hive"),
         # I don't think this is really in use. It is always AUTOCOMMIT which is the default for postgres.
-        "isolation_level": (
-            connect_args.get("isolation_level")
-            or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
-            or IsolationLevel.AUTOCOMMIT
-        ),
+        "isolation_level": isolation_level,
         "schema": connect_args["schema"],
         "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
         "max_attempts": 9,  # based on exponential backoff used in the trino lib, 9 max retries with take ~100 seconds
