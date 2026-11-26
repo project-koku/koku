@@ -12,7 +12,6 @@ from django.conf import settings
 from django.db import Error
 from django.db import ProgrammingError
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoQueryError
 
 from api.common import log_json
 from api.models import Provider
@@ -23,6 +22,7 @@ from koku.cache import set_value_in_cache
 from koku.pg_partition import get_or_create_partition
 from koku.reportdb_accessor import ColumnType
 from koku.reportdb_accessor import get_report_db_accessor
+from koku.trino_compat import TrinoQueryError
 from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
 from reporting.models import TenantAPIProvider

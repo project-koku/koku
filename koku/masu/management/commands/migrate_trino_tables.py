@@ -17,14 +17,14 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from pydantic import BaseModel
 from pydantic import Field
-from trino.exceptions import TrinoExternalError
-from trino.exceptions import TrinoUserError
 
 import koku.trino_database as trino_db
 from api.utils import DateHelper
 from koku.cache import build_trino_table_exists_key
 from koku.cache import delete_value_from_cache
 from koku.reportdb_accessor import get_report_db_accessor
+from koku.trino_compat import TrinoExternalError
+from koku.trino_compat import TrinoUserError
 from reporting.models import TRINO_MANAGED_TABLES
 
 LOG = logging.getLogger(__name__)
