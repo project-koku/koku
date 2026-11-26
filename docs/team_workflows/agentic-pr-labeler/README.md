@@ -4,7 +4,7 @@
 
 An AI agent that monitors open Koku PRs, analyzes the diff, and **automatically applies** the appropriate smoke test label when `smokes-required` is present without a specific smoke label, or when `koku-ci` is blocked at the init phase.
 
-Unlike the CI Triager, this agent **applies labels** (via `gh pr edit`) in addition to posting explanatory comments. It **never pushes commits**.
+This agent **applies labels** (via `gh pr edit`) in addition to posting explanatory comments. It **never pushes commits**.
 
 **Pilot scope:** only PRs authored by `dchorvat1`.
 
@@ -51,7 +51,7 @@ This keeps the repo file authoritative and avoids drift from a stale copy in the
 
 ### Bot account
 
-- **GitHub user:** `koku-ci-triager-bot` (shared with CI Triager)
+- **GitHub user:** `koku-ci-triager-bot`
 - **Token type:** Classic PAT, scope `repo`
 - **Permissions:** Collaborator (Write) on `project-koku/koku`
 
@@ -68,7 +68,6 @@ To expand scope after the pilot, update `ALLOWED_AUTHORS` in [`prompt.md`](promp
 | Agent | Role |
 |-------|------|
 | **Agentic PR Labeler** (this) | Proactively applies smoke test labels based on diff analysis |
-| **CI Triager** | Diagnoses failing CI checks and posts fix suggestions |
 | **GlitchTip Triager** | Polls GlitchTip and opens draft PRs for safe fixes |
 
 The GitHub workflow [`.github/workflows/pr-labeler.yml`](../../../.github/workflows/pr-labeler.yml) adds `smokes-required` / `ok-to-skip-smokes` automatically. This agent adds the **specific** smoke test label required by Konflux.
