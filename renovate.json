@@ -57,6 +57,32 @@
             "addLabels": [
                 "smoke-tests"
             ]
+        },
+        {
+            "matchManagers": [
+                "custom.regex"
+            ],
+            "matchPackageNames": [
+                "registry.access.redhat.com/ubi9/nginx-124"
+            ],
+            "addLabels": [
+                "smoke-tests"
+            ]
+        }
+    ],
+    "customManagers": [
+        {
+            "customType": "regex",
+            "managerFilePatterns": [
+                "deploy/kustomize/patches/nginx.yaml",
+                "deploy/clowdapp.yaml"
+            ],
+            "matchStrings": [
+                "name: NGINX_IMAGE_TAG\\s+required: true\\s+value: (?<currentValue>\\S+)"
+            ],
+            "depNameTemplate": "registry.access.redhat.com/ubi9/nginx-124",
+            "datasourceTemplate": "docker",
+            "versioningTemplate": "redhat"
         }
     ],
     "schedule": [

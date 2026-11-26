@@ -47,7 +47,6 @@ sqlparse = ">=0.6.1"  # floor: CVE-2026-112307 (fixed in 0.6.1)
 packaging = "*"
 psycopg2-binary = "*"
 watchtower = "*"
-unleashclient = "*"
 kombu = "*"
 pandas = "<3.0"
 scipy = ">=1.16"
@@ -82,6 +81,9 @@ tox = ">=4.26.0"
 watchdog = ">=2.1.1"
 polyfactory = "*"
 koku-nise = "*"
+
+[saas]
+unleashclient = "*"
 
 [requires]
 python_version = "3.12"
