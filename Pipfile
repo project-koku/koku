@@ -40,14 +40,12 @@ redis = ">=5.0.1"
 requests = ">=2.32.0"
 sentry-sdk = ">=0.13"
 statsmodels = ">=0.12"
-trino = "*"
 whitenoise = ">=5.0"
 pydantic = ">=2"
 sqlparse = ">=0.6.1"  # floor: CVE-2026-112307 (fixed in 0.6.1)
 packaging = "*"
 psycopg2-binary = "*"
 watchtower = "*"
-unleashclient = "*"
 kombu = "*"
 pandas = "<3.0"
 scipy = ">=1.16"
@@ -82,6 +80,10 @@ tox = ">=4.26.0"
 watchdog = ">=2.1.1"
 polyfactory = "*"
 koku-nise = "*"
+
+[saas]
+trino = "*"
+unleashclient = "*"
 
 [requires]
 python_version = "3.12"

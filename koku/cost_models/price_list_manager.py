@@ -13,6 +13,7 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.rate_sync import as_migrated
 from cost_models.rate_sync import sync_rate_table
 
 LOG = logging.getLogger(__name__)
@@ -127,10 +128,14 @@ class PriceListManager:
         if rates_changed or dates_changed:
             self._model.version += 1
 
+        rates_data = copy.deepcopy(self._model.rates) if self._model.rates else []
+        if "rates" not in data:
+            # The stored JSON, not a client payload: read it the way migration 0013 did.
+            rates_data = as_migrated(rates_data)
         # One transaction: if the Rate sync fails, the saved rates JSON, name and version roll back too.
         with transaction.atomic():
             self._model.save()
-            sync_rate_table(self._model, copy.deepcopy(self._model.rates) if self._model.rates else [])
+            sync_rate_table(self._model, rates_data)
 
         if rates_changed or dates_changed:
             self._trigger_recalculation()

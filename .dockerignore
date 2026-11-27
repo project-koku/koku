@@ -4,6 +4,9 @@
 # ... except for dependencies and source
 !Pipfile
 !Pipfile.lock
+!requirements-onprem.txt
+!librdkafka/
+!librdkafka/**
 !koku/
 !docs/specs/
 !db_functions/

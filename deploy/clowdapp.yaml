@@ -1922,6 +1922,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+      replicas: ${{WORKER_COST_MODEL_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -2125,6 +2126,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+      replicas: ${{WORKER_COST_MODEL_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -2539,6 +2541,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+      replicas: ${{WORKER_DOWNLOAD_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -2746,6 +2749,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+      replicas: ${{WORKER_DOWNLOAD_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -3176,6 +3180,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+      replicas: ${{WORKER_OCP_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -3391,6 +3396,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+      replicas: ${{WORKER_OCP_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -5003,6 +5009,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+      replicas: ${{WORKER_SUMMARY_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -5221,6 +5228,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+      replicas: ${{WORKER_SUMMARY_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -6543,7 +6551,7 @@ parameters:
 - description: Image tag
   name: NGINX_IMAGE_TAG
   required: true
-  value: latest
+  value: 1-1794514344
 - description: Image
   name: NGINX_IMAGE
   required: true
@@ -6778,6 +6786,10 @@ parameters:
   name: WORKER_COST_MODEL_XL_TRIGGER_THRESHOLD
   required: true
   value: "13.5"
+- displayName: Replicas
+  name: WORKER_COST_MODEL_XL_REPLICAS
+  required: true
+  value: "1"
 - displayName: Trigger query
   name: WORKER_COST_MODEL_XL_TRIGGER_QUERY
   required: true
@@ -6821,6 +6833,10 @@ parameters:
   name: WORKER_COST_MODEL_PENALTY_TRIGGER_THRESHOLD
   required: true
   value: "13.5"
+- displayName: Replicas
+  name: WORKER_COST_MODEL_PENALTY_REPLICAS
+  required: true
+  value: "1"
 - displayName: Trigger query
   name: WORKER_COST_MODEL_PENALTY_TRIGGER_QUERY
   required: true
@@ -6907,6 +6923,10 @@ parameters:
   name: WORKER_DOWNLOAD_XL_TRIGGER_THRESHOLD
   required: true
   value: "19.5"
+- displayName: Replicas
+  name: WORKER_DOWNLOAD_XL_REPLICAS
+  required: true
+  value: "1"
 - displayName: Trigger query
   name: WORKER_DOWNLOAD_XL_TRIGGER_QUERY
   required: true
@@ -6950,6 +6970,10 @@ parameters:
   name: WORKER_DOWNLOAD_PENALTY_TRIGGER_THRESHOLD
   required: true
   value: "19.5"
+- displayName: Replicas
+  name: WORKER_DOWNLOAD_PENALTY_REPLICAS
+  required: true
+  value: "1"
 - displayName: Trigger query
   name: WORKER_DOWNLOAD_PENALTY_TRIGGER_QUERY
   required: true
@@ -7036,6 +7060,10 @@ parameters:
   name: WORKER_OCP_XL_TRIGGER_THRESHOLD
   required: true
   value: "13.5"
+- displayName: Replicas
+  name: WORKER_OCP_XL_REPLICAS
+  required: true
+  value: "1"
 - displayName: Trigger query
   name: WORKER_OCP_XL_TRIGGER_QUERY
   required: true
@@ -7079,6 +7107,10 @@ parameters:
   name: WORKER_OCP_PENALTY_TRIGGER_THRESHOLD
   required: true
   value: "13.5"
+- displayName: Replicas
+  name: WORKER_OCP_PENALTY_REPLICAS
+  required: true
+  value: "1"
 - displayName: Trigger query
   name: WORKER_OCP_PENALTY_TRIGGER_QUERY
   required: true
@@ -7361,6 +7393,10 @@ parameters:
   name: WORKER_SUMMARY_XL_TRIGGER_THRESHOLD
   required: true
   value: "13.5"
+- displayName: Replicas
+  name: WORKER_SUMMARY_XL_REPLICAS
+  required: true
+  value: "1"
 - displayName: Trigger query
   name: WORKER_SUMMARY_XL_TRIGGER_QUERY
   required: true
@@ -7421,6 +7457,10 @@ parameters:
   name: WORKER_SUMMARY_PENALTY_TRIGGER_THRESHOLD
   required: true
   value: "13.5"
+- displayName: Replicas
+  name: WORKER_SUMMARY_PENALTY_REPLICAS
+  required: true
+  value: "1"
 - displayName: Trigger query
   name: WORKER_SUMMARY_PENALTY_TRIGGER_QUERY
   required: true

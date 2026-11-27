@@ -181,9 +181,10 @@ class ReportDBAccessor(ABC):
 def get_report_db_accessor():
     from django.conf import settings
     from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
-    from koku.reportdb_accessor_trino import TrinoReportDBAccessor
 
     if settings.ONPREM:
         return PostgresReportDBAccessor()
     else:
+        from koku.reportdb_accessor_trino import TrinoReportDBAccessor
+
         return TrinoReportDBAccessor()
