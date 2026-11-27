@@ -27,9 +27,9 @@ from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProc
 from masu.util.aws.aws_post_processor import AWSPostProcessor
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import delete_s3_objects
-from masu.util.aws.common import filter_s3_objects_less_than
 from masu.util.aws.common import get_s3_objects_matching_metadata
 from masu.util.aws.common import get_s3_objects_not_matching_metadata
+from masu.util.aws.common import select_ocp_s3_parquet_keys_to_clear
 from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -739,17 +739,18 @@ class ParquetReportProcessor:
         )
 
         if self.provider_type == Provider.PROVIDER_OCP and to_delete:
-            # filter the report
+            # Hour-based replacement across manifests. Same-manifest size-split
+            # siblings share reportnumhours and must not trigger skip/delete.
             LOG.info(log_json(msg="files to delete pre filter", to_delete=to_delete))
-            to_delete = filter_s3_objects_less_than(
+            to_delete = select_ocp_s3_parquet_keys_to_clear(
                 self.tracing_id,
                 to_delete,
-                metadata_key="reportnumhours",
-                metadata_value_check=self.ocp_files_to_process[filename.stem]["meta_reportnumhours"],
+                current_manifest_id=str(self.manifest_id),
+                current_reportnumhours=self.ocp_files_to_process[filename.stem]["meta_reportnumhours"],
                 context=self.error_context,
             )
             LOG.info(log_json(msg="files to delete post filter", to_delete=to_delete))
-            if not to_delete:
+            if to_delete is None:
                 raise ReportsAlreadyProcessed
 
         delete_s3_objects(self.tracing_id, to_delete, self.error_context)

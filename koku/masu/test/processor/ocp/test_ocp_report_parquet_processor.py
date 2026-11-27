@@ -154,6 +154,20 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         with self.assertRaises(Exception):
             self.processor.delete_day_postgres(self.start_date, reportnumhours=24)
 
+    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    def test_delete_day_postgres_same_manifest_sibling_does_not_raise(self, mock_get_accessor):
+        """Same-manifest rows must not trigger ReportsAlreadyProcessed."""
+        mock_accessor = mock_get_accessor.return_value
+        mock_conn = mock_accessor.connect.return_value.__enter__.return_value
+        mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.rowcount = 0
+        # Both tables exist; day-exists checks find no other-manifest coverage.
+        mock_cursor.fetchone.side_effect = [(1,), (1,), None, None]
+        self.processor.delete_day_postgres(self.start_date, reportnumhours=24)
+        check_sql = mock_accessor.get_check_day_exists_sql.call_args
+        self.assertEqual(check_sql.kwargs.get("manifestid"), str(self.manifest_id))
+        self.assertEqual(check_sql.kwargs.get("reportnumhours"), 24)
+
     def test_is_daily_flag(self):
         """Test that _is_daily is set correctly based on s3_path."""
         # Non-daily path
@@ -197,13 +211,15 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         )
 
         data_frame = pd.DataFrame({"col1": [1, 2], "interval_start": pd.to_datetime(["2024-01-15", "2024-01-15"])})
-        metadata = {"ReportNumHours": 24}
+        metadata = {"ReportNumHours": 24, "ManifestId": "999"}
 
         with patch("pandas.DataFrame.to_sql") as mock_to_sql:
             processor.write_to_self_hosted_table(data_frame, metadata)
 
             # Verify columns were added
             self.assertIn("reportnumhours", data_frame.columns)
+            self.assertIn("manifestid", data_frame.columns)
+            self.assertEqual(data_frame["manifestid"].iloc[0], "999")
             self.assertIn("year", data_frame.columns)
             self.assertIn("month", data_frame.columns)
             self.assertIn("source", data_frame.columns)

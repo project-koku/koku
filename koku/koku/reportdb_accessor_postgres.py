@@ -90,8 +90,13 @@ class PostgresReportDBAccessor(ReportDBAccessor):
         month: str,
         start_date: str,
         reportnumhours: int,
+        manifestid: str | None = None,
     ):
-        """Return the SQL to delete a day's data where reportnumhours is less than specified value."""
+        """Return the SQL to delete a day's data where reportnumhours is less than specified value.
+
+        When manifestid is provided, same-manifest rows (size-split siblings) are left alone.
+        """
+        manifest_clause = f"AND manifestid IS DISTINCT FROM '{manifestid}'" if manifestid is not None else ""
         return f"""
             DELETE FROM "{schema_name}"."{table_name}"
             WHERE source = '{source}'
@@ -99,12 +104,31 @@ class PostgresReportDBAccessor(ReportDBAccessor):
               AND month = '{month}'
               AND {DATE_COLUMN} = DATE '{start_date}'
               AND reportnumhours < {reportnumhours}
+              {manifest_clause}
         """
 
     def get_check_day_exists_sql(
-        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str
+        self,
+        schema_name: str,
+        table_name: str,
+        source: str,
+        year: str,
+        month: str,
+        start_date: str,
+        manifestid: str | None = None,
+        reportnumhours: int | None = None,
     ):
-        """Return the SQL to check if data exists for a specific day."""
+        """Return the SQL to check if data exists for a specific day.
+
+        When manifestid/reportnumhours are provided, only other manifests with
+        equal or greater hour coverage count (same-manifest splits are ignored).
+        """
+        manifest_clause = ""
+        if manifestid is not None:
+            manifest_clause = f"AND manifestid IS DISTINCT FROM '{manifestid}'"
+        hours_clause = ""
+        if reportnumhours is not None:
+            hours_clause = f"AND reportnumhours >= {reportnumhours}"
         return f"""
             SELECT 1
             FROM "{schema_name}"."{table_name}"
@@ -112,6 +136,8 @@ class PostgresReportDBAccessor(ReportDBAccessor):
               AND year = '{year}'
               AND month = '{month}'
               AND {DATE_COLUMN} = DATE '{start_date}'
+              {manifest_clause}
+              {hours_clause}
             LIMIT 1
         """
 

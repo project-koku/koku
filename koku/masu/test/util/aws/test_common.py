@@ -473,6 +473,137 @@ class TestAWSUtils(MasuTestCase):
             )
             self.assertListEqual(filtered, [])
 
+    def test_select_ocp_s3_parquet_keys_to_clear_split_payload_siblings(self):
+        """Same-manifest equal-hours siblings must not skip processing or be deleted.
+
+        This is the operator 100MB size-split failure mode: part .0 already in S3
+        with reportnumhours=24; part .1 has the same hours and must still write.
+        """
+        current_manifest = "42"
+        keys = [
+            "pod_usage.2023-01-01.42.0.parquet",
+            "pod_usage.2023-01-01.42.1.parquet",
+        ]
+        metadata = PropertyMock(
+            side_effect=[
+                {"manifestid": current_manifest, "reportnumhours": "24"},
+                {"manifestid": current_manifest, "reportnumhours": "24"},
+            ]
+        )
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            type(mock_s3.return_value.Object.return_value).metadata = metadata
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                keys,
+                current_manifest_id=current_manifest,
+                current_reportnumhours="24",
+            )
+        self.assertEqual(result, [])
+
+    def test_select_ocp_s3_parquet_keys_to_clear_other_manifest_equal_hours(self):
+        """Another manifest with equal hours still means skip processing."""
+        keys = ["pod_usage.2023-01-01.99.0.parquet"]
+        metadata = PropertyMock(side_effect=[{"manifestid": "99", "reportnumhours": "24"}])
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            type(mock_s3.return_value.Object.return_value).metadata = metadata
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                keys,
+                current_manifest_id="42",
+                current_reportnumhours="24",
+            )
+        self.assertIsNone(result)
+
+    def test_select_ocp_s3_parquet_keys_to_clear_other_manifest_fewer_hours(self):
+        """Other manifests with fewer hours are deleted; siblings are kept."""
+        keys = [
+            "pod_usage.2023-01-01.42.0.parquet",
+            "pod_usage.2023-01-01.99.0.parquet",
+        ]
+        metadata = PropertyMock(
+            side_effect=[
+                {"manifestid": "42", "reportnumhours": "24"},
+                {"manifestid": "99", "reportnumhours": "18"},
+            ]
+        )
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            type(mock_s3.return_value.Object.return_value).metadata = metadata
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                keys,
+                current_manifest_id="42",
+                current_reportnumhours="24",
+            )
+        self.assertEqual(result, ["pod_usage.2023-01-01.99.0.parquet"])
+
+    def test_select_ocp_s3_parquet_keys_to_clear_mixed_other_equal_and_lesser(self):
+        """When another manifest has both lesser and equal hours, delete lesser only."""
+        keys = [
+            "other_18.parquet",
+            "other_24.parquet",
+        ]
+        metadata = PropertyMock(
+            side_effect=[
+                {"manifestid": "99", "reportnumhours": "18"},
+                {"manifestid": "99", "reportnumhours": "24"},
+            ]
+        )
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            type(mock_s3.return_value.Object.return_value).metadata = metadata
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                keys,
+                current_manifest_id="42",
+                current_reportnumhours="24",
+            )
+        self.assertEqual(result, ["other_18.parquet"])
+
+    def test_select_ocp_s3_parquet_keys_to_clear_invalid_hours(self):
+        """Invalid current reportnumhours skips clearance entirely."""
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                ["any.parquet"],
+                current_manifest_id="42",
+                current_reportnumhours="not-a-number",
+                context={},
+            )
+        self.assertEqual(result, [])
+        mock_s3.assert_not_called()
+
+    def test_select_ocp_s3_parquet_keys_to_clear_skips_missing_other_hours(self):
+        """Other-manifest objects without reportnumhours are ignored."""
+        keys = ["other_no_hours.parquet", "other_18.parquet"]
+        metadata = PropertyMock(
+            side_effect=[
+                {"manifestid": "99", "reportnumhours": None},
+                {"manifestid": "99", "reportnumhours": "18"},
+            ]
+        )
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            type(mock_s3.return_value.Object.return_value).metadata = metadata
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                keys,
+                current_manifest_id="42",
+                current_reportnumhours="24",
+                context=None,
+            )
+        self.assertEqual(result, ["other_18.parquet"])
+
+    def test_select_ocp_s3_parquet_keys_to_clear_s3_error(self):
+        """S3 client errors return an empty delete list (do not skip processing)."""
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Object.side_effect = ClientError({}, "HeadObject")
+            result = utils.select_ocp_s3_parquet_keys_to_clear(
+                "request_id",
+                ["other.parquet"],
+                current_manifest_id="42",
+                current_reportnumhours="24",
+                context={"provider_uuid": "abc"},
+            )
+        self.assertEqual(result, [])
+
     @patch("masu.util.aws.common.get_s3_resource")
     def test_batch_delete_s3_objects(self, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""

@@ -132,7 +132,9 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                     if cursor.fetchone():
                         existing_tables.append(table_name)
 
-        # Delete from existing tables
+        # Delete from existing tables (other manifests with fewer hours only —
+        # same-manifest size-split siblings must coexist).
+        manifest_id = str(self._manifest_id) if self._manifest_id is not None else None
         total_deleted = 0
         for table_name in existing_tables:
             delete_sql = get_report_db_accessor().get_delete_day_by_reportnumhours_sql(
@@ -143,6 +145,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 self._month,
                 start_date_str,
                 reportnumhours,
+                manifestid=manifest_id,
             )
 
             with get_report_db_accessor().connect(schema=self._schema_name) as conn:
@@ -156,10 +159,12 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 deleted_rows=total_deleted,
                 start_date=start_date_str,
                 reportnumhours=reportnumhours,
+                manifest_id=manifest_id,
             )
         )
 
-        # If nothing was deleted, check if data exists for this day in existing tables
+        # If nothing was deleted, skip only when another manifest already has
+        # equal or greater hour coverage for this day.
         if total_deleted == 0:
             data_exists = False
             for table_name in existing_tables:
@@ -170,6 +175,8 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                     self._year,
                     self._month,
                     start_date_str,
+                    manifestid=manifest_id,
+                    reportnumhours=reportnumhours,
                 )
 
                 with get_report_db_accessor().connect(schema=self._schema_name) as conn:
@@ -184,6 +191,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                     log_json(
                         msg="existing data has equal or greater reportnumhours",
                         start_date=start_date_str,
+                        manifest_id=manifest_id,
                     )
                 )
                 raise ReportsAlreadyProcessed
@@ -242,6 +250,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         from koku.reportdb_accessor import get_report_db_accessor
 
         data_frame["reportnumhours"] = metadata["ReportNumHours"]
+        data_frame["manifestid"] = str(metadata.get("ManifestId") or self._manifest_id)
 
         model = self.self_hosted_line_item_model
         if not model:
