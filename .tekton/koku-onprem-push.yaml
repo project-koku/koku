@@ -40,7 +40,7 @@ spec:
 
     - name: prefetch-input
       value: >-
-        [{"type":"pip","path":".","requirements_files":["requirements-onprem.txt"],"requirements_build_files":["requirements-build.txt"]}]
+        [{"type":"pip","path":".","requirements_files":["requirements-onprem.txt"],"requirements_build_files":["requirements-build.txt"],"binary":{"packages":"maturin","os":"linux","arch":"x86_64","py_version":312,"py_impl":"cp"}}]
 
     - name: build-args
       value:
