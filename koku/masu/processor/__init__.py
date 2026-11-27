@@ -22,7 +22,6 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 # Unleash flag names. Keep sorted by constant name: new flags then land in different
 # places instead of all appending at the end, which conflicts between concurrent PRs.
 APPLY_TAG_MAPPINGS_FLAG = "cost-management.backend.apply-tag-mappings"
-AWS_EMPTY_SPLIT_FINALIZATION_FLAG = "cost-management.backend.aws_empty_split_finalization"
 CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
 COST_MODEL_SINGLE_FLIGHT_FLAG = "cost-management.backend.cost-model-single-flight"
