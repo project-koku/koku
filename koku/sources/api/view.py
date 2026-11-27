@@ -12,7 +12,6 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
-from django.views.decorators.cache import cache_page
 from django.views.decorators.cache import never_cache
 from django_filters import CharFilter
 from django_filters import FilterSet
@@ -41,8 +40,9 @@ from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.provider_manager import unlinked_source_details
 from api.report.constants import URL_ENCODED_SAFE
+from koku.cache import cache_page_for_tenant
 from koku.cache import CacheEnum
-from koku.cache import invalidate_cache_for_tenant_and_cache_key
+from koku.cache import invalidate_sources_cache
 from koku.cache import SOURCES_CACHE_PREFIX
 from masu.util.aws.common import get_available_regions
 from sources.api.serializers import AdminSourcesSerializer
@@ -79,7 +79,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
                 if settings.ONPREM:
                     publish_application_destroy_event(source)
                 result = super().destroy(request, *args, **kwargs)
-                invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+                invalidate_sources_cache(schema_name)
                 return result
         LOG.error("Failed to remove Source")
         return Response("Failed to remove Source", status=500)
@@ -264,7 +264,7 @@ class SourcesViewSet(*MIXIN_LIST):
         schema_name = request.user.customer.schema_name
         try:
             response = super().create(request, *args, **kwargs)
-            invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+            invalidate_sources_cache(schema_name)
             return response
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
@@ -277,7 +277,7 @@ class SourcesViewSet(*MIXIN_LIST):
         schema_name = request.user.customer.schema_name
         try:
             result = super().update(request, *args, **kwargs)
-            invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+            invalidate_sources_cache(schema_name)
             return result
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
@@ -285,7 +285,9 @@ class SourcesViewSet(*MIXIN_LIST):
             raise SourcesDependencyException(str(error))
 
     @method_decorator(
-        cache_page(settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=SOURCES_CACHE_PREFIX)
+        cache_page_for_tenant(
+            settings.CACHE_MIDDLEWARE_SECONDS, cache_name=CacheEnum.api, key_prefix=SOURCES_CACHE_PREFIX
+        )
     )
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""

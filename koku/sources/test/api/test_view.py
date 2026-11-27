@@ -460,7 +460,7 @@ class SourcesViewPatchTests(IamTestCase):
         self.meta = self.request_context["request"].META
 
     @patch("providers.provider_access.ProviderAccessor.cost_usage_source_ready", return_value=True)
-    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @patch("sources.api.view.invalidate_sources_cache")
     def test_patch_syncs_all_fields_to_provider(self, _mock_invalidate, _mock_ready):
         """PATCH syncs paused, authentication, and billing_source to Source and linked Provider."""
         cache.clear()
@@ -663,7 +663,7 @@ class SourcesViewCreateTests(IamTestCase):
         customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
         self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
 
-    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @patch("sources.api.view.invalidate_sources_cache")
     def test_create_method_success(self, mock_invalidate):
         """Test the create method calls super and invalidates cache."""
         viewset = SourcesViewSet()
@@ -675,7 +675,7 @@ class SourcesViewCreateTests(IamTestCase):
             self.assertEqual(result.status_code, 201)
             mock_invalidate.assert_called_once()
 
-    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @patch("sources.api.view.invalidate_sources_cache")
     def test_create_method_storage_error(self, mock_invalidate):
         """Test the create method raises SourcesException on SourcesStorageError."""
         from sources.api.view import SourcesException
@@ -689,7 +689,7 @@ class SourcesViewCreateTests(IamTestCase):
             with self.assertRaises(SourcesException):
                 viewset.create(request=mock_request)
 
-    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @patch("sources.api.view.invalidate_sources_cache")
     def test_create_method_dependency_error(self, mock_invalidate):
         """Test the create method raises SourcesDependencyException on SourcesDependencyError."""
         from sources.api.serializers import SourcesDependencyError
@@ -734,7 +734,7 @@ class DestroySourceMixinTests(IamTestCase):
         self.source.save()
 
     @patch("sources.api.view.publish_application_destroy_event")
-    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @patch("sources.api.view.invalidate_sources_cache")
     @override_settings(ONPREM=True)
     def test_destroy_publishes_kafka_event_when_onprem(self, mock_invalidate, mock_publish):
         """Test that destroy publishes Kafka event when ONPREM is True."""
@@ -762,7 +762,7 @@ class DestroySourceMixinTests(IamTestCase):
             mock_publish.assert_called_once_with(self.source)
 
     @patch("sources.api.view.publish_application_destroy_event")
-    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @patch("sources.api.view.invalidate_sources_cache")
     @override_settings(ONPREM=False)
     def test_destroy_skips_kafka_event_when_not_onprem(self, mock_invalidate, mock_publish):
         """Test that destroy does NOT publish Kafka event when ONPREM is False."""

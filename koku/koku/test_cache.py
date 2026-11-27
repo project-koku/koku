@@ -13,17 +13,21 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
+from koku.cache import build_cache_generation_key
 from koku.cache import build_enabled_currency_codes_key
 from koku.cache import build_ocp_on_cloud_matched_tags_key
+from koku.cache import bump_cache_generation
 from koku.cache import CacheEnum
 from koku.cache import delete_cached_ocp_on_cloud_matched_tags
 from koku.cache import delete_value_from_cache
+from koku.cache import get_cache_generation
 from koku.cache import get_cached_infra_map
 from koku.cache import get_cached_ocp_on_cloud_matched_tags
 from koku.cache import get_cached_tag_rate_map
 from koku.cache import get_value_from_cache
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_ocp_on_cloud_matched_tags
+from koku.cache import invalidate_sources_cache
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.cache import invalidate_view_cache_for_tenant_and_source_types
@@ -38,6 +42,7 @@ from koku.cache import set_cached_infra_map
 from koku.cache import set_cached_ocp_on_cloud_matched_tags
 from koku.cache import set_cached_tag_rate_map
 from koku.cache import set_value_in_cache
+from koku.cache import SOURCES_CACHE_PREFIX
 
 CACHE_PREFIXES = (
     AWS_CACHE_PREFIX,
@@ -404,3 +409,80 @@ class KokuCacheTest(IamTestCase):
 
         set_value_in_cache(cache_key, expected_value)
         self.assertTrue(delete_value_from_cache(cache_key))
+
+
+class CacheGenerationTest(IamTestCase):
+    """Test the per tenant cache generation that scopes cached responses."""
+
+    def setUp(self):
+        """Start every test without a counter."""
+        super().setUp()
+        self.cache = caches[CacheEnum.generation]
+        self.cache.clear()
+        self.addCleanup(self.cache.clear)
+
+    def test_generation_is_stable_until_bumped(self):
+        """Repeated reads must return the same generation."""
+        generation = get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+
+        self.assertEqual(generation, get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX))
+        self.assertEqual(
+            generation, self.cache.get(build_cache_generation_key(self.schema_name, SOURCES_CACHE_PREFIX))
+        )
+
+    def test_bump_moves_the_generation_forward(self):
+        """A bump must leave every key built from the old generation behind."""
+        before = get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+
+        after = bump_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+
+        self.assertGreater(after, before)
+        self.assertEqual(after, get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX))
+
+    def test_bump_seeds_a_missing_counter(self):
+        """Bumping before anything is cached must not fail."""
+        key = build_cache_generation_key(self.schema_name, SOURCES_CACHE_PREFIX)
+        self.assertIsNone(self.cache.get(key))
+
+        generation = bump_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+
+        self.assertEqual(generation, self.cache.get(key))
+
+    def test_generations_do_not_leak_across_tenants_or_prefixes(self):
+        """Each tenant and prefix owns its own counter."""
+        other_schema = "org2222222"
+        mine = get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+        theirs = get_cache_generation(other_schema, SOURCES_CACHE_PREFIX)
+        other_prefix = get_cache_generation(self.schema_name, AWS_CACHE_PREFIX)
+
+        bump_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+
+        self.assertGreater(get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX), mine)
+        self.assertEqual(get_cache_generation(other_schema, SOURCES_CACHE_PREFIX), theirs)
+        self.assertEqual(get_cache_generation(self.schema_name, AWS_CACHE_PREFIX), other_prefix)
+
+    def test_a_lost_counter_reseeds_above_the_generations_it_used(self):
+        """An evicted counter must not send the keys back to a used generation."""
+        for _ in range(5):
+            bump_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+        lost = get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+        self.cache.clear()
+
+        with patch("koku.cache.time.time", return_value=lost / 1000 + 1):
+            reseeded = get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+
+        self.assertGreater(reseeded, lost)
+
+    def test_invalidate_sources_cache_bumps_the_sources_generation(self):
+        """The sources helper must only move its own counter."""
+        before = get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX)
+
+        invalidate_sources_cache(self.schema_name)
+
+        self.assertGreater(get_cache_generation(self.schema_name, SOURCES_CACHE_PREFIX), before)
+
+    def test_invalidate_sources_cache_without_a_schema_does_nothing(self):
+        """A provider without a customer must not raise."""
+        invalidate_sources_cache(None)
+
+        self.assertEqual(self.cache.get(build_cache_generation_key(None, SOURCES_CACHE_PREFIX)), None)
