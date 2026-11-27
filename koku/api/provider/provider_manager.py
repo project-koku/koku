@@ -35,6 +35,7 @@ from koku.database import execute_delete_sql
 from masu.util.ocp.operator_versions import LATEST_OPERATOR_VERSION
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
+from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
@@ -412,25 +413,31 @@ class ProviderManager:
         return self.model.customer == current_user.customer
 
     def _get_tenant_provider_stats(self, provider, tenant, period_start):
-        """Return provider statistics for schema."""
-        stats = {}
-        query = None
+        """Return per-month summary and cost-model timestamps for a provider."""
+        stats = {
+            "summary_data_creation_datetime": None,
+            "summary_data_updated_datetime": None,
+            "derived_cost_datetime": None,
+        }
+        period_models = {
+            Provider.PROVIDER_OCP: (OCPUsageReportPeriod, "report_period_start"),
+            Provider.PROVIDER_AWS: (AWSCostEntryBill, "billing_period_start"),
+            Provider.PROVIDER_AWS_LOCAL: (AWSCostEntryBill, "billing_period_start"),
+            Provider.PROVIDER_AZURE: (AzureCostEntryBill, "billing_period_start"),
+            Provider.PROVIDER_AZURE_LOCAL: (AzureCostEntryBill, "billing_period_start"),
+            Provider.PROVIDER_GCP: (GCPCostEntryBill, "billing_period_start"),
+            Provider.PROVIDER_GCP_LOCAL: (GCPCostEntryBill, "billing_period_start"),
+        }
+        model_info = period_models.get(provider.type)
+        if not model_info:
+            return stats
+        model, date_field = model_info
         with tenant_context(tenant):
-            if provider.type == Provider.PROVIDER_OCP:
-                query = OCPUsageReportPeriod.objects.filter(
-                    provider=provider, report_period_start=period_start
-                ).first()
-            elif provider.type == Provider.PROVIDER_AWS or provider.type == Provider.PROVIDER_AWS_LOCAL:
-                query = AWSCostEntryBill.objects.filter(provider=provider, billing_period_start=period_start).first()
-            elif provider.type == Provider.PROVIDER_AZURE or provider.type == Provider.PROVIDER_AZURE_LOCAL:
-                query = AzureCostEntryBill.objects.filter(provider=provider, billing_period_start=period_start).first()
-        if query and query.summary_data_creation_datetime:
-            stats["summary_data_creation_datetime"] = query.summary_data_creation_datetime.strftime(DATE_TIME_FORMAT)
-        if query and query.summary_data_updated_datetime:
-            stats["summary_data_updated_datetime"] = query.summary_data_updated_datetime.strftime(DATE_TIME_FORMAT)
-        if query and query.derived_cost_datetime:
-            stats["derived_cost_datetime"] = query.derived_cost_datetime.strftime(DATE_TIME_FORMAT)
-
+            query = model.objects.filter(provider_id=provider.uuid, **{date_field: period_start}).first()
+        if query:
+            stats["summary_data_creation_datetime"] = _format_timestamp(query.summary_data_creation_datetime)
+            stats["summary_data_updated_datetime"] = _format_timestamp(query.summary_data_updated_datetime)
+            stats["derived_cost_datetime"] = _format_timestamp(query.derived_cost_datetime)
         return stats
 
     def provider_statistics(self, tenant=None):
@@ -450,8 +457,7 @@ class ProviderManager:
         provider_stats = {"data_updated_date": data_updated_date, "ocp_on_cloud_data_updated_date": None}
         for month in sorted(months, reverse=True):
             stats_key = str(month.date())
-            provider_stats[stats_key] = {}
-            provider_stats[stats_key]["manifests"] = []
+            provider_stats[stats_key] = self._get_tenant_provider_stats(self.model, tenant, month)
             month_stats = []
             stats_query = CostUsageReportManifest.objects.filter(
                 provider=self.model, billing_period_start_datetime=month
