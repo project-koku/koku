@@ -4,18 +4,24 @@
 #
 """Query Handling for Reports."""
 import copy
+import datetime
 import logging
 import random
 import re
 import string
 from collections import defaultdict
 from collections import OrderedDict
+from contextlib import contextmanager
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
 from functools import cached_property
+from functools import wraps
 from itertools import groupby
 from json import dumps as json_dumps
+from time import monotonic
+from typing import Any
+from typing import Callable
 from urllib.parse import quote
 
 import ciso8601
@@ -23,11 +29,16 @@ import numpy as np
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.aggregates import BoolOr
+from django.db import connections
+from django.db import transaction
 from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Func
+from django.db.models import JSONField
 from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Value
@@ -41,8 +52,11 @@ from django.db.models.functions import RowNumber
 from django_tenants.utils import tenant_context
 from pandas.api.types import CategoricalDtype
 
+from api.common import log_json
 from api.currency.utils import build_exchange_rate_case
+from api.currency.utils import build_monthly_exchange_rate_snapshot_map
 from api.currency.utils import get_monthly_exchange_rate_map
+from api.currency.utils import load_monthly_exchange_rate_snapshot
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -51,6 +65,7 @@ from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
 from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_currency_discovery_optimization_enabled
 from masu.processor import is_feature_flag_enabled_by_schema
 
 LOG = logging.getLogger(__name__)
@@ -130,6 +145,21 @@ def check_view_filter_and_group_by_criteria(filter_set, group_by_set):
     if group_by_set.intersection(no_view_group_bys) or filter_set.intersection(no_view_group_bys):
         return False
     return True
+
+
+def currency_coverage_snapshot(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Keep every monetary result and its coverage check on one read snapshot."""
+
+    @wraps(method)
+    def execute(self: "ReportQueryHandler", *args: Any, **kwargs: Any) -> Any:
+        if not self.aggregate_currency_coverage_enabled:
+            return method(self, *args, **kwargs)
+        LOG.info(log_json(msg="Currency coverage execution started", context=self._currency_coverage_log_context))
+        with self._currency_coverage_snapshot():
+            self._prepare_currency_coverage_scope()
+            return method(self, *args, **kwargs)
+
+    return execute
 
 
 class ReportQueryHandler(QueryHandler):
@@ -1118,40 +1148,169 @@ class ReportQueryHandler(QueryHandler):
         query = self.query_table.objects.filter(self._get_filter(delta=True))
         return self._apply_conversion_query_hints(query)
 
-    def _conversion_queryset_values(self, field_name):
-        """Return distinct field values from current and, when needed, previous-period rows."""
+    @cached_property
+    def currency_discovery_optimization_enabled(self) -> bool:
+        """Opt in only when both constant currency and the rollout flag are enabled."""
+        return is_feature_flag_enabled_by_schema(
+            self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+        ) and is_currency_discovery_optimization_enabled(self.tenant.schema_name)
+
+    def _supports_aggregate_currency_coverage(self) -> bool:
+        return False
+
+    @cached_property
+    def aggregate_currency_coverage_enabled(self) -> bool:
+        if not self.currency_discovery_optimization_enabled or not self.currency:
+            return False
+        if not self._supports_aggregate_currency_coverage():
+            return False
+        database = connections[self.query_table.objects.db]
+        if not database.in_atomic_block:
+            return True
+        with database.cursor() as cursor:
+            cursor.execute("SHOW transaction_isolation")
+            return cursor.fetchone()[0] in {"repeatable read", "serializable"}
+
+    @contextmanager
+    def _currency_coverage_snapshot(self):
+        alias = self.query_table.objects.db
+        if connections[alias].in_atomic_block:
+            # Eligibility may have been cached before the caller opened this block.
+            with connections[alias].cursor() as cursor:
+                cursor.execute("SHOW transaction_isolation")
+                if cursor.fetchone()[0] not in {"repeatable read", "serializable"}:
+                    raise transaction.TransactionManagementError("A consistent currency coverage snapshot is required")
+            yield
+        else:
+            with transaction.atomic(using=alias):
+                with connections[alias].cursor() as cursor:
+                    cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                yield
+
+    def _prepare_currency_coverage_scope(self):
+        exclusions = copy.deepcopy(self.query_exclusions)
+        try:
+            with tenant_context(self.tenant):
+                self.conversion_queryset
+                if self.include_previous_period_for_conversion:
+                    self.previous_conversion_queryset
+        finally:
+            self.query_exclusions = exclusions
+
+    @cached_property
+    def _conversion_rate_snapshot(self):
+        with tenant_context(self.tenant):
+            return load_monthly_exchange_rate_snapshot(self.currency, *self._conversion_rate_dates)
+
+    @cached_property
+    def _fully_covered_conversion_currencies(self):
+        rates = self.monthly_exchange_rate_map
+        months = set(rates[self.currency])
+        return {base for base, values in rates.items() if months.issubset(values)}
+
+    def _currency_coverage_condition(self):
+        field = self._conversion_currency_field
+        return Q(**{field + "__isnull": False}) & ~Q(**{field + "__in": self._fully_covered_conversion_currencies})
+
+    def _currency_coverage_aggregates(self):
+        if not self.aggregate_currency_coverage_enabled:
+            return {}
+        return {"_currency_coverage_missing": BoolOr(self._currency_coverage_condition(), default=False)}
+
+    def _scoped_model_currencies_for_coverage(self):
+        return set()
+
+    @cached_property
+    def _currency_coverage_log_context(self):
+        start, end = self._conversion_rate_dates
+        return {
+            "request_id": self.parameters.request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID"),
+            "schema": self.tenant.schema_name,
+            "provider": self.provider,
+            "report_type": self._report_type,
+            "target_currency": self.currency,
+            "start_month": start.replace(day=1).isoformat(),
+            "end_month": end.replace(day=1).isoformat(),
+        }
+
+    def _validate_currency_coverage(self, totals):
+        if totals.pop("_currency_coverage_missing", False):
+            started = monotonic()
+            context = self._currency_coverage_log_context
+            LOG.warning(log_json(msg="Currency coverage fallback started", context=context))
+            outcome = "interrupted"
+            try:
+                bases = self._conversion_queryset_values(self._conversion_currency_field)
+                bases |= self._scoped_model_currencies_for_coverage()
+                get_monthly_exchange_rate_map(
+                    bases, self.currency, *self._conversion_rate_dates, rates=self._conversion_rate_snapshot
+                )
+                raise RuntimeError("Coverage aggregate disagrees with scoped currency validation")
+            except Exception as error:
+                outcome = type(error).__name__
+                raise
+            finally:
+                LOG.info(
+                    log_json(
+                        msg="Currency coverage fallback finished",
+                        context=context,
+                        outcome=outcome,
+                        elapsed_ms=round((monotonic() - started) * 1000, 3),
+                    )
+                )
+
+    def _conversion_queryset_values(self, field_name: str) -> set:
+        """Discover scoped inputs only when the legacy path or gap validation needs them."""
         values = set(self.conversion_queryset.values_list(field_name, flat=True).distinct())
         if self.include_previous_period_for_conversion:
             values |= set(self.previous_conversion_queryset.values_list(field_name, flat=True).distinct())
         return values - {None}
 
+    @property
+    def _conversion_currency_field(self):
+        return self._mapper.cost_units_key
+
     @cached_property
     def raw_currencies_for_conversion(self):
         """Return raw bill currencies present in the report-scoped rows."""
-        return self._conversion_queryset_values(self._mapper.cost_units_key)
+        return self._conversion_queryset_values(self._conversion_currency_field)
 
     def _get_base_currencies_for_conversion(self):
         """Return the set of base currencies present in the report-scoped rows.
 
         Subclasses (e.g. OCP) can override to include additional currency sources.
         """
+        if self.aggregate_currency_coverage_enabled:
+            return set(self.monthly_exchange_rate_map)
         return self.raw_currencies_for_conversion
 
     @cached_property
-    def monthly_exchange_rate_map(self):
-        """Return monthly rates for every base currency needed by this request."""
-        start_datetime = self.start_datetime
+    def _conversion_rate_dates(self):
+        """Include the same previous interval in coverage and annotation metadata."""
+        start = self.start_datetime
         if self.include_previous_period_for_conversion:
-            start_datetime = start_datetime - self._get_date_delta()
+            start = start - self._get_date_delta()
+        return start.date(), self.end_datetime.date()
+
+    @cached_property
+    def monthly_exchange_rate_map(self):
+        """Return rates, validating facts eagerly only on the discovery path."""
+        if self.aggregate_currency_coverage_enabled:
+            return build_monthly_exchange_rate_snapshot_map(
+                self._conversion_rate_snapshot, self.currency, *self._conversion_rate_dates
+            )
         return get_monthly_exchange_rate_map(
             self._get_base_currencies_for_conversion(),
             self.currency,
-            start_datetime.date(),
-            self.end_datetime.date(),
+            *self._conversion_rate_dates,
         )
 
     def _monthly_exchange_rate_case(self, field_name, base_currencies):
-        """Build a bounded Case expression for monthly rates on a currency field."""
+        """Build monthly conversion with short CASE branches or a metadata lookup."""
+        if self.aggregate_currency_coverage_enabled:
+            rates = {base: self.monthly_exchange_rate_map.get(base, {}) for base in base_currencies}
+            if sum(len(months) for months in rates.values()) > 32:
+                return self._monthly_exchange_rate_lookup(field_name, rates)
         whens = []
         for base_currency in base_currencies:
             for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
@@ -1165,7 +1324,32 @@ class ReportQueryHandler(QueryHandler):
                         }
                     )
                 )
+        if self.aggregate_currency_coverage_enabled:
+            whens.append(When(**{field_name + "__isnull": True, "then": Value(1)}))
+            return Case(*whens, default=None, output_field=DecimalField())
         return Case(*whens, default=1, output_field=DecimalField())
+
+    def _monthly_exchange_rate_lookup(self, field_name: str, rates: dict[str, dict[datetime.date, Decimal]]) -> Case:
+        """Keep large snapshots out of repeated per-currency CASE branches."""
+        months: dict[datetime.date, dict[str, str]] = {}
+        for currency, values in rates.items():
+            for month, rate in values.items():
+                months.setdefault(month, {})[currency] = str(rate)
+        whens = [
+            When(**{field_name + "__isnull": True, "then": Value(1)}),
+            When(**{field_name: self.currency, "then": Value(1)}),
+        ]
+        for month, currency_rates in sorted(months.items()):
+            lookup = Func(
+                Value(currency_rates, output_field=JSONField()),
+                F(field_name),
+                function="",
+                template="(%(expressions)s)::numeric",
+                arg_joiner=" ->> ",
+                output_field=DecimalField(),
+            )
+            whens.append(When(usage_start__gte=month, usage_start__lt=month + relativedelta(months=1), then=lookup))
+        return Case(*whens, default=None, output_field=DecimalField())
 
     @cached_property
     def exchange_rate_annotation_dict(self):
@@ -1175,9 +1359,12 @@ class ReportQueryHandler(QueryHandler):
         rates prefetched for this request. Otherwise uses ExchangeRateDictionary.
         """
         if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
-            exchange_rate_annotation = self._monthly_exchange_rate_case(
-                self._mapper.cost_units_key, self.raw_currencies_for_conversion
+            bases = (
+                self.monthly_exchange_rate_map
+                if self.aggregate_currency_coverage_enabled
+                else self.raw_currencies_for_conversion
             )
+            exchange_rate_annotation = self._monthly_exchange_rate_case(self._mapper.cost_units_key, bases)
         else:
             exchange_rate_annotation = build_exchange_rate_case(
                 self._mapper.cost_units_key, self.currency, self.exchange_rates
@@ -1821,7 +2008,8 @@ class ReportQueryHandler(QueryHandler):
             else:
                 current_total_sum = Decimal(query_sum.get("cost") or 0)
         delta_field = self._get_delta_field()
-        prev_total_sum = previous_query.aggregate(value=delta_field)
+        prev_total_sum = previous_query.aggregate(value=delta_field, **self._currency_coverage_aggregates())
+        self._validate_currency_coverage(prev_total_sum)
         if self.resolution == "daily":
             dates = [entry.get("date") for entry in query_data]
             prev_total_filters = self._get_previous_totals_filter(dates)
