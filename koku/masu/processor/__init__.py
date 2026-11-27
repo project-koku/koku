@@ -40,7 +40,6 @@ OCP_INGRESS_POST_RATE_LIMIT_FLAG = "cost-management.backend.ocp-ingress-post-rat
 OCP_ON_CLOUD_MONTH_WIDE_MATCHED_TAGS_FLAG = "cost-management.backend.ocp-on-cloud-month-wide-matched-tags"
 OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG = "cost-management.backend.ocp_on_cloud_pg_idempotent_delete"
 OCP_ON_CLOUD_SINGLE_FLIGHT_FLAG = "cost-management.backend.ocp_on_cloud_single_flight"
-OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
 OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
 OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG = "cost-management.backend.ocp-special-matched-tags-from-summary"
 OCP_TAG_MAPPING_DIAGNOSTICS_FLAG = "cost-management.backend.ocp_tag_mapping_diagnostics"
