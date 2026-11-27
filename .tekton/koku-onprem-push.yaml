@@ -7,7 +7,7 @@ metadata:
     build.appstudio.redhat.com/target_branch: '{{ target_branch }}'
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
-    pipelinesascode.tekton.dev/pipeline: "https://raw.githubusercontent.com/project-koku/koku-ci/main/pipelines/pipeline-build.yaml"
+    pipelinesascode.tekton.dev/pipeline: "https://raw.githubusercontent.com/project-koku/koku-ci/codex/cost-8649-hermetic/pipelines/pipeline-build.yaml"
   creationTimestamp: null
 
   labels:
@@ -38,9 +38,15 @@ spec:
     - name: path-context
       value: .
 
+    - name: hermetic
+      value: "true"
+
+    - name: build-source-image
+      value: "true"
+
     - name: prefetch-input
       value: >-
-        [{"type":"pip","path":".","requirements_files":["requirements-onprem.txt"],"requirements_build_files":["requirements-build.txt"],"binary":{"packages":"maturin","os":"linux","arch":"x86_64","py_version":312,"py_impl":"cp"}}]
+        [{"type":"pip","path":".","requirements_files":["requirements-onprem.txt"],"requirements_build_files":["requirements-build.txt","requirements-build-tools.txt"],"binary":{"packages":"maturin,patchelf","os":"linux","arch":"x86_64","py_version":312,"py_impl":"cp"}},{"type":"rpm","path":"."}]
 
     - name: build-args
       value:
