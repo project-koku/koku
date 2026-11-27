@@ -440,7 +440,7 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 - `manifest_list` - List of manifest IDs
 
 **Workflow**:
-1. Updates provider's `data_updated_timestamp`
+1. Updates provider's `data_updated_timestamp` for non-OCP sources (OCP freshness is stamped by `update_cost_model_costs` after rates/distribution)
 2. Marks manifests as completed in the database
 3. Marks ingress report as completed (if applicable)
 
@@ -510,7 +510,7 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 1. Checks if task is already running or rate-limited (WorkerCache, keyed by schema, provider and the exact date range)
 2. With the `cost-management.backend.cost-model-single-flight` flag on (asynchronous calls only), takes a PostgreSQL session advisory lock per provider and billing month of the range, in month order (`koku/masu/processor/cost_model_run_lock.py`), and holds it for the whole update, distribution and UI summaries included. Different months of a provider still run in parallel.
 3. Calls `CostModelCostUpdater` to apply cost model rates
-4. Updates provider's `data_updated_timestamp`
+4. Updates provider's `data_updated_timestamp` (this is the OCP ingest freshness stamp; cloud ingest stamps in `mark_manifest_complete` instead)
 
 **Single-flight per provider month** (COST-8575): every cost model writer deletes its window and then inserts, as separate statements, and WorkerCache does not keep apart overlapping but different ranges, so two such runs could double rows. If a month's lock stays busy for two minutes, the run does not block its worker: `defer_busy_cost_model_update` hands its window to the delayed cost-model update of that provider month (see [Delayed cost-model updates](#delayed-cost-model-updates)) with deadline 0 and `keep_earlier_deadline`, and returns. A deferred run returns successfully, so a chained `mark_manifest_complete` / `validate_daily_data` still runs, as for a WorkerCache requeue; for OCP the validation compares usage (`pod_effective_usage_cpu_core_hours`), not cost model costs.
 
