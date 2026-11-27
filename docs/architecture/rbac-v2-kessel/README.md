@@ -16,7 +16,7 @@ This design supersedes the "Cost → Kessel outbox" plan for the immediate migra
 
 ## Constraints that force this shape
 
-1. **Cost cannot integrate with BOP or IT Service** — users, service accounts, groups, and membership must come from Kessel/RBAC v2. That rules out rbac-mini (rbac-go) as a SaaS authority.
+1. **Assumption (confirm with Kessel):** this design works on the premise that **users, service accounts, groups, and membership in SaaS come from Kessel/RBAC v2**, and that Cost does **not** integrate directly with BOP or IT Service for that directory. Under that assumption, rbac-mini (rbac-go) is not a SaaS authority for Cost (on-prem only today). If the platform story differs — e.g. another supported identity path for Cost — revisit alternative **E** and this whole grant-store choice with Kessel.
 2. **RBAC v1 is being decommissioned in SaaS.** Keeping `/api/rbac/v1/access/` is a temporary bridge, not a destination.
 3. **Sources are outside Cost’s remit** (`sources-api-go` / Integrations). Cost must not define a `source` resource type, report sources, or write source tuples.
 4. **Granular rights stay with Cost** — clusters, nodes, projects, accounts, cost models, settings, rates. Only the *grant storage and subject directory* move to the platform.
@@ -34,12 +34,12 @@ Options for leaving RBAC v1, with the trade-offs that led to this design.
 | **B. v2 grant store** (**adopted**) | v2 roles + role bindings | **no** (replication only) | v2 client, workspace mapping, local evaluation | platform must allow Cost permissions on v2 roles + dual-read window for A/B |
 | **C. Outbox + Kessel reporting** | Inventory / relations | yes (`Check`) | outbox, relay, schema, resource reporting | no `source` type; schema work; Cost must not write RBAC’s relation-replication topic |
 | **D. Workspace-only** | workspaces + workspace `Check` | yes | coarse workspace mapping only | **over-exposes**: everyone bound to a workspace sees all objects mapped there — loses per-account/cluster/NS narrowing. **Not an acceptable fallback** for Cost |
-| **E. rbac-mini in SaaS** | Cost-owned tables | no | BOP/IT adapter | identity must come from BOP/IT; Cost cannot integrate |
+| **E. rbac-mini in SaaS** | Cost-owned tables | no | BOP/IT (or other) identity adapter | out of scope **under the identity assumption** above; reopen if Kessel says Cost may own SaaS directory differently |
 
 **Why B wins**
 
 - Removes the v1 dependency without putting Kessel `Check` on the report path.
-- Users / groups / grants stay on the platform (only place allowed to talk to BOP/IT).
+- Users / groups / grants stay on the platform (assumed to be the supported place for BOP/IT-backed identity).
 - Cost keeps permission semantics (report filters, OCP-on-cloud intersection, N:M scopes).
 - No outbox, no `ReportResource`, no `cost-management.ksl` for Cost objects in Phase 0.
 
@@ -47,7 +47,7 @@ Options for leaving RBAC v1, with the trade-offs that led to this design.
 
 **D** is documented so the trade-off is visible — we are **not** proposing it. Workspace-only authorization would collapse the prod topology (SRE vs cost centre vs app team vs AI) into “everything in the workspace,” which over-exposes users.
 
-**E** is excluded by the identity constraint. rbac-go remains on-prem only.
+**E** is set aside while the identity assumption holds (rbac-go remains on-prem only today). Not a hard platform veto from Cost — ask Kessel to confirm or correct who owns SaaS users/groups/membership for Cost.
 
 **Recommendation for platform readers:** adopt **B** now; keep **C** as a later phase if resource-level Checks are required by other consumers; do not use **D** for Cost.
 
@@ -348,6 +348,7 @@ Platform-side changes or decisions. Cost cannot fix these alone. **Side-by-side 
 
 | # | Topic | Ask | Why it blocks us |
 |---|---|---|---|
+| 0 | SaaS identity ownership | Confirm: for Cost, must users / service accounts / groups / membership come only via Kessel/RBAC v2 (no Cost↔BOP/IT)? Any path where rbac-mini (or Cost-owned directory) is valid in SaaS? | Entire grant-store choice (**B** vs **E**) rests on this assumption |
 | 1 | Tenant opt-in irreversible | Downgrade path or documented invariant + recovery | No real Unleash rollback after activation |
 | 2 | Exclude list is two switches | Decouple “v2 Cost roles allowed” from “v1 `/access` still served” | Enabling v2 kills the v1 baseline for A/B |
 | 3 | v1 `/access` hard-fail for v2 orgs | Machine-readable error code | No safe detect/fallback without string match |
@@ -525,6 +526,7 @@ Resolved in this share-out: ~11 roles; flat Phase 0; workspaces RBAC-UI-only; So
 
 | Date | Change |
 |------|--------|
+| 2026-11-27 | Reframe BOP/IT / rbac-mini SaaS exclusion as assumption; add Kessel ask #0 |
 | 2026-11-26 | Replace Open mapping with light Fig.1–3 v1-style resource-definition flow |
 | 2026-11-26 | Light Open mapping; RBAC section uses illustrative workspaces screenshot + disclaimer |
 | 2026-11-26 | Light-mode Cost UI; point RBAC screen at insights-rbac-ui official mocks |
