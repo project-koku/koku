@@ -11,7 +11,7 @@ RUN INSTALL_PKGS="coreutils gcc gcc-c++ make pkgconf-pkg-config openssl-devel zl
 WORKDIR /src/librdkafka
 COPY librdkafka/ ./
 RUN INSTALL=/usr/bin/install ./configure --prefix=/usr && \
-    make && \
+    make -j"$(nproc)" && \
     make install
 
 FROM registry.access.redhat.com/ubi9-minimal:9.9-1794467051 AS base
@@ -24,8 +24,6 @@ ENV PYTHON_VERSION=3.12 \
     LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
     PIP_NO_CACHE_DIR=1 \
-    PIPENV_VENV_IN_PROJECT=1 \
-    PIPENV_VERBOSITY=-1 \
     APP_ROOT=/opt/koku \
     APP_HOME=/opt/koku/koku \
     PLATFORM="el9"
@@ -38,52 +36,32 @@ ENV SUMMARY="Koku is the Cost Management application" \
 # gcc to compile some python packages (e.g. ciso8601)
 # shadow-utils to make useradd available
 RUN INSTALL_PKGS="python3.12 python3.12-devel glibc-langpack-en gcc-c++ shadow-utils openssl-libs zlib libzstd" && \
-    microdnf --nodocs -y upgrade && \
     microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
 
 # Make the source-built client library and its build metadata available before
-# pipenv builds confluent-kafka from its source distribution.
+# pip builds confluent-kafka from its source distribution.
 COPY --from=kafka-build /usr/lib/librdkafka*.so* /usr/lib/
 COPY --from=kafka-build /usr/lib/pkgconfig/rdkafka*.pc /usr/lib/pkgconfig/
 COPY --from=kafka-build /usr/include/librdkafka /usr/include/librdkafka
 RUN ldconfig
 
 FROM base AS python-dependencies
-# PIPENV_DEV is set to true in the docker-compose allowing
-# local builds to install the dev dependencies
-ARG PIPENV_DEV=False
+RUN python3.12 -m venv ${APP_ROOT}/.venv
 
-# Create a Python virtual environment for use by any application to avoid
-# potential conflicts with Python packages preinstalled in the main Python
-# installation.
-RUN python3.12 -m venv /pipenv-venv \
-    && env -u PIP_NO_INDEX -u PIP_FIND_LINKS /pipenv-venv/bin/python -m pip install --upgrade pip 'setuptools>=78.1.1' \
-    && env -u PIP_NO_INDEX -u PIP_FIND_LINKS /pipenv-venv/bin/python -m pip install pipenv
-
-ENV PATH="/pipenv-venv/bin:$PATH"
 WORKDIR ${APP_ROOT}
 
-# install dependencies
-COPY Pipfile .
-COPY Pipfile.lock .
-# Keep pkgconf-pkg-config: the installed libxcrypt-devel package requires it.
+# Install the complete default category from the Pipfile.lock export, using only
+# Hermeto-prefetched source archives and build dependencies.
 COPY requirements-onprem.txt .
-RUN microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install pkgconf-pkg-config rust-toolset && \
-    # install the app dependencies into ${APP_ROOT}/.venv
-    env -u PIP_NO_INDEX -u PIP_FIND_LINKS PIP_NO_BINARY=confluent-kafka PKG_CONFIG_PATH=/usr/lib/pkgconfig pipenv sync --categories=default && \
-    # replace the locked pydantic-core wheel with a wheel built from its sdist
-    if [ -f /cachi2/cachi2.env ]; then \
-        . /cachi2/cachi2.env; \
-    elif [ -f /tmp/hermeto.env ]; then \
-        . /tmp/hermeto.env; \
-    else \
-        echo "Hermeto environment file not found" >&2; exit 1; \
-    fi && \
-    PIP_NO_BINARY=pydantic-core ${APP_ROOT}/.venv/bin/pip install --no-deps --force-reinstall -r requirements-onprem.txt && \
-    # delete the pipenv cache
-    pipenv --clear && \
+RUN microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install \
+        cmake gcc gcc-gfortran libffi-devel libzstd-devel lz4-devel ninja-build openblas-devel \
+        openssl-devel pkgconf-pkg-config postgresql-devel rust-toolset && \
+    . /prefetch/prefetch.env && \
+    unset PIP_NO_CACHE_DIR && \
+    PKG_CONFIG_PATH=/usr/lib/pkgconfig \
+        ${APP_ROOT}/.venv/bin/pip install --require-hashes -r requirements-onprem.txt && \
     microdnf -y clean all --enablerepo='*'
 
 FROM base AS final

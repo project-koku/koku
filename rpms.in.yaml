@@ -1,0 +1,42 @@
+contentOrigin:
+  repos:
+    - repoid: ubi-9-baseos-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/baseos/os
+    - repoid: ubi-9-appstream-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/appstream/os
+    - repoid: ubi-9-codeready-builder-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/codeready-builder/os
+    - repoid: ubi-9-baseos-source-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/baseos/source/SRPMS
+    - repoid: ubi-9-appstream-source-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/appstream/source/SRPMS
+    - repoid: ubi-9-codeready-builder-source-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/codeready-builder/source/SRPMS
+packages:
+  - cmake
+  - coreutils
+  - gcc
+  - gcc-c++
+  - gcc-gfortran
+  - glibc-langpack-en
+  - libffi-devel
+  - libzstd-devel
+  - libzstd
+  - lz4-devel
+  - make
+  - ninja-build
+  - openblas-devel
+  - openssl-devel
+  - openssl-libs
+  - pkgconf-pkg-config
+  - postgresql-devel
+  - python3.12
+  - python3.12-devel
+  - rust-toolset
+  - shadow-utils
+  - zlib-devel
+  - zlib
+arches:
+  - x86_64
+installWeakDeps: false
+allowerasing: true

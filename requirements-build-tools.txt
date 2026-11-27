@@ -1,0 +1,4 @@
+# Additional dynamic PEP 517 backend dependency not found by pybuild-deps.
+# meson-python uses this build-only executable when producing Linux wheels.
+--index-url https://pypi.python.org/simple
+patchelf==0.19.3.0 --hash=sha256:1668a30fcc414debbb1604cd0a361b2f28a33a0ff6e74a74bc71766ee746e21f
