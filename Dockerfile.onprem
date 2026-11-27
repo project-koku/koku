@@ -58,7 +58,7 @@ COPY requirements-onprem.txt .
 RUN microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install \
         cmake gcc gcc-gfortran libffi-devel libzstd-devel lz4-devel ninja-build openblas-devel \
         openssl-devel pkgconf-pkg-config postgresql-devel rust-toolset && \
-    . /cachi2/cachi2.env && \
+    . /prefetch/prefetch.env && \
     unset PIP_NO_CACHE_DIR && \
     PKG_CONFIG_PATH=/usr/lib/pkgconfig \
         ${APP_ROOT}/.venv/bin/pip install --require-hashes -r requirements-onprem.txt && \
