@@ -4,11 +4,15 @@
 #
 """Cache functions."""
 import logging
+import time
+from functools import wraps
 
 from django.conf import settings
 from django.core.cache import caches
 from django.core.cache.backends.dummy import DummyCache
 from django.core.cache.backends.locmem import LocMemCache
+from django.db import connection
+from django.views.decorators.cache import cache_page
 from django_redis.cache import RedisCache
 from redis import Redis
 
@@ -36,6 +40,85 @@ OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
 SOURCES_CACHE_PREFIX = "sources"
 TAG_MAPPING_PREFIX = "tag-mapping"
 OCP_ON_CLOUD_MATCHED_TAGS_PREFIX = "ocp-on-cloud-matched-tags"
+CACHE_GENERATION_PREFIX = "cache-generation"
+
+
+def build_cache_generation_key(schema_name, cache_key_prefix):
+    """Return the key holding the cache generation of a tenant."""
+    return f"{CACHE_GENERATION_PREFIX}:{cache_key_prefix}:{schema_name}"
+
+
+def get_cache_generation(schema_name, cache_key_prefix):
+    """Return the generation that scopes the responses cached under a prefix.
+
+    The generation is part of the key of every response cached under
+    `cache_key_prefix`, so dropping those responses only takes a bump of this
+    counter: the entries written under the previous generation stop being
+    reachable and expire on their own.
+    """
+    cache = caches[CacheEnum.generation]
+    key = build_cache_generation_key(schema_name, cache_key_prefix)
+    if (generation := cache.get(key)) is not None:
+        return generation
+    # Seed from the clock rather than from zero. The counter does not expire,
+    # but it can still be lost to an eviction or a flush, and a seed that only
+    # grows keeps the new generation from colliding with entries that an older
+    # one cached and that have not expired yet. Milliseconds leave room for a
+    # thousand bumps a second before a re-seed could land on a used value.
+    generation = int(time.time() * 1000)
+    if cache.add(key, generation, timeout=None):
+        return generation
+    # Another process seeded the counter first, follow it.
+    return cache.get(key, default=generation)
+
+
+def bump_cache_generation(schema_name, cache_key_prefix):
+    """Drop every response cached for a tenant under a prefix.
+
+    Costs a single increment, no matter how many responses the prefix holds.
+    """
+    cache = caches[CacheEnum.generation]
+    key = build_cache_generation_key(schema_name, cache_key_prefix)
+    try:
+        generation = cache.incr(key)
+    except ValueError:
+        # No counter yet, so the prefix holds nothing worth dropping.
+        generation = get_cache_generation(schema_name, cache_key_prefix)
+    LOG.info(
+        log_json(
+            msg="bumped cache generation",
+            schema=schema_name,
+            cache_key_prefix=cache_key_prefix,
+            generation=generation,
+        )
+    )
+    return generation
+
+
+def invalidate_sources_cache(schema_name):
+    """Drop the cached GET /sources/ responses of a tenant."""
+    if schema_name:
+        bump_cache_generation(schema_name, SOURCES_CACHE_PREFIX)
+
+
+def cache_page_for_tenant(timeout, *, cache_name, key_prefix):
+    """Cache a view the way `cache_page` does, under the tenant's generation.
+
+    Every page of every query string the view answers ends up below the
+    generation currently held for the tenant, which is what turns invalidation
+    into one increment instead of a search through the keyspace.
+    """
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            generation = get_cache_generation(connection.schema_name, key_prefix)
+            cached_view = cache_page(timeout, cache=cache_name, key_prefix=f"{key_prefix}.{generation}")(view_func)
+            return cached_view(request, *args, **kwargs)
+
+        return _wrapped_view
+
+    return decorator
 
 
 def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name=CacheEnum.api):
@@ -54,8 +137,12 @@ def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None
             ssl=settings.REDIS_SSL,
             **settings.REDIS_CONNECTION_POOL_KWARGS,
         )
-        all_keys = cache.keys("*")
-        all_keys = [key.decode("utf-8") for key in all_keys]
+        # KEYS blocks every other client until it has walked the whole keyspace.
+        # SCAN walks it in batches, letting the other clients through in between.
+        # The keys are matched below rather than by a glob here, because where
+        # the schema name sits in the key depends on the cache: only the caches
+        # using django_tenants' KEY_FUNCTION put it first.
+        all_keys = [key.decode("utf-8") for key in cache.scan_iter(count=1000)]
     elif isinstance(cache, LocMemCache):
         all_keys = cache._cache.keys()
         all_keys = list(all_keys)

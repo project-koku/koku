@@ -279,6 +279,7 @@ KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 class CacheEnum(StrEnum):
     default = "default"
     api = "api"
+    generation = "generation"
     rbac = "rbac"
     worker = "worker"
 
@@ -300,6 +301,14 @@ if "test" in sys.argv:
             "KEY_PREFIX": "api",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
+        },
+        CacheEnum.generation: {
+            # Kept alive in tests so that a test giving `api` a real backend
+            # gets the cache keys production builds.
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "cache-generation",
+            "KEY_PREFIX": "generation",
+            "TIMEOUT": None,
         },
         CacheEnum.rbac: {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
@@ -338,6 +347,22 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+            },
+        },
+        CacheEnum.generation: {
+            # Counters that scope the keys of the cached views, see koku.cache.
+            # They carry the schema name in the key instead of taking it from
+            # the connection, because workers bump them from the public schema
+            # while the API reads them from the tenant schema. Hence no
+            # KEY_FUNCTION here.
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "KEY_PREFIX": "generation",
+            "TIMEOUT": None,  # a counter has to outlive the responses it scopes
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "IGNORE_EXCEPTIONS": True,
                 "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },

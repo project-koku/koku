@@ -29,8 +29,7 @@ from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from api.utils import DateHelper
 from cost_models.models import CostModelMap
-from koku.cache import invalidate_cache_for_tenant_and_cache_key
-from koku.cache import SOURCES_CACHE_PREFIX
+from koku.cache import invalidate_sources_cache
 from koku.database import execute_delete_sql
 from masu.util.ocp.operator_versions import LATEST_OPERATOR_VERSION
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -574,7 +573,7 @@ def provider_post_save_refresh_cache(*args, **kwargs):
     """Invalidate sources view cache after provider save."""
     provider: Provider = kwargs["instance"]
     if customer := provider.customer:
-        invalidate_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
+        invalidate_sources_cache(customer.schema_name)
 
 
 @receiver(post_delete, sender=Provider)
