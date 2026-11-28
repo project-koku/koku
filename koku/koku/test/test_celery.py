@@ -19,8 +19,10 @@ from koku import is_task_currently_running
 from koku.celery import app as celery_app
 from koku.celery import CHECK_REPORT_UPDATES_BEAT_NAME
 from koku.celery import CURRENCY_RATES_BEAT_NAME
+from koku.celery import EVENTS_SYNC_BEAT_NAME
 from koku.celery import precreate_partitions_schedule
 from koku.celery import register_daily_currency_rates_beat
+from koku.celery import register_events_sync_beat
 from koku.celery import register_report_check_beat
 from koku.celery import register_saas_only_beats
 from koku.celery import SAAS_ONLY_BEAT_NAMES
@@ -107,6 +109,34 @@ class CurrencyRatesBeatScheduleTest(SimpleTestCase):
 
                 self.assertFalse(scheduled)
                 self.assertNotIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)
+
+
+class EventsSyncBeatScheduleTest(SimpleTestCase):
+    """Tests for conditional registration of the koku-events pull sync beat."""
+
+    def test_register_events_sync_beat_with_url(self):
+        """Beat is registered when COST_EVENTS_URL is set."""
+        beat_schedule = {}
+        scheduled = register_events_sync_beat(
+            beat_schedule, "http://koku-events:8080", schedule=crontab(minute="*/15")
+        )
+
+        self.assertTrue(scheduled)
+        self.assertIn(EVENTS_SYNC_BEAT_NAME, beat_schedule)
+        self.assertEqual(
+            beat_schedule[EVENTS_SYNC_BEAT_NAME]["task"],
+            "masu.celery.tasks.sync_events_sources",
+        )
+
+    def test_register_events_sync_beat_without_url(self):
+        """Beat is not registered when COST_EVENTS_URL is empty, None, or whitespace."""
+        for invalid_url in ("", "   ", None):
+            with self.subTest(invalid_url=invalid_url):
+                beat_schedule = {}
+                scheduled = register_events_sync_beat(beat_schedule, invalid_url)
+
+                self.assertFalse(scheduled)
+                self.assertNotIn(EVENTS_SYNC_BEAT_NAME, beat_schedule)
 
 
 class PrecreatePartitionsBeatScheduleTest(SimpleTestCase):

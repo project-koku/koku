@@ -35,6 +35,7 @@ from koku.database import execute_delete_sql
 from masu.util.ocp.operator_versions import LATEST_OPERATOR_VERSION
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
+from reporting.provider.events.models import EventsCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest
@@ -427,6 +428,8 @@ class ProviderManager:
             Provider.PROVIDER_AZURE_LOCAL: (AzureCostEntryBill, "billing_period_start"),
             Provider.PROVIDER_GCP: (GCPCostEntryBill, "billing_period_start"),
             Provider.PROVIDER_GCP_LOCAL: (GCPCostEntryBill, "billing_period_start"),
+            Provider.PROVIDER_EVENTS: (EventsCostEntryBill, "billing_period_start"),
+            Provider.PROVIDER_EVENTS_LOCAL: (EventsCostEntryBill, "billing_period_start"),
         }
         model_info = period_models.get(provider.type)
         if not model_info:
@@ -614,6 +617,10 @@ def provider_post_delete_callback(*args, **kwargs):
 
     LOG.debug("Deleting any related CostModelMap records")
     execute_delete_sql(CostModelMap.objects.filter(provider_uuid=provider.uuid))
+
+    if provider.type in (Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL):
+        LOG.info("Skipping archived S3/Trino cleanup for Events provider %s", provider.uuid)
+        return
 
     # Local import of task function to avoid potential import cycle.
     from masu.celery.tasks import delete_archived_data

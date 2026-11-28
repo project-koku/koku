@@ -29,6 +29,7 @@ from koku.probe_server import touch_parent_heartbeat
 LOG = logging.getLogger(__name__)
 
 CURRENCY_RATES_BEAT_NAME = "get_daily_currency_rates"
+EVENTS_SYNC_BEAT_NAME = "sync_events_sources"
 CHECK_REPORT_UPDATES_BEAT_NAME = "check-report-updates-batched"
 SAAS_ONLY_BEAT_NAMES = (
     "finalize_hcs_reports",
@@ -58,6 +59,17 @@ def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=Non
     beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
         "task": "masu.celery.tasks.get_daily_currency_rates",
         "schedule": schedule or crontab(hour=1, minute=0),
+    }
+    return True
+
+
+def register_events_sync_beat(beat_schedule, cost_events_url, schedule=None):
+    """Register periodic koku-events pull sync beat only when COST_EVENTS_URL is set."""
+    if not (cost_events_url or "").strip():
+        return False
+    beat_schedule[EVENTS_SYNC_BEAT_NAME] = {
+        "task": "masu.celery.tasks.sync_events_sources",
+        "schedule": schedule or crontab(minute="*/15"),
     }
     return True
 
@@ -317,6 +329,19 @@ if not register_onprem_only_beats(app.conf.beat_schedule, onprem=settings.ONPREM
 # Beat used to fetch daily rates (only when CURRENCY_URL is configured)
 if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
     LOG.info("Daily currency rates beat not registered (CURRENCY_URL is empty)")
+
+# Beat used to pull daily cost rollups from koku-events (only when COST_EVENTS_URL is configured)
+events_sync_schedule = None
+if settings.COST_EVENTS_URL:
+    events_fallback = validate_cron_expression("*/15 * * * *")
+    events_expr = validate_cron_expression(settings.COST_EVENTS_SYNC_SCHEDULE, events_fallback)
+    events_sync_schedule = crontab(*events_expr.split(" ", 5))
+if not register_events_sync_beat(
+    app.conf.beat_schedule,
+    settings.COST_EVENTS_URL,
+    schedule=events_sync_schedule,
+):
+    LOG.info("Events sync beat not registered (COST_EVENTS_URL is empty)")
 
 # Specify the frequency for checking delayed summary tasks
 DELAYED_TASK_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_TASK_POLLING_MINUTES", default="30")

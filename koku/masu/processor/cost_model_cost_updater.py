@@ -12,6 +12,7 @@ from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.cache import TAG_MAPPING_PREFIX
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
+from masu.processor.events.events_cost_model_cost_updater import EventsCostModelCostUpdater
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.util.common import SummaryRangeConfig
@@ -72,6 +73,8 @@ class CostModelCostUpdater:
             return OCPCostModelCostUpdater(self._schema, self._provider)
         if self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             return GCPCostModelCostUpdater(self._schema, self._provider)
+        if self._provider.type in (Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL):
+            return EventsCostModelCostUpdater(self._schema, self._provider)
 
     def update_cost_model_costs(self, start_date=None, end_date=None):
         """

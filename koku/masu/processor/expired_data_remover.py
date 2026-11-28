@@ -16,6 +16,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
+from masu.processor.events.events_report_db_cleaner import EventsReportDBCleaner
 from masu.processor.gcp.gcp_report_db_cleaner import GCPReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
 
@@ -79,6 +80,8 @@ class ExpiredDataRemover:
             return OCPReportDBCleaner(self._schema)
         if self._provider in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             return GCPReportDBCleaner(self._schema)
+        if self._provider in (Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL):
+            return EventsReportDBCleaner(self._schema)
 
         return None
 

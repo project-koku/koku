@@ -14,6 +14,7 @@ CMMO_ID_TO_PROVIDER_TYPE = {
     "2": Provider.PROVIDER_AWS,
     "3": Provider.PROVIDER_AZURE,
     "4": Provider.PROVIDER_GCP,
+    "5": Provider.PROVIDER_EVENTS,
 }
 
 # Koku provider type -> CMMO ID (e.g., "OCP" -> "1")
@@ -25,6 +26,7 @@ CMMO_ID_TO_SOURCE_NAME = {
     "2": "amazon",
     "3": "azure",
     "4": "google",
+    "5": "events",
 }
 
 # Source name -> CMMO ID (e.g., "openshift" -> "1")

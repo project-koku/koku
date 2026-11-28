@@ -948,6 +948,49 @@ Tag-mapping resummarize continues to use `delayed_summarize_current_month`
 
 ---
 
+### `masu.celery.tasks.sync_events_sources`
+
+**Module**: `koku/masu/celery/tasks.py`
+
+**Queue**: `DEFAULT`
+
+**Description**: Periodic beat task that discovers and dispatches `sync_events_source` for every active `Events` / `Events-local` provider. Celery Beat registers this beat (`sync_events_sources`) only when `COST_EVENTS_URL` is set, using `COST_EVENTS_SYNC_SCHEDULE` (default `*/15 * * * *`).
+
+**Feature Flag**: Requires `cost-management.backend.events_source` (automatically active on-prem when `COST_EVENTS_URL` is set).
+
+**Workflow**:
+1. Checks `is_events_source_enabled()`.
+2. When `COST_EVENTS_URL` is set, runs `ensure_builtin_events_source()` for each existing customer tenant to ensure a built-in `Events` provider exists without manual source setup.
+3. Dispatches `sync_events_source.s(schema_name, provider_uuid, ...)` onto the customer's `DownloadQueue`.
+
+---
+
+### `masu.celery.tasks.sync_events_source`
+
+**Module**: `koku/masu/celery/tasks.py`
+
+**Queue**: `DownloadQueue.DEFAULT`
+
+**Description**: Pulls dirty daily cost rollups from `koku-events` (`GET /api/v1/export/dirty-dates` and `GET /api/v1/export/daily`) for a single `Events` provider and updates all PostgreSQL daily summary, UI summary, and tag summary tables.
+
+**Key Parameters**:
+- `schema_name` - Database schema name
+- `provider_uuid` - Provider unique identifier
+- `start_date` - Optional explicit backfill start date (`YYYY-MM-DD`)
+- `end_date` - Optional explicit backfill end date (`YYYY-MM-DD`)
+- `tracing_id` - Optional tracing identifier
+
+**Feature Flag**: Requires `cost-management.backend.events_source`.
+
+**Workflow**:
+1. Reads the provider's last watermark (`Provider.polling_timestamp`, or `start_date`/`end_date` for backfill).
+2. Calls `GET /api/v1/export/dirty-dates?since=<watermark>` to obtain `dirty_dates` and the server snapshot timestamp `as_of`.
+3. Streams NDJSON rollups via `GET /api/v1/export/daily?dates=...&format=ndjson` (chunked to at most 366 dates per request).
+4. Atomically replaces affected daily summary rows, updates enabled tag keys, applies tag mappings, applies markup cost model percentages (`EventsCostModelCostUpdater`), rebuilds UI summary tables and tag summaries, and ensures any newly seen event currencies are enabled in `TenantCurrency`.
+5. Records a `CostUsageReportManifest` audit row, advances `Provider.polling_timestamp` to `as_of`, and invalidates the Events view cache.
+
+---
+
 ### `masu.celery.tasks.scrape_azure_storage_capacities`
 
 **Module**: `koku/masu/celery/tasks.py`
@@ -1193,6 +1236,7 @@ All tasks use the `LogErrorsTask` base class which:
 
 Several tasks respect Unleash feature flags:
 
+- **Events Source Sync**: `cost-management.backend.events_source`
 - **HCS Processing**: `cost-management.backend.hcs-data-processor`
 - **SUBS Extraction**: `cost-management.backend.subs-data-extraction`
 - **SUBS Messaging**: `cost-management.backend.subs-data-messaging`
@@ -1204,6 +1248,11 @@ Several tasks respect Unleash feature flags:
 
 Key environment variables affecting task behavior:
 
+- `COST_EVENTS_URL` - Base URL of the `koku-events` export service; enables the `sync_events_sources` beat
+- `COST_EVENTS_AUTH_TOKEN` - Shared bearer token for `koku-events` `/api/v1/export/*`
+- `COST_EVENTS_CA_CERT` - Optional CA bundle path for TLS verification against `koku-events`
+- `COST_EVENTS_SYNC_SCHEDULE` - 5-field cron schedule for `sync_events_sources` (default `*/15 * * * *`)
+- `COST_EVENTS_HTTP_TIMEOUT` - HTTP timeout in seconds for `koku-events` export requests (default `60`)
 - `SCHEDULE_REPORT_CHECKS` - Enable scheduled report checks
 - `REPORT_DOWNLOAD_SCHEDULE` - Cron schedule for report downloads
 - `REMOVE_EXPIRED_REPORT_DATA_ON_DAY` - Day of month for data removal

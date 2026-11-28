@@ -107,6 +107,28 @@ def _gcp_provider_ready_for_create(provider):
     )
 
 
+def events_settings_ready(provider):
+    """Verify that the Events application settings or env defaults provide an endpoint."""
+    from providers.events.provider import resolve_events_endpoint
+
+    data_source = provider.billing_source.get("data_source") if isinstance(provider.billing_source, dict) else None
+    credentials = provider.authentication.get("credentials") if isinstance(provider.authentication, dict) else None
+    endpoint_url, _, _ = resolve_events_endpoint(data_source=data_source, credentials=credentials)
+    return bool(endpoint_url)
+
+
+def _events_provider_ready_for_create(provider):
+    """Determine if Events provider is ready for provider creation."""
+    return bool(
+        provider.source_id
+        and provider.name
+        and provider.auth_header
+        and events_settings_ready(provider)
+        and not provider.status
+        and not provider.koku_uuid
+    )
+
+
 SCREEN_MAP = {
     Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
     Provider.PROVIDER_AWS_LOCAL: _aws_provider_ready_for_create,
@@ -115,6 +137,8 @@ SCREEN_MAP = {
     Provider.PROVIDER_AZURE_LOCAL: _azure_provider_ready_for_create,
     Provider.PROVIDER_GCP: _gcp_provider_ready_for_create,
     Provider.PROVIDER_GCP_LOCAL: _gcp_provider_ready_for_create,
+    Provider.PROVIDER_EVENTS: _events_provider_ready_for_create,
+    Provider.PROVIDER_EVENTS_LOCAL: _events_provider_ready_for_create,
 }
 
 
@@ -135,6 +159,8 @@ APP_SETTINGS_SCREEN_MAP = {
     Provider.PROVIDER_AZURE_LOCAL: azure_settings_ready,
     Provider.PROVIDER_GCP: gcp_settings_ready,
     Provider.PROVIDER_GCP_LOCAL: gcp_settings_ready,
+    Provider.PROVIDER_EVENTS: events_settings_ready,
+    Provider.PROVIDER_EVENTS_LOCAL: events_settings_ready,
 }
 
 

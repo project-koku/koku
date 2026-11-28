@@ -124,12 +124,20 @@ class AdminSourcesSerializer(SourcesSerializer):
         raise serializers.ValidationError(error_obj(key, message))
 
     def _validate_onprem_source_type(self, source_type):
-        """On-prem deployments only support OpenShift sources."""
-        if settings.ONPREM and source_type != Provider.PROVIDER_OCP:
+        """On-prem deployments support OpenShift, plus Events when enabled."""
+        if not settings.ONPREM:
+            return
+        from masu.processor import is_events_source_enabled
+
+        allowed = {Provider.PROVIDER_OCP}
+        if is_events_source_enabled():
+            allowed.add(Provider.PROVIDER_EVENTS)
+        if source_type not in allowed:
+            allowed_str = ", ".join(sorted(allowed))
             raise serializers.ValidationError(
                 error_obj(
                     "source_type",
-                    f"source_type '{source_type}' is not supported on-premise; only OCP is allowed.",
+                    f"source_type '{source_type}' is not supported on-premise; allowed: {allowed_str}.",
                 )
             )
 

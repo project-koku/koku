@@ -53,15 +53,18 @@ class ProviderBuilder:
         return db_dict
 
     def _build_credentials_auth(self, provider_type, authentication):
-        credentials = authentication.get("credentials")
+        normalized = Provider.PROVIDER_CASE_MAPPING.get((provider_type or "").lower())
+        credentials = (authentication or {}).get("credentials")
         if credentials and isinstance(credentials, dict):
             auth = {"credentials": credentials}
+        elif normalized in (Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL):
+            auth = {"credentials": {}}
         else:
             raise ProviderBuilderError("Missing credentials")
         return auth
 
     def _build_provider_data_source(self, billing_source):
-        data_source = billing_source.get("data_source")
+        data_source = (billing_source or {}).get("data_source")
         if data_source and isinstance(data_source, dict):
             billing = {"data_source": data_source}
         else:
@@ -73,6 +76,9 @@ class ProviderBuilder:
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
         if provider_type == Provider.PROVIDER_OCP:
             return {}
+        if provider_type in (Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL):
+            data_source = (billing_source or {}).get("data_source")
+            return {"data_source": data_source if isinstance(data_source, dict) else {}}
         else:
             return self._build_provider_data_source(billing_source)
 

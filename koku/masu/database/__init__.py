@@ -42,3 +42,10 @@ GCP_REPORT_TABLE_MAP = {
     "ocp_on_gcp_project_daily_summary": "reporting_ocpgcpcostlineitem_project_daily_summary_p",
     "ocp_on_gcp_tags_summary": "reporting_ocpgcptags_summary",
 }
+
+EVENTS_REPORT_TABLE_MAP = {
+    "bill": "reporting_eventscostentrybill",
+    "line_item_daily_summary": "reporting_eventscostentrylineitem_daily_summary",
+    "tags_summary": "reporting_eventstags_summary",
+    "tags_values": "reporting_eventstags_values",
+}

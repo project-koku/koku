@@ -431,8 +431,30 @@ class Orchestrator:
                 Provider.PROVIDER_GCP_LOCAL,
             ]:
                 self.prepare_continuous_report_sources(provider)
+            elif provider.type in [
+                Provider.PROVIDER_EVENTS,
+                Provider.PROVIDER_EVENTS_LOCAL,
+            ]:
+                self.prepare_events_report_sources(provider)
             else:
                 self.prepare_monthly_report_sources(provider)
+
+    def prepare_events_report_sources(self, provider: Provider):
+        """Queue incremental HTTP pull sync for an Events provider."""
+        from masu.celery.tasks import sync_events_source
+
+        schema_name = provider.account.get("schema_name")
+        queue = self.queue_name or get_customer_queue(schema_name, SummaryQueue)
+        LOG.info(
+            log_json(
+                provider.uuid,
+                msg="queueing Events pull sync",
+                schema=schema_name,
+                provider_uuid=str(provider.uuid),
+                queue=queue,
+            )
+        )
+        sync_events_source.s(provider_uuid=str(provider.uuid)).set(queue=queue).apply_async()
 
     def prepare_monthly_report_sources(self, provider: Provider):
         """

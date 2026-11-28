@@ -164,12 +164,38 @@ class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     data_source = serializers.JSONField(required=False, default={})
 
 
+class EventsAuthenticationSerializer(ProviderAuthenticationSerializer):
+    """Events authentication serializer (optional token; defaults to operator secret)."""
+
+    credentials = serializers.JSONField(required=False, default={})
+
+    def validate_credentials(self, creds):
+        """Validate Events credentials dictionary."""
+        if not isinstance(creds, dict):
+            raise serializers.ValidationError(error_obj("credentials", "credentials must be a JSON object."))
+        return creds
+
+
+class EventsBillingSourceSerializer(ProviderBillingSourceSerializer):
+    """Events billing source serializer (optional url/tenant_id; defaults to COST_EVENTS_URL)."""
+
+    data_source = serializers.JSONField(required=False, default={})
+
+    def validate_data_source(self, data_source):
+        """Validate Events data_source dictionary."""
+        if not isinstance(data_source, dict):
+            raise serializers.ValidationError(error_obj("data_source", "data_source must be a JSON object."))
+        return data_source
+
+
 # Registry of authentication serializers.
 AUTHENTICATION_SERIALIZERS = {
     Provider.PROVIDER_AWS: AWSAuthenticationSerializer,
     Provider.PROVIDER_AWS_LOCAL: AWSAuthenticationSerializer,
     Provider.PROVIDER_AZURE: AzureAuthenticationSerializer,
     Provider.PROVIDER_AZURE_LOCAL: AzureAuthenticationSerializer,
+    Provider.PROVIDER_EVENTS: EventsAuthenticationSerializer,
+    Provider.PROVIDER_EVENTS_LOCAL: EventsAuthenticationSerializer,
     Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
     Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
     Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
@@ -183,6 +209,8 @@ BILLING_SOURCE_SERIALIZERS = {
     Provider.PROVIDER_AWS_LOCAL: AWSBillingSourceSerializer,
     Provider.PROVIDER_AZURE: AzureBillingSourceSerializer,
     Provider.PROVIDER_AZURE_LOCAL: AzureBillingSourceSerializer,
+    Provider.PROVIDER_EVENTS: EventsBillingSourceSerializer,
+    Provider.PROVIDER_EVENTS_LOCAL: EventsBillingSourceSerializer,
     Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
     Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
     Provider.PROVIDER_OCP: OCPBillingSourceSerializer,

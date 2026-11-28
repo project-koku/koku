@@ -31,6 +31,7 @@ CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lo
 CURRENCY_DISCOVERY_OPTIMIZATION_FLAG = "cost-management.backend.currency-discovery-optimization"
 DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
+EVENTS_SOURCE_FLAG = "cost-management.backend.events_source"
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
 INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
 INGRESS_STAGING_LISTENER_FLAG = "cost-management.backend.ingress-staging-listener"
@@ -56,6 +57,18 @@ def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):
         return UNLEASH_CLIENT.is_enabled(feature_flag, context, fallback_development_true)
     else:
         return UNLEASH_CLIENT.is_enabled(feature_flag, context)
+
+
+def is_events_source_enabled(schema=None):
+    """Return True when the Events cost provider is enabled.
+
+    On-prem deployments do not run Unleash; Events is enabled strictly when
+    COST_EVENTS_URL is wired (e.g. via koku-service-operator spec.costEvents).
+    SaaS deployments gate rollout behind the EVENTS_SOURCE_FLAG Unleash flag.
+    """
+    if settings.ONPREM:
+        return bool((getattr(settings, "COST_EVENTS_URL", "") or "").strip())
+    return is_feature_flag_enabled_by_schema(schema, EVENTS_SOURCE_FLAG, dev_fallback=True)
 
 
 def is_currency_discovery_optimization_enabled(schema: str) -> bool:

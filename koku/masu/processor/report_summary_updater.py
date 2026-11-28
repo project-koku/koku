@@ -20,18 +20,21 @@ from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
+from masu.processor.events.events_report_summary_updater import EventsReportSummaryUpdater
 from masu.processor.gcp.gcp_report_parquet_summary_updater import GCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdaterClusterNotFound
 from reporting.provider.aws.models import AWSCostSummaryP
 from reporting.provider.azure.models import AzureCostSummaryP
+from reporting.provider.events.models import EventsCostSummaryP
 from reporting.provider.gcp.models import GCPCostSummaryP
 
 LOG = logging.getLogger(__name__)
 REPORT_SUMMARY_UPDATER_DICT = {
     Provider.PROVIDER_AWS: AWSReportParquetSummaryUpdater,
     Provider.PROVIDER_AZURE: AzureReportParquetSummaryUpdater,
+    Provider.PROVIDER_EVENTS: EventsReportSummaryUpdater,
     Provider.PROVIDER_GCP: GCPReportParquetSummaryUpdater,
     Provider.PROVIDER_OCP: OCPReportParquetSummaryUpdater,
 }
@@ -41,6 +44,8 @@ _CLOUD_BILL_CURRENCY_SOURCES = {
     Provider.PROVIDER_AWS_LOCAL: (AWSCostSummaryP, "currency_code"),
     Provider.PROVIDER_AZURE: (AzureCostSummaryP, "currency"),
     Provider.PROVIDER_AZURE_LOCAL: (AzureCostSummaryP, "currency"),
+    Provider.PROVIDER_EVENTS: (EventsCostSummaryP, "currency"),
+    Provider.PROVIDER_EVENTS_LOCAL: (EventsCostSummaryP, "currency"),
     Provider.PROVIDER_GCP: (GCPCostSummaryP, "currency"),
     Provider.PROVIDER_GCP_LOCAL: (GCPCostSummaryP, "currency"),
 }

@@ -108,6 +108,7 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_AWS: "Amazon Web Services",
     Provider.PROVIDER_AZURE: "Microsoft Azure",
     Provider.PROVIDER_GCP: "Google Cloud",
+    Provider.PROVIDER_EVENTS: "Events",
 }
 
 COST_MODEL_METRIC_MAP = {

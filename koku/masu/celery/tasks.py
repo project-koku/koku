@@ -69,6 +69,50 @@ def check_report_updates(*args, **kwargs):
     orchestrator.prepare()
 
 
+@celery_app.task(name="masu.celery.tasks.sync_events_source", queue=DEFAULT)
+def sync_events_source(provider_uuid):
+    """Pull dirty UTC dates and daily cost rollups for a single Events provider."""
+    from masu.processor.events.events_report_ingestor import EventsReportIngestor
+
+    provider = Provider.objects.filter(
+        uuid=provider_uuid,
+        type__in=(Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL),
+        active=True,
+        paused=False,
+    ).first()
+    if not provider:
+        LOG.warning(log_json(msg="Events provider not found or inactive", provider_uuid=str(provider_uuid)))
+        return None
+    return EventsReportIngestor(provider).sync()
+
+
+@celery_app.task(name="masu.celery.tasks.sync_events_sources", queue=DEFAULT)
+def sync_events_sources():
+    """Ensure built-in Events sources (when COST_EVENTS_URL is set) and sync all active Events providers."""
+    from masu.processor.events.events_report_ingestor import ensure_builtin_events_source
+    from masu.processor.events.events_report_ingestor import EventsReportIngestor
+
+    ensure_builtin_events_source()
+    providers = Provider.objects.filter(
+        type__in=(Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL),
+        active=True,
+        paused=False,
+    )
+    results = {}
+    for provider in providers:
+        try:
+            results[str(provider.uuid)] = EventsReportIngestor(provider).sync()
+        except Exception as err:
+            LOG.error(
+                log_json(
+                    msg="Events sync failed for provider",
+                    provider_uuid=str(provider.uuid),
+                    error=str(err),
+                )
+            )
+    return results
+
+
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""

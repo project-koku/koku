@@ -203,6 +203,15 @@ SOURCES = ENVIRONMENT.bool("SOURCES", default=False)
 # When ONPREM=True and MASU=True, empty/missing values fail closed (401).
 # Wired by the Operator from a Secret (see COST-8059 follow-up).
 MASU_ADMIN_TOKEN = (ENVIRONMENT.get_value("MASU_ADMIN_TOKEN", default="") or "").strip()
+
+### Cost Events (koku-events) pull integration
+# Wired by koku-service-operator when spec.costEvents.enabled=true.
+# Empty by default; when unset, periodic sync_events_sources beat is not scheduled.
+COST_EVENTS_URL = (ENVIRONMENT.get_value("COST_EVENTS_URL", default="") or "").strip().rstrip("/")
+COST_EVENTS_AUTH_TOKEN = (ENVIRONMENT.get_value("COST_EVENTS_AUTH_TOKEN", default="") or "").strip()
+COST_EVENTS_CA_CERT = (ENVIRONMENT.get_value("COST_EVENTS_CA_CERT", default="") or "").strip()
+COST_EVENTS_SYNC_SCHEDULE = ENVIRONMENT.get_value("COST_EVENTS_SYNC_SCHEDULE", default="*/15 * * * *")
+COST_EVENTS_HTTP_TIMEOUT = ENVIRONMENT.int("COST_EVENTS_HTTP_TIMEOUT", default=60)
 ROOT_URLCONF = "koku.urls"
 if MASU:
     ROOT_URLCONF = "masu.urls"

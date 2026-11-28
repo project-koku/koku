@@ -14,6 +14,8 @@ from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider
 from providers.azure_local.provider import AzureLocalProvider
+from providers.events.provider import EventsLocalProvider
+from providers.events.provider import EventsProvider
 from providers.gcp.provider import GCPProvider
 from providers.gcp_local.provider import GCPLocalProvider
 from providers.ocp.provider import OCPProvider
@@ -44,6 +46,8 @@ class ProviderAccessor:
             Provider.PROVIDER_AWS: AWSProvider,
             Provider.PROVIDER_AWS_LOCAL: AWSLocalProvider,
             Provider.PROVIDER_AZURE_LOCAL: AzureLocalProvider,
+            Provider.PROVIDER_EVENTS: EventsProvider,
+            Provider.PROVIDER_EVENTS_LOCAL: EventsLocalProvider,
             Provider.PROVIDER_OCP: OCPProvider,
             Provider.PROVIDER_AZURE: AzureProvider,
             Provider.PROVIDER_GCP: GCPProvider,

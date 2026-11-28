@@ -81,8 +81,13 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
     """
 
     def get_queryset(self):
-        """Return a Queryset of non-OCP and active and non-paused Providers."""
-        return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
+        """Return a Queryset of pollable non-OCP, non-Events active providers."""
+        return (
+            super()
+            .get_queryset()
+            .filter(active=True, paused=False)
+            .exclude(type__in=[Provider.PROVIDER_OCP, Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL])
+        )
 
     def get_polling_batch(self, filters=None):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
@@ -117,10 +122,12 @@ class Provider(models.Model):
     PROVIDER_OCP = "OCP"
     PROVIDER_AZURE = "Azure"
     PROVIDER_GCP = "GCP"
+    PROVIDER_EVENTS = "Events"
     # Local Providers are for local development and testing
     PROVIDER_AWS_LOCAL = "AWS-local"
     PROVIDER_AZURE_LOCAL = "Azure-local"
     PROVIDER_GCP_LOCAL = "GCP-local"
+    PROVIDER_EVENTS_LOCAL = "Events-local"
     # The following constants are not provider types
     OCP_ALL = "OCP_All"
     OCP_AWS = "OCP_AWS"
@@ -132,9 +139,11 @@ class Provider(models.Model):
         "ocp": PROVIDER_OCP,
         "azure": PROVIDER_AZURE,
         "gcp": PROVIDER_GCP,
+        "events": PROVIDER_EVENTS,
         "aws-local": PROVIDER_AWS_LOCAL,
         "azure-local": PROVIDER_AZURE_LOCAL,
         "gcp-local": PROVIDER_GCP_LOCAL,
+        "events-local": PROVIDER_EVENTS_LOCAL,
         "ocp-aws": OCP_AWS,
         "ocp-azure": OCP_AZURE,
     }
@@ -144,9 +153,11 @@ class Provider(models.Model):
         (PROVIDER_OCP, PROVIDER_OCP),
         (PROVIDER_AZURE, PROVIDER_AZURE),
         (PROVIDER_GCP, PROVIDER_GCP),
+        (PROVIDER_EVENTS, PROVIDER_EVENTS),
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
+        (PROVIDER_EVENTS_LOCAL, PROVIDER_EVENTS_LOCAL),
     )
     CLOUD_PROVIDER_CHOICES = (
         (PROVIDER_AWS, PROVIDER_AWS),

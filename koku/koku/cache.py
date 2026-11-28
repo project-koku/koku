@@ -27,6 +27,7 @@ LOG = logging.getLogger(__name__)
 
 AWS_CACHE_PREFIX = "aws-view"
 AZURE_CACHE_PREFIX = "azure-view"
+EVENTS_CACHE_PREFIX = "events-view"
 GCP_CACHE_PREFIX = "gcp-view"
 OPENSHIFT_CACHE_PREFIX = "openshift-view"
 OPENSHIFT_AWS_CACHE_PREFIX = "openshift-aws-view"
@@ -99,6 +100,8 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
         cache_key_prefixes = (AZURE_CACHE_PREFIX, OPENSHIFT_AZURE_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
     elif source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         cache_key_prefixes = (GCP_CACHE_PREFIX, OPENSHIFT_GCP_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
+    elif source_type in (Provider.PROVIDER_EVENTS, Provider.PROVIDER_EVENTS_LOCAL):
+        cache_key_prefixes = (EVENTS_CACHE_PREFIX,)
 
     for cache_key_prefix in cache_key_prefixes:
         invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix)
