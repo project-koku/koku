@@ -360,6 +360,10 @@ else:
         },
     }
 
+# Authorization backend: "v1" uses GET /api/rbac/v1/access/ (resource definitions);
+# "v2" reads RBAC v2 role bindings and keeps permission evaluation local.
+RBAC_BACKEND = ENVIRONMENT.get_value("RBAC_BACKEND", default="v1").lower()
+
 if ENVIRONMENT.bool("CACHED_VIEWS_DISABLED", default=False):
     CACHES.update({CacheEnum.default: {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
 DATABASES = {"default": database.config()}
