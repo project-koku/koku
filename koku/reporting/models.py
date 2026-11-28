@@ -68,6 +68,15 @@ from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureNetworkSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureStorageSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
+from reporting.provider.events.models import EventsCostEntryBill
+from reporting.provider.events.models import EventsCostEntryLineItemDailySummary
+from reporting.provider.events.models import EventsCostSummaryByProjectP
+from reporting.provider.events.models import EventsCostSummaryByServiceP
+from reporting.provider.events.models import EventsCostSummaryByTenantP
+from reporting.provider.events.models import EventsCostSummaryP
+from reporting.provider.events.models import EventsTagsSummary
+from reporting.provider.events.models import EventsTagsValues
+from reporting.provider.events.models import EventsUsageSummaryByMeterP
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
 from reporting.provider.gcp.models import GCPComputeSummaryP
 from reporting.provider.gcp.models import GCPCostEntryBill
