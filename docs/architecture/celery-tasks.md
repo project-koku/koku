@@ -158,9 +158,11 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 **Workflow**:
 1. Retrieves latest OCP manifest
 2. Checks rate limiting and task deduplication
-3. Updates OCP on cloud summary tables
-4. Triggers cost model updates
-5. Triggers data validation
+3. With the `cost-management.backend.ocp_on_cloud_single_flight` flag on (asynchronous calls only), takes a PostgreSQL session advisory lock per (OpenShift source, cloud source, billing month) of the range, in month order (`koku/masu/processor/ocp_on_cloud_run_lock.py`), and holds it for the whole run. The lock cannot expire mid-run and PostgreSQL releases it when the worker dies, so duplicate runs of the same work cannot overlap the way the WorkerCache lock allowed (COST-8410). Different months and different source pairs still run in parallel. Each run also clears its own cluster's rows of the window's summary tables inside the lock (`apply_openshift_on_cloud_window_deletes` → `delete_cluster_scoped_window_data`, scoped by cloud bill + report period for the daily summary and by cloud source + cluster for the UI tables, never truncating shared partitions), so a delayed successor of merged windows and an autoretry cannot double rows, and another cluster sharing the cloud source keeps its rows.
+4. A busy lock or a busy deduplication gate defers the window to the delayed tasks (`defer_busy_openshift_on_cloud`) instead of republishing the message immediately: every waiting copy of one (OpenShift source, cloud source, month) coalesces into a single successor row (`DelayedCeleryTasks`, `metadata.work_key`) whose date range covers all windows and whose `manifest_id` is the latest seen, with `keep_earlier_deadline` so streams of copies cannot postpone it. A deferral happens before the manifest is marked started or the matched-tags cache is dropped — both only happen once the run holds the lock. With the flag off, a busy gate republishes the task immediately, as before.
+5. Updates OCP on cloud summary tables
+6. Triggers cost model updates
+7. Triggers data validation
 
 ---
 
@@ -895,14 +897,21 @@ instead of immediately enqueueing `update_cost_model_costs` on the PriorityQueue
   (`DateHelper.list_month_tuples`)
 - **Latency**: after the last edit, wait is approximately `DELAYED_TASK_TIME`
   (default 3600s) plus up to one Beat poll interval (`DELAYED_TASK_POLLING_MINUTES`)
-- **Busy-lock deferrals** (single-flight, see `update_cost_model_costs`): a run whose
-  provider month is locked by another run writes into the same row with deadline 0
+- **Busy-lock deferrals** (single-flight, see `update_cost_model_costs` and
+  `update_openshift_on_cloud`): a run whose provider month (or source-pair month,
+  for OCP-on-cloud) is locked by another run writes into the same row with deadline 0
   and `keep_earlier_deadline=True`, which marks the row (`metadata.keep_earlier_deadline`).
   From then on any reset of that row, including a later edit through
   `delayed_update_cost_model_costs`, can move its deadline earlier but never later, so the
   row fires on the next Beat poll whatever arrives meanwhile. The mark goes with the row
   when it fires; unmarked rows keep the ordinary debounce. A busy deferral is stored even
   when `disable-celery-task-delay` is ON (firing at once would meet the same busy lock).
+  OCP-on-cloud rows carry `metadata.work_key` (the cloud source UUID) so one OpenShift
+  source summarized against several cloud sources keeps one successor per cloud source.
+  `create_or_reset_timeout` serializes a key's first creation with a transaction-scoped
+  advisory lock (`_lock_delayed_task_creation`): `SELECT ... FOR UPDATE` locks nothing
+  when the lookup is empty, so without it two busy copies deferring at the same moment
+  would both insert a row for the same work.
 - **Bypass**: when Unleash flag
   `cost-management.backend.disable-celery-task-delay` is ON for the schema, the
   delayed row is deleted immediately so `pre_delete` fires the real task promptly.
@@ -1107,7 +1116,7 @@ delete_source_beat (Beat Schedule)
 
 Several tasks implement deduplication to prevent concurrent execution:
 - `update_summary_tables` - Uses `WorkerCache` to track running tasks
-- `update_openshift_on_cloud` - Uses `WorkerCache` to track running tasks. When `cost-management.backend.ocp-on-cloud-month-wide-matched-tags` is on, matched-tag Trino fetches are month-wide, cached in Valkey by schema + OCP provider + cloud provider + month, and single-flighted with `try_lock_single_task` (`cache.add`) so five-day windows inside that run reuse one result. A run that actually processes deletes that cluster/cloud/month entry first so a later rebuild cannot reuse a stale empty result; enabling or disabling tag keys invalidates every matched-tags entry for the tenant.
+- `update_openshift_on_cloud` - Uses `WorkerCache` to track running tasks. With `cost-management.backend.ocp_on_cloud_single_flight` on, also holds a PostgreSQL session advisory lock per (OpenShift source, cloud source, billing month) for the whole run (`ocp_on_cloud_run_lock.py`) and defers busy work to the delayed tasks instead of republishing it. When `cost-management.backend.ocp-on-cloud-month-wide-matched-tags` is on, matched-tag Trino fetches are month-wide, cached in Valkey by schema + OCP provider + cloud provider + month, and single-flighted with `try_lock_single_task` (`cache.add`) so five-day windows inside that run reuse one result. A run that actually processes deletes that cluster/cloud/month entry first so a later rebuild cannot reuse a stale empty result; enabling or disabling tag keys invalidates every matched-tags entry for the tenant.
 - `update_cost_model_costs` - Uses `WorkerCache` for deduplication
 
 ### Rate Limiting

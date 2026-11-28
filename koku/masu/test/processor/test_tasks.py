@@ -1896,6 +1896,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         provider.refresh_from_db()
         self.assertGreater(provider.data_updated_timestamp, initial_update_time)
 
+    @patch("masu.processor.tasks.is_ocp_on_cloud_single_flight_enabled", return_value=False)
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     @patch("masu.processor.tasks.update_openshift_on_cloud.s")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
@@ -1904,7 +1905,15 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.update_cost_model_costs.s")
     @patch("masu.processor.tasks.validate_daily_data.s")
     def test_update_openshift_on_cloud_throttled(
-        self, mock_data_validator, mock_model_update, mock_inspect, mock_lock, mock_release, mock_delay, mock_update
+        self,
+        mock_data_validator,
+        mock_model_update,
+        mock_inspect,
+        mock_lock,
+        mock_release,
+        mock_delay,
+        mock_update,
+        _single_flight,
     ):
         """Test that refresh materialized views runs with cache lock."""
         start_date = self.dh.this_month_start.date()

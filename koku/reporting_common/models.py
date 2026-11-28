@@ -7,6 +7,7 @@ import logging
 from uuid import uuid4
 
 from django.conf import settings
+from django.db import connection
 from django.db import models
 from django.db import transaction
 from django.db.models.signals import pre_delete
@@ -152,6 +153,12 @@ class RegionMapping(models.Model):
 
 # DelayedCeleryTasks.metadata key: the row's deadline may only move earlier (see create_or_reset_timeout).
 KEEP_EARLIER_DEADLINE = "keep_earlier_deadline"
+# DelayedCeleryTasks.metadata key: discriminates rows of one provider_uuid that are separate work.
+WORK_KEY = "work_key"
+# Two-integer advisory lock namespace serializing the first creation of a delayed-task row:
+# SELECT ... FOR UPDATE locks nothing when the lookup is empty, so without it two concurrent
+# first-time calls with the same key would both insert a row for the same work.
+DELAYED_TASK_CREATION_LOCK_NAMESPACE = "delayed_celery_tasks_creation"
 
 
 class DelayedCeleryTasks(models.Model):
@@ -213,6 +220,22 @@ class DelayedCeleryTasks(models.Model):
 
         return merged
 
+    @staticmethod
+    def _keyed_filters_and_metadata(billing_month, work_key):
+        """Row lookup filters and new-row metadata for the billing_month/work_key keying."""
+        filters = {}
+        metadata = {}
+        if billing_month is not None:
+            billing_month_str = (
+                billing_month.isoformat() if hasattr(billing_month, "isoformat") else str(billing_month)
+            )
+            filters["metadata__billing_month"] = billing_month_str
+            metadata["billing_month"] = billing_month_str
+        if work_key is not None:
+            filters["metadata__work_key"] = str(work_key)
+            metadata[WORK_KEY] = str(work_key)
+        return filters, metadata
+
     @classmethod
     def create_or_reset_timeout(
         cls,
@@ -225,6 +248,7 @@ class DelayedCeleryTasks(models.Model):
         billing_month=None,
         merge_date_range=False,
         keep_earlier_deadline=False,
+        work_key=None,
     ):
         """
         Saves data regarding to the celery task being delayed.
@@ -232,7 +256,11 @@ class DelayedCeleryTasks(models.Model):
         When billing_month is provided, rows are keyed by
         (task_name, provider_uuid, metadata.billing_month) so callers can
         keep one pending task per calendar month. Omitting billing_month
-        preserves the legacy (task_name, provider_uuid) lookup.
+        preserves the legacy (task_name, provider_uuid) lookup. When
+        work_key is provided, rows are additionally keyed by
+        metadata.work_key, for callers whose provider_uuid spans several
+        separate work identities (e.g. one OpenShift source summarized
+        against each of several cloud sources).
 
         Lookup/update runs under ``select_for_update`` so concurrent resets
         for the same key serialize. When ``merge_date_range`` is True, the
@@ -245,14 +273,13 @@ class DelayedCeleryTasks(models.Model):
         ordinary debounce.
         """
         filters = {"task_name": task_name, "provider_uuid": provider_uuid}
-        billing_month_str = None
-        if billing_month is not None:
-            billing_month_str = (
-                billing_month.isoformat() if hasattr(billing_month, "isoformat") else str(billing_month)
-            )
-            filters["metadata__billing_month"] = billing_month_str
+        key_filters, key_metadata = cls._keyed_filters_and_metadata(billing_month, work_key)
+        filters.update(key_filters)
 
         with transaction.atomic():
+            # select_for_update cannot serialize the first creation (an empty lookup locks
+            # nothing), so serialize on the key itself before looking for a row.
+            _lock_delayed_task_creation(filters)
             existing_task = cls.objects.select_for_update().filter(**filters).first()
 
             if existing_task:
@@ -278,7 +305,7 @@ class DelayedCeleryTasks(models.Model):
             if not task_kwargs.get("tracing_id"):
                 task_kwargs["tracing_id"] = str(uuid4())
 
-            metadata = {"billing_month": billing_month_str} if billing_month_str is not None else {}
+            metadata = {**key_metadata}
             if keep_earlier_deadline:
                 metadata[KEEP_EARLIER_DEADLINE] = True
             new_task = cls(
@@ -292,6 +319,20 @@ class DelayedCeleryTasks(models.Model):
             new_task.set_timeout(timeout_seconds)
             new_task.save()
             return new_task
+
+
+def _lock_delayed_task_creation(filters):
+    """Serialize the creation of the delayed-task row matching these filters.
+
+    The lock is transaction-scoped, so PostgreSQL releases it when the surrounding
+    ``create_or_reset_timeout`` transaction commits or rolls back.
+    """
+    key = ":".join(f"{field}={value}" for field, value in sorted(filters.items()))
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+            [DELAYED_TASK_CREATION_LOCK_NAMESPACE, key],
+        )
 
 
 @receiver(pre_delete, sender=DelayedCeleryTasks)

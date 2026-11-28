@@ -181,6 +181,27 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 filters=ui_filters,
             )
 
+    def delete_cluster_scoped_window_data(self, openshift_provider_uuid, start_date, end_date):
+        """Delete one cluster's rows of the window's OCP-on-cloud summary tables.
+
+        The project daily summary is scoped by the cloud bill and the cluster's report
+        period, the UI summary tables by the cloud source and the cluster, so another
+        OpenShift cluster sharing the cloud source keeps its rows. Shared month
+        partitions are never truncated here.
+        """
+        cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        month_start = DateHelper().month_start(start_date)
+        with OCPReportDBAccessor(self._schema) as ocp_accessor:
+            report_period = ocp_accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+        with self.db_accessor(self._schema) as accessor:
+            bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date=month_start)
+            bill_id = bills.first().id if bills else None
+            if not report_period or bill_id is None:
+                return
+            self._delete_cluster_scoped_ocp_on_cloud_pg_data(
+                accessor, start_date, end_date, bill_id, report_period.id, cluster_id
+            )
+
     def update_summary_tables(self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type):
         """Populate the summary tables for reporting.
 
