@@ -1498,6 +1498,13 @@ class PriceListRatesBehavioralTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_rates_malformed_price_list_uuid_returns_404(self):
+        """An unsubstituted path parameter must not cause a server error."""
+        url = reverse("price-lists-rates", kwargs={"uuid": "price_list_uuid"})
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["errors"][0]["detail"], "Not found.")
+
     # --- TC-142: Rates endpoint has RBAC permission configured ---
 
     def test_rates_endpoint_has_rbac_permission(self):
