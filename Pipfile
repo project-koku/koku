@@ -80,6 +80,7 @@ tox = ">=4.26.0"
 watchdog = ">=2.1.1"
 polyfactory = "*"
 koku-nise = "*"
+hypothesis = "==6.170.15"
 
 [saas]
 trino = "*"
