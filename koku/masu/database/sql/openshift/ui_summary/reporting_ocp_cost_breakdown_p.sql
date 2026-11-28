@@ -59,7 +59,13 @@ LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cc
 WHERE r.usage_start >= {{start_date}}::date
     AND r.usage_start <= {{end_date}}::date
     AND r.source_uuid = {{source_uuid}}::uuid
-    AND r.monthly_cost_type IS NULL
+    -- Every rate's own cost, monthly rates included: monthly_cost_type also holds the rate type of a
+    -- monthly rate (Node, Cluster, PVC, OCP_VM, Tag, ...). Only distributed rows are left out (they
+    -- are overhead, Step 2), with the same list the distribution templates use.
+    AND (r.monthly_cost_type IS NULL OR r.monthly_cost_type NOT IN (
+        'worker_distributed', 'platform_distributed', 'gpu_distributed',
+        'unattributed_storage', 'unattributed_network'
+    ))
     AND (r.cost_category_id IS NULL OR cc.name != 'Platform')
     AND r.namespace NOT IN ('Worker unallocated', 'Storage unattributed', 'Network unattributed', 'GPU unallocated')
 GROUP BY r.usage_start, r.source_uuid, r.cluster_id,

@@ -14,6 +14,7 @@ See docs/architecture/cost-breakdown/phased-delivery.md § Concern 1 Resolution.
 See docs/architecture/cost-breakdown/risk-register.md § R18.
 """
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -647,19 +648,62 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 f"Distribution rows with NULL cost_model_id found for types: {null_types}",
             )
 
+    # ------------------------------------------------------------------
+    # Assertion 12: Per-rate distribution rows carry the source rate_id
+    # ------------------------------------------------------------------
+    def test_12_recipient_rows_carry_source_rate_id(self):
+        """Every per-rate distributed row has the rate_id of the source rows it was split from.
 
-class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
-    """Regression test: GPU unallocated cost distribution for multi-model nodes.
+        rate_id has no FK cascade (migration 0355); delete_rates_to_usage_rows removes a deleted
+        rate's rows by rate_id, so distributed rows without it would outlive the rate.
+        """
+        with schema_context(self.schema):
+            recipients = self._recipient_qs()
+            self.assertTrue(recipients.exists(), "distribution produced no per-rate rows")
+            missing = recipients.filter(rate_id__isnull=True)
+            missing_types = list(missing.values_list("monthly_cost_type", flat=True).distinct())
+            self.assertFalse(missing.exists(), f"per-rate distributed rows without rate_id: {missing_types}")
+            for dist_type in recipients.values_list("monthly_cost_type", flat=True).distinct():
+                source_pairs = set(self._source_qs(dist_type).values_list("custom_name", "rate_id").distinct())
+                recipient_pairs = set(
+                    recipients.filter(monthly_cost_type=dist_type).values_list("custom_name", "rate_id").distinct()
+                )
+                self.assertLessEqual(
+                    recipient_pairs, source_pairs, f"{dist_type}: (custom_name, rate_id) not found in its source rows"
+                )
+            negations = self._distributed_qs().filter(custom_name="")
+            self.assertFalse(
+                negations.filter(rate_id__isnull=False).exists(), "negation rows must not carry a rate_id"
+            )
 
-    ``gpu_rtu_cost`` in distribute_unallocated_gpu_cost_rtu.sql previously grouped
-    by node only (not GPU model), collapsing a multi-model node's per-model costs
-    into a single total. That total was then re-applied in full once per model
-    via a cross join through a separate ``gpu_model_map`` CTE and a MAX(...)
-    aggregate, over-distributing cost to real namespaces and leaving an incorrect
-    non-zero residual on the internal "GPU unallocated" accounting bucket instead
-    of netting to zero. The fix groups gpu_rtu_cost by gpu-model up front and
-    sums (rather than takes the max of) each namespace's per-model contributions.
-    """
+    # ------------------------------------------------------------------
+    # Assertion 13: Deleting a rate's rows removes its distributed rows too
+    # ------------------------------------------------------------------
+    def test_13_rate_cleanup_removes_distributed_rows(self):
+        """delete_rates_to_usage_rows for one rate removes its source and distributed rows, and only those."""
+        from masu.processor.tasks import delete_rates_to_usage_rows
+
+        with schema_context(self.schema):
+            rate_id = self._recipient_qs().values_list("rate_id", flat=True).first()
+            self.assertIsNotNone(rate_id, "distribution produced no per-rate rows")
+            in_window = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid, usage_start__gte=self.start_date, usage_start__lte=self.end_date
+            )
+            distributed_before = self._recipient_qs().filter(rate_id=rate_id).count()
+            others_before = in_window.exclude(rate_id=rate_id).count()
+            self.assertGreater(distributed_before, 0)
+
+        deleted = delete_rates_to_usage_rows(self.schema, rate_ids=[str(rate_id)])
+
+        with schema_context(self.schema):
+            self.assertGreaterEqual(deleted, distributed_before)
+            self.assertFalse(RatesToUsage.objects.filter(rate_id=rate_id).exists())
+            self.assertEqual(in_window.exclude(rate_id=rate_id).count(), others_before)
+
+
+class _GPUDistributionFixtures(_ReportPeriodMixin):
+    """Last-month report period, GPU source rows in rates_to_usage, GPU usage, and running the
+    GPU distribution through PostgreSQL (shared by the GPU distribution tests)."""
 
     NODE = "gpu-node-cost-breakdown-test"
 
@@ -807,6 +851,20 @@ class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
                         use_rtu=True,
                     )
 
+
+class TestGPUUnallocatedDistributionRTU(_GPUDistributionFixtures, MasuTestCase):
+    """Regression test: GPU unallocated cost distribution for multi-model nodes.
+
+    ``gpu_rtu_cost`` in distribute_unallocated_gpu_cost_rtu.sql previously grouped
+    by node only (not GPU model), collapsing a multi-model node's per-model costs
+    into a single total. That total was then re-applied in full once per model
+    via a cross join through a separate ``gpu_model_map`` CTE and a MAX(...)
+    aggregate, over-distributing cost to real namespaces and leaving an incorrect
+    non-zero residual on the internal "GPU unallocated" accounting bucket instead
+    of netting to zero. The fix groups gpu_rtu_cost by gpu-model up front and
+    sums (rather than takes the max of) each namespace's per-model contributions.
+    """
+
     def test_multi_model_node_distributes_exact_source_cost(self):
         """A multi-GPU-model node must distribute exactly its total source cost.
 
@@ -863,6 +921,142 @@ class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
                 places=2,
                 msg=f"GPU unallocated bucket must net to zero after distribution, got {net_balance}",
             )
+
+
+class _Day2DateHelper(DateHelper):
+    """DateHelper whose "now" is the 2nd of the current month, when the GPU distribution
+    of a current-month run covers the whole previous month."""
+
+    @property
+    def now_utc(self):
+        return super().now_utc.replace(day=2)
+
+
+class TestGPUFullMonthDistributionAggregationRTU(_GPUDistributionFixtures, MasuTestCase):
+    """COST-8586: a full-month GPU distribution must reach the daily summary for its whole window.
+
+    The GPU distribution runs over a whole month: on the 2nd of the month a current-month
+    run distributes the previous month, and a past-month run always distributes the full
+    month. It deletes that window's ``gpu_distributed`` daily summary rows and writes new
+    rows to ``rates_to_usage``, so the aggregate and the UI summaries must cover the same
+    window, not only the run's own dates.
+    """
+
+    def _distribute_and_update(self, summary_range, date_helper=DateHelper):
+        """Run distribute_costs_and_update_ui_summary (RTU) with GPU distribution on; return the UI summary mock."""
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater._distribution_info = {"distribution_type": "cpu", metric_constants.GPU_UNALLOCATED: True}
+
+        def run_via_postgres(accessor, sql, bind_params=None):
+            # gpu_distributed is routed through Trino; run the self_hosted_sql template on PostgreSQL
+            # instead, as _GPUDistributionFixtures._run_gpu_distribution does.
+            accessor._prepare_and_execute_raw_sql_query(
+                accessor._table_map["line_item_daily_summary"], sql, bind_params, operation="INSERT (test)"
+            )
+
+        populate_ui = OCPReportDBAccessor.populate_ui_summary_tables
+        with (
+            patch(
+                "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
+                return_value=True,
+            ),
+            patch("masu.util.ocp.common.trino_table_exists", return_value=True),
+            override_settings(ONPREM=True),
+            patch("masu.database.ocp_report_db_accessor.DateHelper", date_helper),
+            patch.object(
+                OCPReportDBAccessor, "_execute_trino_multipart_sql_query", autospec=True, side_effect=run_via_postgres
+            ),
+            patch.object(
+                OCPReportDBAccessor, "populate_ui_summary_tables", autospec=True, side_effect=populate_ui
+            ) as ui_summary,
+        ):
+            updater.distribute_costs_and_update_ui_summary(summary_range, use_rtu=True)
+        return ui_summary
+
+    def _daily_summary_gpu_by_namespace(self):
+        with schema_context(self.schema):
+            distributed_in_rtu = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start=self.usage_start,
+                node=self.NODE,
+                monthly_cost_type="gpu_distributed",
+            ).exists()
+            self.assertTrue(distributed_in_rtu, "the GPU distribution did not run: no gpu_distributed rows in RTU")
+            rows = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start=self.usage_start,
+                node=self.NODE,
+                cost_model_rate_type="gpu_distributed",
+            ).exclude(namespace="GPU unallocated")
+            return {
+                namespace: float(total)
+                for namespace, total in rows.values("namespace")
+                .annotate(total=Sum("distributed_cost"))
+                .values_list("namespace", "total")
+            }
+
+    @staticmethod
+    def _windows(ui_summary):
+        return {(call.args[1].start_date, call.args[1].end_date) for call in ui_summary.call_args_list}
+
+    def test_day2_previous_month_distribution_reaches_daily_summary(self):
+        """Day 2: the previous month's GPU distribution lands in that month's daily summary and UI summaries."""
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+        current_start = DateHelper().this_month_start.date()
+        run = SummaryRangeConfig(start_date=current_start, end_date=current_start + timedelta(days=1))
+
+        ui_summary = self._distribute_and_update(run, date_helper=_Day2DateHelper)
+
+        by_namespace = self._daily_summary_gpu_by_namespace()
+        self.assertAlmostEqual(by_namespace.get("proj-a", 0), 37.0, places=2, msg=by_namespace)
+        self.assertAlmostEqual(by_namespace.get("proj-b", 0), 63.0, places=2, msg=by_namespace)
+        self.assertIn((self.start_date, self.end_date), self._windows(ui_summary))
+
+    def test_day2_rerun_finds_the_previous_month_finalized(self):
+        """A second day-2 run sees the aggregated rows and does not redistribute the previous month."""
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+        current_start = DateHelper().this_month_start.date()
+        self._distribute_and_update(
+            SummaryRangeConfig(start_date=current_start, end_date=current_start + timedelta(days=1)),
+            date_helper=_Day2DateHelper,
+        )
+        with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logs:
+            self._distribute_and_update(
+                SummaryRangeConfig(start_date=current_start, end_date=current_start + timedelta(days=1)),
+                date_helper=_Day2DateHelper,
+            )
+        self.assertTrue(any("previous month already finalized" in line for line in logs.output))
+
+    def test_partial_past_month_run_keeps_the_whole_month_distribution(self):
+        """A past-month run over its last days still leaves the month's GPU distribution in the daily summary."""
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+        run = SummaryRangeConfig(start_date=self.end_date - timedelta(days=1), end_date=self.end_date)
+
+        ui_summary = self._distribute_and_update(run)
+
+        by_namespace = self._daily_summary_gpu_by_namespace()
+        self.assertAlmostEqual(by_namespace.get("proj-a", 0), 37.0, places=2, msg=by_namespace)
+        self.assertAlmostEqual(by_namespace.get("proj-b", 0), 63.0, places=2, msg=by_namespace)
+        self.assertIn((self.start_date, self.end_date), self._windows(ui_summary))
+
+    def test_full_month_run_does_not_duplicate_distributed_rows(self):
+        """When the run's own dates cover the GPU rows, the main aggregate and the full-month step
+        both write them; the daily summary must hold them once."""
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+
+        ui_summary = self._distribute_and_update(
+            SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        )
+
+        by_namespace = self._daily_summary_gpu_by_namespace()
+        self.assertAlmostEqual(by_namespace.get("proj-a", 0), 37.0, places=2, msg=by_namespace)
+        self.assertAlmostEqual(by_namespace.get("proj-b", 0), 63.0, places=2, msg=by_namespace)
+        # The run's window is the distribution's window: no extra UI summary refresh.
+        self.assertEqual(len(ui_summary.call_args_list), 1)
 
 
 class TestBreakdownSQLFixes(_ReportPeriodMixin, MasuTestCase):
@@ -1211,6 +1405,139 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
             places=10,
             msg="Idempotency: distributed_cost total changed",
         )
+
+
+class TestBreakdownMonthlyRatesRTU(_ReportPeriodMixin, MasuTestCase):
+    """The cost breakdown must hold the cost of monthly rates and add up to the cluster's cost.
+
+    Rows of monthly rates (Node, Cluster, PVC, OCP_VM, Tag, ...) carry their rate type in
+    monthly_cost_type, as distributed rows carry their distribution type. The breakdown SQL
+    took monthly_cost_type IS NULL as "not distributed" and left every monthly rate's own
+    cost out of the tree (seen in ephemeral, 2026-11-28: the tree held 60,789.67 of a
+    cluster's 104,863.78 for October).
+    """
+
+    PROJECT = "breakdown-monthly-proj"
+    NODE = "breakdown-monthly-node"
+
+    def setUp(self):
+        super().setUp()
+        rp = self._get_report_period()
+        self.provider_uuid = self.ocp_provider.uuid
+        self.day = rp.report_period_start.date()
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        self.cost_model_id = updater._cost_model_id
+        if not self.cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        common = dict(
+            report_period_id=rp.id,
+            source_uuid_id=self.provider_uuid,
+            usage_start=self.day,
+            usage_end=self.day,
+            node=self.NODE,
+            cluster_id=rp.cluster_id,
+            cluster_alias=rp.cluster_alias,
+            cost_model_id=self.cost_model_id,
+        )
+        rows = [
+            # A usage rate and two monthly rates on a project namespace.
+            dict(
+                namespace=self.PROJECT,
+                custom_name="cpu-usage",
+                metric_type="cpu",
+                cost_model_rate_type="Supplementary",
+                calculated_cost=Decimal("10"),
+            ),
+            dict(
+                namespace=self.PROJECT,
+                custom_name="node-month",
+                metric_type="cpu",
+                cost_model_rate_type="Infrastructure",
+                monthly_cost_type="Node",
+                calculated_cost=Decimal("20"),
+            ),
+            dict(
+                namespace=self.PROJECT,
+                custom_name="gpu-month",
+                metric_type="gpu",
+                cost_model_rate_type="Infrastructure",
+                monthly_cost_type="Tag",
+                calculated_cost=Decimal("5"),
+            ),
+            # The node rate's unallocated share, distributed to the project (+8 there, -8 on the source).
+            dict(
+                namespace="Worker unallocated",
+                custom_name="node-month",
+                metric_type="cpu",
+                cost_model_rate_type="Infrastructure",
+                monthly_cost_type="Node",
+                calculated_cost=Decimal("8"),
+            ),
+            dict(
+                namespace=self.PROJECT,
+                custom_name="node-month",
+                metric_type="cpu",
+                cost_model_rate_type="worker_distributed",
+                monthly_cost_type="worker_distributed",
+                distributed_cost=Decimal("8"),
+            ),
+            dict(
+                namespace="Worker unallocated",
+                custom_name="node-month",
+                metric_type="cpu",
+                cost_model_rate_type="worker_distributed",
+                monthly_cost_type="worker_distributed",
+                distributed_cost=Decimal("-8"),
+            ),
+        ]
+        with schema_context(self.schema):
+            RatesToUsage.objects.filter(source_uuid=self.provider_uuid, usage_start=self.day).delete()
+            for row in rows:
+                RatesToUsage.objects.create(**common, **row)
+        summary_range = SummaryRangeConfig(start_date=self.day, end_date=self.day)
+        with (
+            patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False),
+            patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False),
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_ui_summary_tables(
+                    summary_range, self.provider_uuid, tables=["reporting_ocp_cost_breakdown_p"]
+                )
+
+    def _breakdown(self, **filters):
+        with schema_context(self.schema):
+            return list(
+                OCPCostUIBreakDownP.objects.filter(source_uuid=self.provider_uuid, usage_start=self.day, **filters)
+            )
+
+    @staticmethod
+    def _total(rows):
+        return sum((row.cost_value or Decimal(0)) + (row.distributed_cost or Decimal(0)) for row in rows)
+
+    def test_monthly_rates_are_project_leaves(self):
+        """Each monthly rate on a project namespace is a project.usage_cost leaf holding its cost."""
+        leaves = {
+            row.custom_name: row.cost_value
+            for row in self._breakdown(depth=4, top_category="project", namespace=self.PROJECT)
+        }
+        self.assertEqual(leaves, {"cpu-usage": Decimal("10"), "node-month": Decimal("20"), "gpu-month": Decimal("5")})
+
+    def test_tree_adds_up_to_the_cluster_cost(self):
+        """The root holds the cluster's cost: every rate's cost, the distributed share counted once."""
+        with schema_context(self.schema):
+            rtu = RatesToUsage.objects.filter(source_uuid=self.provider_uuid, usage_start=self.day).aggregate(
+                calculated=Sum("calculated_cost"), distributed=Sum("distributed_cost")
+            )
+        cluster_cost = (rtu["calculated"] or Decimal(0)) + (rtu["distributed"] or Decimal(0))
+        self.assertEqual(cluster_cost, Decimal("43"))
+        self.assertEqual(self._total(self._breakdown(depth=1)), cluster_cost)
+        self.assertEqual(self._total(self._breakdown(depth=2, top_category="project")), Decimal("35"))
+        self.assertEqual(self._total(self._breakdown(depth=2, top_category="overhead")), Decimal("8"))
+
+    def test_distributed_rows_stay_out_of_the_project_leaves(self):
+        """Distributed rows are overhead only: no project leaf carries a distribution type."""
+        rate_types = {row.cost_model_rate_type for row in self._breakdown(depth=4, top_category="project")}
+        self.assertFalse(rate_types & {"worker_distributed", "platform_distributed", "gpu_distributed"}, rate_types)
 
 
 # ---------------------------------------------------------------------------
