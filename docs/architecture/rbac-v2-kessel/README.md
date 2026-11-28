@@ -1,7 +1,6 @@
 # RBAC v2 design — minimal Cost integration
 
-**Status:** draft share-out (architecture). Experimental implementation: [#6477](https://github.com/project-koku/koku/pull/6477) (`RBAC_BACKEND=v1` by default).  
-**Audience:** Project Kessel, RBAC v2, Platform IAM, Cost Management.
+**Status:** draft share-out (architecture). Experimental implementation: [#6477](https://github.com/project-koku/koku/pull/6477) (`RBAC_BACKEND=v1` by default). **Companions:** [v1 → v2 mapping](v1-to-v2-mapping.md) · [alternatives and cross-project evidence](alternatives.md). **Audience:** Project Kessel, RBAC v2, Platform IAM, Cost Management.
 
 The smallest SaaS migration away from RBAC v1 that still uses the platform for identity: **RBAC v2 owns users, groups, and the grant store; Cost owns the permission semantics, the objects, and the evaluation.** Kessel is a replication target, not a decision point on the Cost request path.
 
@@ -35,6 +34,9 @@ Options for leaving RBAC v1, with the trade-offs that led to this design.
 | **C. Outbox + Kessel reporting** | Inventory / relations | yes (`Check`) | outbox, relay, schema, resource reporting | no `source` type; schema work; Cost must not write RBAC’s relation-replication topic |
 | **D. Workspace-only** | workspaces + workspace `Check` | yes | coarse workspace mapping only | **over-exposes**: everyone bound to a workspace sees all objects mapped there — loses per-account/cluster/NS narrowing. **Not an acceptable fallback** for Cost |
 | **E. rbac-mini in SaaS** | Cost-owned tables | no | BOP/IT (or other) identity adapter | out of scope **under the identity assumption** above; reopen if Kessel says Cost may own SaaS directory differently |
+
+> [!note] D vs KSL-75 phase 0
+> "D" here means a workspace `Check` **without** the Cost-side object mapping. KSL-75 phase 0 keeps that mapping (option B in this table); the "not acceptable" conclusion is about dropping the mapping, not about phase 0.
 
 **Why B wins**
 
@@ -120,6 +122,9 @@ Report types have **no write**. Cost models and settings use **read or write onl
 
 > [!note] Why not `aws.account:*`?
 > In today’s v1 catalog many report permissions are stored as `…:*`. In koku that does **not** mean read+write — `RESOURCE_TYPES` for accounts/clusters only lists `read`, so `*` collapses to read. For v2 we seed **`:read`** explicitly so RBAC/Kessel readers are not misled. Legacy `:*` on report types, if still present in rbac-config, maps to the same read role during migration.
+
+> [!warning] Platform dependency: the `:read` verbs are not seeded yet
+> As of 2026-11-22 the stage catalog exposes only `cost-management:<type>:*` for report types, and koku's v1 catalog has no `read` for them either; creating a v2 role with `aws.account:read` fails with `PermissionsNotFoundError`. This table is the **target** catalog and needs a `rbac-config` change (seed `:read`/`:write` and update the system roles) before tenants migrate. Until then `*` is the effective read grant, as measured in the lab.
 
 **Only remaining `*` that means “all resources”** is in the **Cost mapping table** (tenant schema), e.g. `(aws.account, *, workspace_uuid)` — not on the RBAC permission verb (except org-admin `cost-management:*:*`).
 
@@ -509,10 +514,11 @@ Resolved in this share-out: ~11 roles; flat Phase 0; workspaces RBAC-UI-only; So
 
 **This share-out**
 
+- Companion docs: [v1 → v2 mapping](v1-to-v2-mapping.md) · [alternatives and cross-project evidence](alternatives.md)
 - Topology + wireframe assets: [`./assets/`](./assets/)
 - Catalog entry: [`docs/architecture/README.md`](../README.md)
 
-**Exploration / prior draft:** [#6477](https://github.com/project-koku/koku/pull/6477) — this share-out supersedes that README for external discussion.
+**Earlier draft:** the initial `docs/RBACv2/` README was consolidated into this document; see [#6477](https://github.com/project-koku/koku/pull/6477).
 
 **Platform**
 
@@ -526,6 +532,7 @@ Resolved in this share-out: ~11 roles; flat Phase 0; workspaces RBAC-UI-only; So
 
 | Date | Change |
 |------|--------|
+| 2026-11-28 | Consolidated under `docs/architecture/rbac-v2-kessel/`; added mapping + alternatives companions; noted the `:read` platform dependency and clarified D vs KSL-75 phase 0 |
 | 2026-11-27 | Reframe BOP/IT / rbac-mini SaaS exclusion as assumption; add Kessel ask #0 |
 | 2026-11-26 | Replace Open mapping with light Fig.1–3 v1-style resource-definition flow |
 | 2026-11-26 | Light Open mapping; RBAC section uses illustrative workspaces screenshot + disclaimer |
