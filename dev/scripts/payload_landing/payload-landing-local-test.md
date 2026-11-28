@@ -49,7 +49,7 @@ make create-test-customer
 
 Build a tarball whose `manifest.json` has `cluster_id` `my-ocp-cluster-1` and dates within `RETAIN_NUM_MONTHS` (default four). Nise writes under `--insights-upload`; tar **one** `YYYYMMDD-YYYYMMDD` folder so `manifest.json` is at the archive root.
 
-**Quick path** (from repo root; `pipenv install` if `pipenv run nise` is missing):
+**Quick path** (from repo root; `pipenv install --categories=default,develop,saas` if `pipenv run nise` is missing):
 
 ```bash
 dev/scripts/payload_landing/build_ingress_payload_tar.sh -s 2026-09-01 -e 2026-09-30

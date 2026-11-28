@@ -56,7 +56,12 @@ Always use `| sqlsafe` filter for identifiers:
 ## Common Template Parameters
 
 - `schema` - Customer schema name
-- `source_uuid` - Provider UUID
+- `source_uuid` - Provider UUID. Compare it to the varchar `source` columns
+  (`openshift_*_line_items*`) as `{{source_uuid | string}}`, and to uuid
+  columns as `{{source_uuid}}::uuid` (`CAST({{source_uuid}} AS UUID)` in
+  Trino): a bare `{{source_uuid}}` against `source` fails on PostgreSQL when
+  a caller passes a `uuid.UUID`. `test_source_uuid_varchar_type_cast` guards
+  this.
 - `start_date`, `end_date` - Date range
 - `year`, `month` - Partition keys
 - `rate`, `value_rates`, `default_rate` - Cost model rates

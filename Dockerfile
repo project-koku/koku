@@ -48,7 +48,7 @@ COPY Pipfile .
 COPY Pipfile.lock .
 RUN \
     # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
-    pipenv sync && \
+    pipenv sync --categories=default,saas && \
     # delete the pipenv cache
     pipenv --clear
 
@@ -60,8 +60,14 @@ ENV \
     PATH="$VIRTUAL_ENV/bin:$PATH" \
     PROMETHEUS_MULTIPROC_DIR=/tmp
 
-# copy the src files into the workdir
-COPY . .
+# Copy the application inputs into the workdir. The librdkafka submodule is
+# included in the build context for Dockerfile.onprem, but is not needed by the
+# SaaS image.
+COPY koku/ koku/
+COPY docs/specs/ docs/specs/
+COPY db_functions/ db_functions/
+COPY licenses/ licenses/
+COPY scripts/ scripts/
 RUN mv licenses/ /
 
 # create the koku user

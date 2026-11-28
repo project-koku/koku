@@ -28,6 +28,7 @@ COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_
 COST_MODEL_SINGLE_FLIGHT_FLAG = "cost-management.backend.cost-model-single-flight"
 COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
 CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
+CURRENCY_DISCOVERY_OPTIMIZATION_FLAG = "cost-management.backend.currency-discovery-optimization"
 DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
@@ -39,7 +40,6 @@ OCP_INGRESS_ENFORCE_PAYLOAD_LIMITS_FLAG = "cost-management.backend.ocp-ingress-e
 OCP_INGRESS_POST_RATE_LIMIT_FLAG = "cost-management.backend.ocp-ingress-post-rate-limit"
 OCP_ON_CLOUD_MONTH_WIDE_MATCHED_TAGS_FLAG = "cost-management.backend.ocp-on-cloud-month-wide-matched-tags"
 OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG = "cost-management.backend.ocp_on_cloud_pg_idempotent_delete"
-OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
 OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
 OCP_SPECIAL_MATCHED_TAGS_FROM_SUMMARY_FLAG = "cost-management.backend.ocp-special-matched-tags-from-summary"
 OCP_TAG_MAPPING_DIAGNOSTICS_FLAG = "cost-management.backend.ocp_tag_mapping_diagnostics"
@@ -56,6 +56,11 @@ def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):
         return UNLEASH_CLIENT.is_enabled(feature_flag, context, fallback_development_true)
     else:
         return UNLEASH_CLIENT.is_enabled(feature_flag, context)
+
+
+def is_currency_discovery_optimization_enabled(schema: str) -> bool:
+    """Keep this rollout OFF unless explicitly enabled, including development."""
+    return is_feature_flag_enabled_by_schema(schema, CURRENCY_DISCOVERY_OPTIMIZATION_FLAG, dev_fallback=False)
 
 
 def is_apply_tag_mappings_enabled(schema):  # pragma: no cover
