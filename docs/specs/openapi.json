@@ -5107,19 +5107,27 @@
                             "application/json": {
                                 "schema": {
                                     "type": "object",
-                                    "description": "Dictionary key is the start of a billing month.  Value is report processing statistics.",
+                                    "description": "Top-level keys are provider_linked, data_updated_date, ocp_on_cloud_data_updated_date, plus one YYYY-MM-01 key per billing month. Month values include summary/cost-model timestamps (updated on ingest and resummary) and recent manifests.",
                                     "example": {
-                                        "2019-01-01": [
-                                            {
-                                                "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
-                                                "billing_period_start": "2019-01-01T00:00:00.000Z",
-                                                "files_processed": "1/1",
-                                                "process_start_date": "2019-01-07T21:50:58.000Z",
-                                                "process_complete_date": "2019-01-07T21:51:01.000Z",
-                                                "summary_data_creation_datetime": "2019-01-07T21:51:32.000Z",
-                                                "summary_data_updated_datetime": "2019-01-07T21:51:32.000Z"
-                                            }
-                                        ]
+                                        "provider_linked": true,
+                                        "data_updated_date": "2019-01-07 21:52:01",
+                                        "ocp_on_cloud_data_updated_date": null,
+                                        "2019-01-01": {
+                                            "summary_data_creation_datetime": "2019-01-07 21:51:32",
+                                            "summary_data_updated_datetime": "2019-01-07 21:51:32",
+                                            "derived_cost_datetime": "2019-01-07 21:52:01",
+                                            "manifests": [
+                                                {
+                                                    "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                                                    "billing_period_start": "2019-01-01",
+                                                    "files_processed": "1/1",
+                                                    "process_start_date": "2019-01-07 21:50:58",
+                                                    "process_complete_date": "2019-01-07 21:51:01",
+                                                    "manifest_complete_date": "2019-01-07 21:51:32",
+                                                    "export_datetime": "2019-01-07 21:40:00"
+                                                }
+                                            ]
+                                        }
                                     }
                                 }
                             }
