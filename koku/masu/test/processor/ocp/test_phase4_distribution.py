@@ -1407,6 +1407,139 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
         )
 
 
+class TestBreakdownMonthlyRatesRTU(_ReportPeriodMixin, MasuTestCase):
+    """The cost breakdown must hold the cost of monthly rates and add up to the cluster's cost.
+
+    Rows of monthly rates (Node, Cluster, PVC, OCP_VM, Tag, ...) carry their rate type in
+    monthly_cost_type, as distributed rows carry their distribution type. The breakdown SQL
+    took monthly_cost_type IS NULL as "not distributed" and left every monthly rate's own
+    cost out of the tree (seen in ephemeral, 2026-11-28: the tree held 60,789.67 of a
+    cluster's 104,863.78 for October).
+    """
+
+    PROJECT = "breakdown-monthly-proj"
+    NODE = "breakdown-monthly-node"
+
+    def setUp(self):
+        super().setUp()
+        rp = self._get_report_period()
+        self.provider_uuid = self.ocp_provider.uuid
+        self.day = rp.report_period_start.date()
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        self.cost_model_id = updater._cost_model_id
+        if not self.cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        common = dict(
+            report_period_id=rp.id,
+            source_uuid_id=self.provider_uuid,
+            usage_start=self.day,
+            usage_end=self.day,
+            node=self.NODE,
+            cluster_id=rp.cluster_id,
+            cluster_alias=rp.cluster_alias,
+            cost_model_id=self.cost_model_id,
+        )
+        rows = [
+            # A usage rate and two monthly rates on a project namespace.
+            dict(
+                namespace=self.PROJECT,
+                custom_name="cpu-usage",
+                metric_type="cpu",
+                cost_model_rate_type="Supplementary",
+                calculated_cost=Decimal("10"),
+            ),
+            dict(
+                namespace=self.PROJECT,
+                custom_name="node-month",
+                metric_type="cpu",
+                cost_model_rate_type="Infrastructure",
+                monthly_cost_type="Node",
+                calculated_cost=Decimal("20"),
+            ),
+            dict(
+                namespace=self.PROJECT,
+                custom_name="gpu-month",
+                metric_type="gpu",
+                cost_model_rate_type="Infrastructure",
+                monthly_cost_type="Tag",
+                calculated_cost=Decimal("5"),
+            ),
+            # The node rate's unallocated share, distributed to the project (+8 there, -8 on the source).
+            dict(
+                namespace="Worker unallocated",
+                custom_name="node-month",
+                metric_type="cpu",
+                cost_model_rate_type="Infrastructure",
+                monthly_cost_type="Node",
+                calculated_cost=Decimal("8"),
+            ),
+            dict(
+                namespace=self.PROJECT,
+                custom_name="node-month",
+                metric_type="cpu",
+                cost_model_rate_type="worker_distributed",
+                monthly_cost_type="worker_distributed",
+                distributed_cost=Decimal("8"),
+            ),
+            dict(
+                namespace="Worker unallocated",
+                custom_name="node-month",
+                metric_type="cpu",
+                cost_model_rate_type="worker_distributed",
+                monthly_cost_type="worker_distributed",
+                distributed_cost=Decimal("-8"),
+            ),
+        ]
+        with schema_context(self.schema):
+            RatesToUsage.objects.filter(source_uuid=self.provider_uuid, usage_start=self.day).delete()
+            for row in rows:
+                RatesToUsage.objects.create(**common, **row)
+        summary_range = SummaryRangeConfig(start_date=self.day, end_date=self.day)
+        with (
+            patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False),
+            patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False),
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_ui_summary_tables(
+                    summary_range, self.provider_uuid, tables=["reporting_ocp_cost_breakdown_p"]
+                )
+
+    def _breakdown(self, **filters):
+        with schema_context(self.schema):
+            return list(
+                OCPCostUIBreakDownP.objects.filter(source_uuid=self.provider_uuid, usage_start=self.day, **filters)
+            )
+
+    @staticmethod
+    def _total(rows):
+        return sum((row.cost_value or Decimal(0)) + (row.distributed_cost or Decimal(0)) for row in rows)
+
+    def test_monthly_rates_are_project_leaves(self):
+        """Each monthly rate on a project namespace is a project.usage_cost leaf holding its cost."""
+        leaves = {
+            row.custom_name: row.cost_value
+            for row in self._breakdown(depth=4, top_category="project", namespace=self.PROJECT)
+        }
+        self.assertEqual(leaves, {"cpu-usage": Decimal("10"), "node-month": Decimal("20"), "gpu-month": Decimal("5")})
+
+    def test_tree_adds_up_to_the_cluster_cost(self):
+        """The root holds the cluster's cost: every rate's cost, the distributed share counted once."""
+        with schema_context(self.schema):
+            rtu = RatesToUsage.objects.filter(source_uuid=self.provider_uuid, usage_start=self.day).aggregate(
+                calculated=Sum("calculated_cost"), distributed=Sum("distributed_cost")
+            )
+        cluster_cost = (rtu["calculated"] or Decimal(0)) + (rtu["distributed"] or Decimal(0))
+        self.assertEqual(cluster_cost, Decimal("43"))
+        self.assertEqual(self._total(self._breakdown(depth=1)), cluster_cost)
+        self.assertEqual(self._total(self._breakdown(depth=2, top_category="project")), Decimal("35"))
+        self.assertEqual(self._total(self._breakdown(depth=2, top_category="overhead")), Decimal("8"))
+
+    def test_distributed_rows_stay_out_of_the_project_leaves(self):
+        """Distributed rows are overhead only: no project leaf carries a distribution type."""
+        rate_types = {row.cost_model_rate_type for row in self._breakdown(depth=4, top_category="project")}
+        self.assertFalse(rate_types & {"worker_distributed", "platform_distributed", "gpu_distributed"}, rate_types)
+
+
 # ---------------------------------------------------------------------------
 # Markup double-count regression (PR #6163 maintainer review,
 # pullrequestreview-4910210286): with the RTU flag on, _update_markup_cost()
